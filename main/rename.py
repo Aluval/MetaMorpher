@@ -87,7 +87,7 @@ async def change_index(bot, msg):
     stream_type = index_params[0]
     indexes = [int(i) - 1 for i in index_params[1:]]
 
-    ffmpeg_cmd = ['ffmpeg', '-i', downloaded]
+    ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0']
 
     for idx in indexes:
         ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
