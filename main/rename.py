@@ -60,6 +60,13 @@ async def rename_file(bot, msg):
         pass
     await sts.delete()
 
+import os
+import time
+import subprocess
+from pyrogram import Client, filters
+from config import DOWNLOAD_LOCATION, BOT_TOKEN
+from main.utils import progress_message, humanbytes
+
 # Change Index Command
 @Client.on_message(filters.private & filters.command("changeindex"))
 async def change_index(bot, msg):
@@ -87,7 +94,7 @@ async def change_index(bot, msg):
     stream_type = index_params[0]
     indexes = [int(i) - 1 for i in index_params[1:]]
 
-    ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0']
+    ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']  # Always map video stream
 
     for idx in indexes:
         ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
