@@ -60,13 +60,12 @@ async def rename_file(bot, msg):
         pass
     await sts.delete()
 
-
 # Change Index Command
 @Client.on_message(filters.private & filters.command("changeindex"))
 async def change_index(bot, msg):
     reply = msg.reply_to_message
-    if not reply or not reply.video:
-        return await msg.reply_text("Please reply to a video with the index command\nFormat: `a-3-1-2` (Audio) or `s-2-1` (Subtitle)")
+    if not reply:
+        return await msg.reply_text("Please reply to a media file with the index command\nFormat: `a-3-1-2` (Audio) or `s-2-1` (Subtitle)")
 
     if len(msg.command) < 2:
         return await msg.reply_text("Please provide the index command\nFormat: `a-3-1-2` (Audio) or `s-2-1` (Subtitle)")
@@ -75,7 +74,11 @@ async def change_index(bot, msg):
     if not (index_cmd.startswith("a-") or index_cmd.startswith("s-")):
         return await msg.reply_text("Invalid format. Use `a-3-1-2` for audio or `s-2-1` for subtitles.")
 
-    sts = await msg.reply_text("🚀Downloading video...⚡")
+    media = reply.document or reply.audio or reply.video
+    if not media:
+        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the index command.")
+
+    sts = await msg.reply_text("🚀Downloading media...⚡")
     c_time = time.time()
     downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
 
@@ -85,10 +88,11 @@ async def change_index(bot, msg):
     indexes = [int(i) - 1 for i in index_params[1:]]
 
     ffmpeg_cmd = ['ffmpeg', '-i', downloaded]
+
     for idx in indexes:
         ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
 
-    ffmpeg_cmd.extend([output_file, '-y'])
+    ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
 
     process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
@@ -115,4 +119,4 @@ async def change_index(bot, msg):
 
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
-    app.run() 
+    app.run()
