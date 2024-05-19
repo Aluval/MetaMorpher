@@ -1,5 +1,5 @@
 pyrogram
 Tgcrypto
-ffmpeg 
+ffmpeg-python
 
 
