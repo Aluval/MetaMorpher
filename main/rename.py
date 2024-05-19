@@ -60,28 +60,31 @@ async def rename_file(bot, msg):
         pass
     await sts.delete()
 
+
 # Change Index Command
 @Client.on_message(filters.private & filters.command("changeindex"))
 async def change_index(bot, msg):
     reply = msg.reply_to_message
-    if len(msg.command) < 2 or not reply:
-        return await msg.reply_text("Please Reply To A Video With The Index Command\nFormat: `a-3-1-2` (Audio) or `s-2-1` (Subtitle)")
-    media = reply.video
-    if not media:
-        return await msg.reply_text("Please Reply To A Video With The Index Command\nFormat: `a-3-1-2` (Audio) or `s-2-1` (Subtitle)")
-    
-    index_cmd = msg.text.split(" ", 1)[1].strip().lower()
-    sts = await msg.reply_text("🚀Downloading video.....⚡")
+    if not reply or not reply.video:
+        return await msg.reply_text("Please reply to a video with the index command\nFormat: `a-3-1-2` (Audio) or `s-2-1` (Subtitle)")
+
+    if len(msg.command) < 2:
+        return await msg.reply_text("Please provide the index command\nFormat: `a-3-1-2` (Audio) or `s-2-1` (Subtitle)")
+
+    index_cmd = msg.command[1].strip().lower()
+    if not (index_cmd.startswith("a-") or index_cmd.startswith("s-")):
+        return await msg.reply_text("Invalid format. Use `a-3-1-2` for audio or `s-2-1` for subtitles.")
+
+    sts = await msg.reply_text("🚀Downloading video...⚡")
     c_time = time.time()
     downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
-    
-    output_file = "output_" + os.path.basename(downloaded)
+
+    output_file = os.path.join(DOWNLOAD_LOCATION, "output_" + os.path.basename(downloaded))
     index_params = index_cmd.split('-')
     stream_type = index_params[0]
     indexes = [int(i) - 1 for i in index_params[1:]]
-    
-    ffmpeg_cmd = ['ffmpeg', '-i', downloaded]
 
+    ffmpeg_cmd = ['ffmpeg', '-i', downloaded]
     for idx in indexes:
         ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
 
@@ -89,16 +92,15 @@ async def change_index(bot, msg):
 
     process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
-    
+
     if process.returncode != 0:
         await sts.edit(f"❗FFmpeg error: {stderr.decode('utf-8')}")
         os.remove(downloaded)
         return
-    
+
     filesize = os.path.getsize(output_file)
     filesize_human = humanbytes(filesize)
-
-    cap = f"{output_file}\n\n🌟size : {filesize_human}"
+    cap = f"{os.path.basename(output_file)}\n\n🌟size : {filesize_human}"
 
     await sts.edit("💠Uploading...⚡")
     c_time = time.time()
@@ -106,11 +108,11 @@ async def change_index(bot, msg):
         await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
     except Exception as e:
         return await sts.edit(f"Error {e}")
-    
+
     os.remove(downloaded)
     os.remove(output_file)
     await sts.delete()
 
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
-    app.run()
+    app.run() 
