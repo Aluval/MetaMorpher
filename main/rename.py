@@ -380,19 +380,7 @@ async def unzip(bot, msg):
     shutil.rmtree(extract_path)
 
 
-
-# Function to extract audio and subtitles from a video
-def extract_media(video_path, output_audio_path, output_subtitles_path=None):
-    ffmpeg_cmd = ['ffmpeg', '-i', video_path]
-
-    # Extract audio
-    ffmpeg_cmd.extend(['-vn', '-c:a', 'copy', output_audio_path])
-
-    # Extract subtitles if output_subtitles_path is provided
-    if output_subtitles_path:
-        ffmpeg_cmd.extend(['-c:s', 'mov_text', output_subtitles_path])
-
-    process = subprocess.Popen(ffmpeg_cmd,# Function to merge videos and audios
+  #Function of merge video                             
 async def merge_videos_and_audios(bot, msg, video_paths, audio_paths):
     output_path = os.path.join(DOWNLOAD_LOCATION, "merged_video.mp4")
     
@@ -477,6 +465,23 @@ async def merge_videos_and_audios_handler(bot, msg):
     for audio_path in audio_paths:
         os.remove(audio_path)
     os.remove(output_path) stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+
+    if process.returncode != 0:
+        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+
+# Function to extract audio and subtitles from a video
+def extract_media(video_path, output_audio_path, output_subtitles_path=None):
+    ffmpeg_cmd = ['ffmpeg', '-i', video_path]
+
+    # Check if subtitles need to be extracted
+    if output_subtitles_path:
+        ffmpeg_cmd.extend(['-c:s', 'copy', output_subtitles_path])
+
+    # Extract audio
+    ffmpeg_cmd.extend(['-vn', '-c:a', 'copy', output_audio_path])
+
+    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
 
     if process.returncode != 0:
