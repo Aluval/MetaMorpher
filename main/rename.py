@@ -60,13 +60,6 @@ async def rename_file(bot, msg):
         pass
     await sts.delete()
 
-import os
-import time
-import subprocess
-from pyrogram import Client, filters
-from config import DOWNLOAD_LOCATION, BOT_TOKEN
-from main.utils import progress_message, humanbytes
-
 # Change Index Command
 @Client.on_message(filters.private & filters.command("changeindex"))
 async def change_index(bot, msg):
