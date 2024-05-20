@@ -228,7 +228,7 @@ async def sample_video(bot, msg):
 
     sts = await msg.reply_text("🚀Downloading media...⚡")
     c_time = time.time()
-    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Downloading media...⚡️", sts, c_time))
     output_file = os.path.join(DOWNLOAD_LOCATION, f"sample_video_{duration}s.mp4")
 
     await msg.reply_text("🚀Generating sample video...⚡")
@@ -246,7 +246,7 @@ async def sample_video(bot, msg):
     await sts.edit("💠Uploading sample video...⚡")
     c_time = time.time()
     try:
-        await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+        await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠Uploading sample video...⚡", sts, c_time))
     except Exception as e:
         return await sts.edit(f"Error {e}")
 
@@ -257,9 +257,15 @@ async def sample_video(bot, msg):
 # Screenshots by Number Handler
 @Client.on_message(filters.private & filters.command("screenshots"))
 async def screenshots(bot, msg):
-    num_screenshots = int(msg.command[1])
-    if num_screenshots <= 0:
-        return await msg.reply_text("Number of screenshots must be a positive integer.")
+    if len(msg.command) != 2:
+        return await msg.reply_text("Please provide the number of screenshots to generate.")
+    
+    try:
+        num_screenshots = int(msg.command[1])
+        if num_screenshots <= 0:
+            return await msg.reply_text("Number of screenshots must be a positive integer.")
+    except ValueError:
+        return await msg.reply_text("Please provide a valid number of screenshots.")
 
     media = msg.reply_to_message.video
     if not media:
@@ -267,7 +273,7 @@ async def screenshots(bot, msg):
 
     sts = await msg.reply_text("🚀Downloading media...⚡")
     c_time = time.time()
-    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Downloading media...⚡️", sts, c_time))
 
     await msg.reply_text("🚀Generating screenshots...⚡")
     duration = float(subprocess.check_output(['ffprobe', '-i', input_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv="p=0"']).decode('utf-8'))
