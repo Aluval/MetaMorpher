@@ -205,7 +205,7 @@ async def sample_video(bot, msg):
     if duration == 0:
         return await msg.reply_text("Invalid command")
 
-    media = msg.reply_to_message.video
+    media = msg.reply_to_message.video or msg.reply_to_message.document
     if not media:
         return await msg.reply_text("Please reply to a valid video file.")
 
