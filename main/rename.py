@@ -270,7 +270,10 @@ async def screenshots(bot, msg):
 
     try:
         await sts.edit("🚀Reading video duration...⚡")
-        duration_output = subprocess.check_output(['ffprobe', '-i', input_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv="p=0"'], stderr=subprocess.STDOUT)
+        command = [
+            'ffprobe', '-i', input_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv=p=0'
+        ]
+        duration_output = subprocess.check_output(command, stderr=subprocess.STDOUT)
         duration = float(duration_output.decode('utf-8').strip())
     except subprocess.CalledProcessError as e:
         await sts.edit(f"Error reading video duration: {e.output.decode('utf-8')}")
@@ -289,12 +292,7 @@ async def screenshots(bot, msg):
         time_position = interval * i
         screenshot_path = os.path.join(DOWNLOAD_LOCATION, f"screenshot_{i}.jpg")
         command = [
-            'ffmpeg',
-            '-i', input_path,
-            '-ss', str(time_position),
-            '-vframes', '1',
-            screenshot_path,
-            '-y'
+            'ffmpeg', '-i', input_path, '-ss', str(time_position), '-vframes', '1', screenshot_path, '-y'
         ]
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
