@@ -83,14 +83,15 @@ async def change_index(bot, msg):
     downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
 
     output_file = os.path.join(DOWNLOAD_LOCATION, "output_" + os.path.basename(downloaded))
-    index_params = index_cmd.split('-')
-    stream_type = index_params[0]
-    indexes = [int(i) - 1 for i in index_params[1:]]
+    index_params = index_cmd.split(' ')
 
     ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']  # Always map video stream
 
-    for idx in indexes:
-        ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
+    for param in index_params:
+        stream_type = param.split('-')[0]
+        indexes = [int(i) - 1 for i in param.split('-')[1:]]
+        for idx in indexes:
+            ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
 
     ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
 
