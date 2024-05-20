@@ -86,6 +86,7 @@ async def change_index(bot, msg):
     index_params = index_cmd.split(' ')
 
     ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']  # Always map video stream
+    copy_subtitle = True
 
     for param in index_params:
         stream_type = param.split('-')[0]
@@ -94,7 +95,11 @@ async def change_index(bot, msg):
             if stream_type.startswith('a'):
                 ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
             elif stream_type.startswith('s'):
-                ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}', '-c:s', 'copy'])  # Copy subtitle stream
+                ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
+                copy_subtitle = False  # Set to False if subtitles are explicitly specified
+
+    if copy_subtitle:
+        ffmpeg_cmd.extend(['-c:s', 'copy'])  # Copy subtitles by default
 
     ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
 
