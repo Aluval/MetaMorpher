@@ -269,24 +269,43 @@ async def screenshots(bot, msg):
 
     media = msg.reply_to_message.video or msg.reply_to_message.document
     if not media:
-        return await msg.reply_text("Please reply to a valid video file or document.")
+        return await msg.reply_text("Please reply to a valid video file.")
 
     sts = await msg.reply_text("🚀Downloading media...⚡")
     c_time = time.time()
     input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Downloading media...⚡️", sts, c_time))
 
-    await msg.reply_text("🚀Generating screenshots...⚡")
-    duration = float(subprocess.check_output(['ffprobe', '-i', input_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv="p=0"']).decode('utf-8'))
-    interval = duration / (num_screenshots - 1)
+    try:
+        duration = float(subprocess.check_output(['ffprobe', '-i', input_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv="p=0"']).decode('utf-8'))
+    except subprocess.CalledProcessError as e:
+        await sts.edit(f"Error reading video duration: {e}")
+        os.remove(input_path)
+        return
 
+    interval = duration / num_screenshots
+
+    await sts.edit("🚀Generating screenshots...⚡")
+    screenshot_paths = []
     for i in range(num_screenshots):
-        time_val = interval * i
-        output_file = f"screenshot_{i}.jpg"
-        subprocess.run(['ffmpeg', '-i', input_path, '-ss', str(time_val), '-vframes', '1', output_file])
+        time_position = interval * i
+        screenshot_path = os.path.join(DOWNLOAD_LOCATION, f"screenshot_{i}.jpg")
+        command = [
+            'ffmpeg',
+            '-i', input_path,
+            '-ss', str(time_position),
+            '-vframes', '1',
+            screenshot_path
+        ]
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process.communicate()
+        if process.returncode != 0:
+            await sts.edit(f"Error generating screenshot {i+1}")
+            os.remove(input_path)
+            return
+        screenshot_paths.append(screenshot_path)
 
     await sts.edit("💠Uploading screenshots...⚡")
-    for i in range(num_screenshots):
-        screenshot_path = f"screenshot_{i}.jpg"
+    for i, screenshot_path in enumerate(screenshot_paths):
         try:
             await bot.send_photo(msg.chat.id, photo=screenshot_path)
         except Exception as e:
@@ -294,6 +313,8 @@ async def screenshots(bot, msg):
             os.remove(screenshot_path)
 
     os.remove(input_path)
+    for screenshot_path in screenshot_paths:
+        os.remove(screenshot_path)
     await sts.delete()
     
 if __name__ == '__main__':
