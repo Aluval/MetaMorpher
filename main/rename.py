@@ -74,18 +74,18 @@ async def change_index(bot, msg):
     if not (index_cmd.startswith("a-") or index_cmd.startswith("s-")):
         return await msg.reply_text("Invalid format. Use `a-3-1-2` for audio or `s-2-1` for subtitles.")
 
-    media = reply.document or reply.audio or reply.video
+    media = reply.video
     if not media:
-        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the index command.")
+        return await msg.reply_text("Please reply to a valid video file with the index command.")
 
     sts = await msg.reply_text("🚀Downloading media...⚡")
     c_time = time.time()
-    downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+    downloaded = await reply.download(progress=progress_message, progress_args=("🚀Downloading...", sts, c_time))
 
     output_file = os.path.join(DOWNLOAD_LOCATION, "output_" + os.path.basename(downloaded))
     index_params = index_cmd.split()
     
-    ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']  # Always map video stream
+    ffmpeg_cmd = ['ffmpeg', '-i', downloaded]
 
     audio_indexes = []
     subtitle_indexes = []
@@ -96,6 +96,8 @@ async def change_index(bot, msg):
         elif param.startswith("s-"):
             subtitle_indexes = [int(i) - 1 for i in param.split('-')[1:]]
 
+    ffmpeg_cmd.extend(['-map', '0:v'])  # Always map video stream
+
     for idx in audio_indexes:
         ffmpeg_cmd.extend(['-map', f'0:a:{idx}'])
 
@@ -104,6 +106,7 @@ async def change_index(bot, msg):
 
     ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
 
+    await sts.edit("💠Changing Indexing...⚡")
     process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
 
@@ -119,7 +122,7 @@ async def change_index(bot, msg):
     await sts.edit("💠Uploading...⚡")
     c_time = time.time()
     try:
-        await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+        await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠Uploading...", sts, c_time))
     except Exception as e:
         return await sts.edit(f"Error {e}")
 
