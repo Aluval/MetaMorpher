@@ -3,7 +3,7 @@ import time
 import datetime
 import shutil
 import zipfile
-import tarfile
+import tarfile, json
 from pyrogram import Client, filters
 from pyrogram.enums import MessageMediaType
 from pyrogram.errors import MessageNotModified
@@ -468,24 +468,6 @@ async def merge_videos_and_audios_handler(bot, msg):
     os.remove(output_path)
    
 
-# Function to extract audio and subtitles from a video
-def extract_media(video_path, output_audio_path, output_subtitles_path=None):
-    ffmpeg_cmd = ['ffmpeg', '-i', video_path]
-
-    # Extract audio
-    ffmpeg_cmd.extend(['-vn', '-c:a', 'copy', output_audio_path])
-
-    # Extract subtitles if output_subtitles_path is provided
-    if output_subtitles_path:
-        ffmpeg_cmd.extend(['-map', '0:s:0', '-c:s', 'srt', output_subtitles_path])
-
-    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-
-    if process.returncode != 0:
-        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
-
-# Command handler to extract media
 @Client.on_message(filters.private & filters.command("extract"))
 async def extract_media_handler(bot, msg):
     if not msg.reply_to_message:
@@ -498,7 +480,10 @@ async def extract_media_handler(bot, msg):
 
     sts = await msg.reply_text("💠Extracting media...⚡")
 
-    video_path = await video.download()
+    if isinstance(video, Document):
+        video_path = await bot.download_media(video)
+    elif isinstance(video, Video):
+        video_path = await bot.download_media(video, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, time.time()))
 
     # Define output paths
     output_audio_path = os.path.join(DOWNLOAD_LOCATION, "extracted_audio.mp3")
@@ -535,12 +520,24 @@ async def extract_media_handler(bot, msg):
 
     await sts.delete()
 
-# Function to get the duration of a media file
+    audio_duration = get_duration(output_audio_path)
+subtitles_duration = get_duration(output_subtitles_path) if os.path.exists(output_subtitles_path) else None
+
+duration_info = f"🎵 Extracted Audio Duration: {audio_duration} seconds\n📝 Extracted Subtitles Duration: {subtitles_duration} seconds" if subtitles_duration else f"🎵 Extracted Audio Duration: {audio_duration} seconds"
+    
+
+
 def get_duration(file_path):
-    result = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    duration_seconds = float(result.stdout)
-    duration = str(datetime.timedelta(seconds=duration_seconds))
-    return duration
+    try:
+        ffprobe_cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'json', file_path]
+        result = subprocess.run(ffprobe_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        duration_info = json.loads(result.stdout)
+        duration = float(duration_info['format']['duration'])
+        return duration
+    except Exception as e:
+        print(f"Error getting duration: {e}")
+        return None
+
     
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
