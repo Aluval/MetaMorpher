@@ -218,9 +218,7 @@ async def sample_video(bot, msg):
 
     sts = await msg.reply_text("🚀Downloading media...⚡")
     c_time = time.time()
-    downloaded = await media.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
-    output_file = os.path.join(DOWNLOAD_LOCATION, f"sample_video_{duration}s.mp4")
-
+    downloaded = await bot.download_media(media, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
     await msg.reply_text("🚀Generating sample video...⚡")
     try:
         generate_sample_video(downloaded, duration, output_file)
