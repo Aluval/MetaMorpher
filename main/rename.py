@@ -91,7 +91,10 @@ async def change_index(bot, msg):
         stream_type = param.split('-')[0]
         indexes = [int(i) - 1 for i in param.split('-')[1:]]
         for idx in indexes:
-            ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
+            if stream_type.startswith('a'):
+                ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
+            elif stream_type.startswith('s'):
+                ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}', '-c:s', 'copy'])  # Copy subtitle stream
 
     ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
 
