@@ -65,14 +65,14 @@ async def rename_file(bot, msg):
 async def change_index(bot, msg):
     reply = msg.reply_to_message
     if not reply:
-        return await msg.reply_text("Please reply to a media file with the index command\nFormat: `a-3-1-2` (Audio) or `s-2-1` (Subtitle)")
+        return await msg.reply_text("Please reply to a media file with the index command\nFormat: `a-3-1-2` (Audio)")
 
     if len(msg.command) < 2:
-        return await msg.reply_text("Please provide the index command\nFormat: `a-3-1-2` (Audio) or `s-2-1` (Subtitle)")
+        return await msg.reply_text("Please provide the index command\nFormat: `a-3-1-2` (Audio)")
 
     index_cmd = msg.command[1].strip().lower()
-    if not (index_cmd.startswith("a-") or index_cmd.startswith("s-")):
-        return await msg.reply_text("Invalid format. Use `a-3-1-2` for audio or `s-2-1` for subtitles.")
+    if not index_cmd.startswith("a-"):
+        return await msg.reply_text("Invalid format. Use `a-3-1-2` for audio.")
 
     media = reply.document or reply.audio or reply.video
     if not media:
@@ -92,19 +92,10 @@ async def change_index(bot, msg):
     for idx in indexes:
         ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
 
-    # Check if both audio and subtitle streams are to be handled
-    if 'a' in index_cmd and 's' in index_cmd:
-        for idx in indexes:
-            ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
-        ffmpeg_cmd.extend(['-c:v', 'copy', '-c:a', 'copy', '-c:s', 'copy'])
-    elif 'a' in index_cmd:
-        ffmpeg_cmd.extend(['-c:v', 'copy', '-c:a', 'copy'])
-    elif 's' in index_cmd:
-        ffmpeg_cmd.extend(['-c:v', 'copy', '-c:s', 'copy'])
-    else:
-        ffmpeg_cmd.extend(['-c', 'copy'])
+    # Copy all subtitle streams if they exist
+    ffmpeg_cmd.extend(['-map', '0:s?'])
 
-    ffmpeg_cmd.extend([output_file, '-y'])
+    ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
 
     await sts.edit("💠Changing indexing...⚡")
     process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
