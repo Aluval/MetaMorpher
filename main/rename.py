@@ -1,5 +1,6 @@
 import os
 import time
+import shutil
 import zipfile
 import tarfile
 from pyrogram import Client, filters
@@ -363,7 +364,7 @@ async def unzip(bot, msg):
         await sts.edit(f"❌ Failed to unzip file.")
 
     os.remove(input_path)
-    os.rmdir(extract_path)
+    shutil.rmtree(extract_path)  # Use shutil.rmtree() to remove directory and contents recursively
     
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
