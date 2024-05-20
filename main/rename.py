@@ -385,19 +385,13 @@ async def unzip(bot, msg):
     shutil.rmtree(extract_path)
 
 
+# Command handler for /generatesamplevideo
 @Client.on_message(filters.private & filters.command("generatesamplevideo"))
-async def sample_video(bot, msg, duration):
+async def generate_sample_video_handler(bot, msg):
     if not msg.reply_to_message:
         return await msg.reply_text("Please reply to a file or video file.")
 
-    if msg.reply_to_message.document:
-        media = msg.reply_to_message.document
-    elif msg.reply_to_message.video:
-        media = msg.reply_to_message.video
-    else:
-        return await msg.reply_text("Please reply to a valid file or video file.")
-
-  
+    # Inline keyboard with duration choices
     duration_choices = ["30s", "60s", "90s", "120s", "150s"]
     keyboard = [
         [InlineKeyboardButton(choice, callback_data=choice)] for choice in duration_choices
@@ -408,12 +402,14 @@ async def sample_video(bot, msg, duration):
         reply_markup=reply_markup
     )
 
+# Callback function for handling duration selection
 @Client.on_callback_query()
-async def callback_query(bot, query):
+async def callback_query_handler(bot, query):
     duration = query.data
     if duration in ["30s", "60s", "90s", "120s", "150s"]:
         await sample_video(bot, query.message, duration)
 
+# Function to process and send sample video
 async def sample_video(bot, msg, duration):
     durations = {
         "30s": 30,
@@ -425,6 +421,9 @@ async def sample_video(bot, msg, duration):
     duration_seconds = durations.get(duration, 0)
     if duration_seconds == 0:
         return await msg.reply_text("Invalid duration")
+
+    if not msg.reply_to_message:
+        return await msg.reply_text("Please reply to a file or video file.")
 
     media = msg.reply_to_message.document or msg.reply_to_message.video
     sts = await msg.reply_text("🚀Processing sample video...⚡")
