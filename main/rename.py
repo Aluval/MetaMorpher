@@ -1,6 +1,5 @@
 import os
 import time
-import datetime
 import shutil
 import zipfile
 import tarfile
@@ -12,18 +11,7 @@ from pyrogram.errors import MessageNotModified
 from config import DOWNLOAD_LOCATION, CAPTION
 from main.utils import progress_message, humanbytes
 import subprocess
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-
-# Dictionary to store user files
-user_files = {}
-
-# Directory to store downloaded videos and the merged video
-DOWNLOAD_LOCATION = "./downloads/"
-
-# Create the download location directory if it doesn't exist
-if not os.path.exists(DOWNLOAD_LOCATION):
-    os.makedirs(DOWNLOAD_LOCATION)
     
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
@@ -395,151 +383,6 @@ async def unzip(bot, msg):
 
     os.remove(input_path)
     shutil.rmtree(extract_path)
-
-# Function to extract audio and subtitles from a video
-def extract_media(video_path, output_audio_path, output_subtitles_path=None):
-    ffmpeg_cmd = ['ffmpeg', '-i', video_path]
-
-    # Extract audio
-    ffmpeg_cmd.extend(['-vn', '-c:a', 'copy', output_audio_path])
-
-    # Extract subtitles if output_subtitles_path is provided
-    if output_subtitles_path:
-        ffmpeg_cmd.extend(['-c:s', 'mov_text', output_subtitles_path])
-
-    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-
-    if process.returncode != 0:
-        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
-
-# Command handler to extract media
-@Client.on_message(filters.private & filters.command("extract"))
-async def extract_media_handler(bot, msg):
-    if not msg.reply_to_message:
-        return await msg.reply_text("Please reply to a video file to extract media.")
-
-    reply = msg.reply_to_message
-    video = reply.video or reply.document
-    if not video:
-        return await msg.reply_text("Please reply to a valid video file.")
-
-    sts = await msg.reply_text("💠Extracting media...⚡")
-
-    if isinstance(video, Document):
-        video_path = await bot.download_media(video)
-    elif isinstance(video, Video):
-        video_path = await bot.download_media(video, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, time.time()))
-
-    # Define output paths
-    output_audio_path = os.path.join(DOWNLOAD_LOCATION, "extracted_audio.mp3")
-    output_subtitles_path = os.path.join(DOWNLOAD_LOCATION, "extracted_subtitles.srt")
-
-    try:
-        extract_media(video_path, output_audio_path, output_subtitles_path)
-    except Exception as e:
-        await sts.edit(f"❗Error extracting media: {e}")
-        os.remove(video_path)
-        return
-
-    # Get duration of the extracted audio
-    audio_duration = get_duration(output_audio_path)
-
-    # Get duration of the extracted subtitles
-    subtitles_duration = get_duration(output_subtitles_path) if os.path.exists(output_subtitles_path) else None
-
-    # Output duration information
-    duration_info = f"🎵 Extracted Audio Duration: {audio_duration}\n📝 Extracted Subtitles Duration: {subtitles_duration}" if subtitles_duration else f"🎵 Extracted Audio Duration: {audio_duration}"
-
-    await sts.edit(duration_info)
-
-    # Send the extracted media
-    if os.path.exists(output_subtitles_path):
-        await bot.send_document(msg.chat.id, document=output_subtitles_path, caption="🎵 Extracted Audio & Subtitles 📝", progress=progress_message, progress_args=("💠Upload Started.....", sts, time.time()))
-    else:
-        await bot.send_audio(msg.chat.id, audio=output_audio_path, caption="🎵 Extracted Audio 🎶", progress=progress_message, progress_args=("💠Upload Started.....", sts, time.time()))
-
-    os.remove(video_path)
-    os.remove(output_audio_path)
-    if os.path.exists(output_subtitles_path):
-        os.remove(output_subtitles_path)
-
-    await sts.delete()
-
-
-
-
-
-# Command to start the merging process
-@Client.on_message(filters.private & filters.command("merge"))
-async def merge_start(client, message):
-    user_id = message.from_user.id
-    user_files[user_id] = []
-    await message.reply_text("Please send the video files to be merged one by one. When done, send /done.")
-
-# Handler to add video files to the merge list
-@Client.on_message(filters.private & filters.video)
-async def add_video(client, message):
-    user_id = message.from_user.id
-    if user_id not in user_files:
-        return await message.reply_text("Please start the merge process by sending /merge.")
-    
-    file = message.video
-    if not file:
-        return await message.reply_text("Please send a valid video file.")
-    
-    file_path = os.path.join(DOWNLOAD_LOCATION, f"{file.file_id}.mp4")
-    user_files[user_id].append(file_path)
-    await client.download_media(message, file_path)
-    
-    if os.path.exists(file_path):
-        await message.reply_text(f"Video received: {file_path}. Send the next video or send /done to proceed.")
-    else:
-        await message.reply_text(f"Error downloading video: {file_path}")
-
-# Command to finish adding video files and start merging
-@Client.on_message(filters.private & filters.command("done"))
-async def done(client, message):
-    user_id = message.from_user.id
-    if user_id not in user_files or not user_files[user_id]:
-        return await message.reply_text("No videos received. Use /merge to start again.")
-    
-    keyboard = [
-        [InlineKeyboardButton("Merge Videos", callback_data='merge_videos')]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await message.reply_text("All videos received. Click below to start merging.", reply_markup=reply_markup)
-
-# Callback handler to merge videos
-@Client.on_callback_query(filters.regex("merge_videos"))
-async def merge_videos_callback(client, callback_query):
-    user_id = callback_query.from_user.id
-    if user_id not in user_files or not user_files[user_id]:
-        return await callback_query.message.edit_text("No videos to merge.")
-    
-    sts = await callback_query.message.edit_text("🚀 Merging videos... ⚡")
-    merged_file_path = os.path.join(DOWNLOAD_LOCATION, f"merged_{user_id}.mp4")
-
-    # Prepare ffmpeg command
-    file_list_path = os.path.join(DOWNLOAD_LOCATION, f"file_list_{user_id}.txt")
-    with open(file_list_path, 'w') as f:
-        for file_path in user_files[user_id]:
-            f.write(f"file '{file_path}'\n")
-
-    ffmpeg_cmd = ['ffmpeg', '-f', 'concat', '-safe', '0', '-i', file_list_path, '-c', 'copy', merged_file_path, '-y']
-
-    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-
-    if process.returncode != 0:
-        return await sts.edit_text(f"❗ FFmpeg error: {stderr.decode('utf-8')}")
-
-    filesize = os.path.getsize(merged_file_path)
-    await sts.edit_text(f"Merged video created: {merged_file_path} (Size: {filesize} bytes)")
-
-    # Cleanup: Remove the file list
-    os.remove(file_list_path)
-
     
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
