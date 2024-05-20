@@ -89,9 +89,11 @@ async def change_index(bot, msg):
 
     ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']  # Always map video stream
 
+    # Add specified streams
     for idx in indexes:
         ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
 
+    # Copy all mapped streams
     ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
 
     process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
