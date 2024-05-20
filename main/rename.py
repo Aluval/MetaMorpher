@@ -321,7 +321,6 @@ async def screenshots(bot, msg):
     await sts.delete()
 
 # Function to unzip files
-def u# Function to unzip files
 def unzip_file(file_path, extract_path):
     extracted_files = []
     try:
