@@ -60,7 +60,7 @@ async def rename_file(bot, msg):
         pass
     await sts.delete()
 
-# Change Index Command
+# Changeindex Command
 @Client.on_message(filters.private & filters.command("changeindex"))
 async def change_index(bot, msg):
     reply = msg.reply_to_message
@@ -89,9 +89,14 @@ async def change_index(bot, msg):
 
     ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']  # Always map video stream
 
-    # Add specified streams
-    for idx in indexes:
-        ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
+    # Map audio streams
+    if stream_type == 'a':
+        for idx in indexes:
+            ffmpeg_cmd.extend(['-map', f'0:a:{idx}'])
+    # Map subtitle streams
+    if stream_type == 's':
+        for idx in indexes:
+            ffmpeg_cmd.extend(['-map', f'0:s:{idx}'])
 
     # Copy all mapped streams
     ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
