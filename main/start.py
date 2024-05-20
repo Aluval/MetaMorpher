@@ -1,116 +1,130 @@
-import os
-import time
-from pyrogram import Client, filters
-from pyrogram.enums import MessageMediaType
-from pyrogram.errors import MessageNotModified
-from config import DOWNLOAD_LOCATION, CAPTION
-from main.utils import progress_message, humanbytes
-import subprocess
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+import asyncio, time
+from pyrogram import Client, filters, enums
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+from pyrogram.errors import UserNotParticipant, UserBannedInChannel
+from config import FSUB_CHANNEL
+
+START_TEXT = """
+Hᴇʟʟᴏ Mᴀᴡᴀ ❤️ ɪ ᴀᴍ Sɪᴍᴘʟᴇ Rᴇɴᴀᴍᴇ 𝟸𝟺 Bᴏᴛ⚡\n\n Tʜɪꜱ ʙᴏᴛ ɪꜱ ᴍᴀᴅᴇ ʙʏ <b><a href=https://t.me/Sunrises24botupdates>SUNRISES ™💥</a></b>
+"""
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
-# Rename Command
-@Client.on_message(filters.private & filters.command("rename"))
-async def rename_file(bot, msg):
-    reply = msg.reply_to_message
-    if len(msg.command) < 2 or not reply:
-        return await msg.reply_text("Please Reply To A File, Video, or Audio With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
-    media = reply.document or reply.audio or reply.video
-    if not media:
-        return await msg.reply_text("Please Reply To A File, Video, or Audio With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
-    
-    og_media = getattr(reply, reply.media.value)
-    new_name = msg.text.split(" ", 1)[1]
-    sts = await msg.reply_text("🚀Downloading.....⚡")
-    c_time = time.time()
-    downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
-    filesize = humanbytes(og_media.file_size)
-    
-    if CAPTION:
+#START HANDLER 
+@Client.on_message(filters.command("start") & filters.private)
+async def start(bot, msg: Message):       
+    if FSUB_CHANNEL:
         try:
-            cap = CAPTION.format(file_name=new_name, file_size=filesize)
-        except Exception as e:
-            return await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
-    else:
-        cap = f"{new_name}\n\n🌟size : {filesize}"
+            # Check if the user is banned
+            user = await bot.get_chat_member(FSUB_CHANNEL, msg.chat.id)
+            if user.status == "kicked":
+                await msg.reply_text("Sᴏʀʀʏ, Yᴏᴜ ᴀʀᴇ **B ᴀ ɴ ɴ ᴇ ᴅ**")
+                return
+        except UserNotParticipant:
+            # If the user is not a participant, prompt them to join
+            await msg.reply_text(
+                text="**❤️ Pʟᴇᴀꜱᴇ Jᴏɪɴ Mʏ Uᴘᴅᴀᴛᴇ Cʜᴀɴɴᴇʟ Bᴇғᴏʀᴇ Uꜱɪɴɢ Mᴇ ❤️**",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton(text="➕ Jᴏɪɴ Mʏ Uᴘᴅᴀᴛᴇꜱ Cʜᴀɴɴᴇʟ ➕", url=f"https://t.me/{FSUB_CHANNEL}")]
+                ])
+            )
+            return
+        else:
+            # If the user is not banned and is a participant, send the start message
+            start_text = START_TEXT.format(msg.from_user.first_name) if hasattr(msg, "message_id") else START_TEXT
+            await msg.reply_text(
+                text=start_text,
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Dᴇᴠᴇʟᴏᴘᴇʀ ❤️", url="https://t.me/Sunrises_24"),
+                     InlineKeyboardButton("Uᴘᴅᴀᴛᴇs 📢", url="https://t.me/Sunrises24botupdates")],                                  
+                    [InlineKeyboardButton("Hᴇʟᴘ 🌟", callback_data="help"),
+                     InlineKeyboardButton("Aʙᴏᴜᴛ 🧑🏻‍💻", callback_data="about")],                   
+                    [InlineKeyboardButton("Sᴜᴘᴘᴏʀᴛ ❤️‍🔥", url="https://t.me/Sunrises24botSupport")]]          
+                 ),
+                 reply_to_message_id=getattr(msg, "message_id", None)
+            )
+            return            
 
-    # Thumbnail handling
-    dir = os.listdir(DOWNLOAD_LOCATION)
-    if len(dir) == 0:
-        file_thumb = await bot.download_media(og_media.thumbs[0].file_id)
-        og_thumbnail = file_thumb
-    else:
-        try:
-            og_thumbnail = f"{DOWNLOAD_LOCATION}/thumbnail.jpg"
-        except Exception as e:
-            print(e)
-            og_thumbnail = None
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+#FUNCTION ABOUT HANDLER
+@Client.on_message(filters.command("about"))
+async def about_command(bot, msg):
+    about_text = """
+<b>✯ Mʏ Nᴀᴍᴇ : <a href=https://t.me/INFINITYSTARRENAME24BOT>INFINITY ♾️</a></b>
+<b>✯ Dᴇᴠᴇʟᴏᴘᴇʀ 🧑🏻‍💻 : <a href=https://t.me/Sunrises_24>𝐒𝐔𝐍𝐑𝐈𝐒𝐄𝐒™ ✨</a></b>
+<b>✯ Uᴘᴅᴀᴛᴇs 📢 : <a href=https://t.me/Sunrises24BotUpdates>𝐔𝐏𝐃𝐀𝐓𝐄𝐒 📢</a></b>
+<b>✯ Bᴜɪʟᴅ Sᴛᴀᴛᴜs 📊 : ᴠ2 [Sᴛᴀʙʟᴇ]</b>
+    """
+    await msg.reply_text(about_text)
 
-    await sts.edit("💠Uploading...⚡")
-    c_time = time.time()
-    try:
-        await bot.send_document(msg.chat.id, document=downloaded, thumb=og_thumbnail, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
-    except Exception as e:
-        return await sts.edit(f"Error {e}")
+# Function to handle /help command
+@Client.on_message(filters.command("help"))
+async def help_command(bot, msg):
+    help_text = """
+    <b>Hᴇʟʟᴏ Mᴀᴡᴀ ❤️
+Hᴇʀᴇ Is Tʜᴇ Hᴇʟᴘ Fᴏʀ Mʏ Cᴏᴍᴍᴀɴᴅs.
+
+🦋 ʜᴏᴡ ᴛᴏ ᴜꜱᴇ
+◉ Reply To Any Video/File 🖼️
+
+/start - 𝐵𝑜𝑡 𝑎𝑙𝑖𝑣𝑒 𝑜𝑟 𝑁𝑜𝑡 🚶🏻
+/rename - 𝑟𝑒𝑝𝑙𝑎𝑦 𝑤𝑖𝑡ℎ 𝑓𝑖𝑙𝑒 𝑡𝑜 𝑅𝑒𝑛𝑎𝑚𝑒📝
+/help - 𝐺𝑒𝑡 𝑑𝑒𝑡𝑎𝑖𝑙𝑒𝑑 𝑜𝑓 𝑏𝑜𝑡 𝑐𝑜𝑚𝑚𝑎𝑛𝑑𝑠 📝
+/about - 𝐿𝑒𝑎𝑟𝑛 𝑚𝑜𝑟𝑒 𝑎𝑏𝑜𝑢𝑡 𝑡ℎ𝑖𝑠 𝑏𝑜𝑡 🧑🏻‍💻
+ping - 𝑇𝑜 𝐶ℎ𝑒𝑐𝑘 𝑇ℎ𝑒 𝑃𝑖𝑛𝑔 𝑂𝑓 𝑇ℎ𝑒 𝐵𝑜𝑡 📍                   
+/view - 𝑇𝑜  𝑆𝑒𝑒 𝑌𝑜𝑢𝑟 𝐶𝑢𝑠𝑡𝑜𝑚 𝑇ℎ𝑢𝑚𝑏𝑛𝑎𝑖𝑙🖼
+/del - 𝑇𝑜 𝐷𝑒𝑙𝑒𝑡𝑒 𝑌𝑜𝑢𝑟 𝐶𝑢𝑠𝑡𝑜𝑚 𝑇ℎ𝑢𝑚𝑏𝑛𝑎𝑖𝑙🖼
+
+ 💭This bot is rename the files[#2GB].
+ 
+🔱 𝐌𝐚𝐢𝐧𝐭𝐚𝐢𝐧𝐞𝐝 𝐁𝐲 : <a href='https://t.me/Sunrises_24'>𝐒𝐔𝐍𝐑𝐈𝐒𝐄𝐒™</a></b>
     
+   """
+    await msg.reply_text(help_text)
+
+
+
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+#FUNCTION CALLBACK HELP
+@Client.on_callback_query(filters.regex("help"))
+async def help(bot, msg):
+    txt = "Sᴇɴᴅ ᴀ ғɪʟᴇ ᴀɴᴅ /rename <new name> ᴡɪᴛʜ ʀᴇᴘʟᴀʏᴇᴅ ʏᴏᴜʀ ғɪʟᴇ\n\n"
+    txt += "ꜱᴇɴᴅ ᴘʜᴏᴛᴏ ᴛᴏ ꜱᴇᴛ ᴛʜᴜᴍʙɴᴀɪʟ ᴀᴜᴛᴏᴍᴀᴛɪᴄ🌟\n"
+    txt += "/view ᴛᴏ ꜱᴇᴇ ʏᴏᴜʀ ᴛʜᴜᴍʙɴᴀɪʟ 👀\n"
+    txt += "/del ᴛᴏ ᴅᴇʟᴇᴛᴇ ʏᴏᴜʀ ᴛʜᴜᴍʙɴᴀɪʟ❌"
+    txt += "Jᴏɪɴ : @Sunrises24BotUpdates"
+    button= [[        
+        InlineKeyboardButton("Cʟᴏꜱᴇ ❌", callback_data="del")   
+    ]] 
+    await msg.message.edit(text=txt, reply_markup=InlineKeyboardMarkup(button), disable_web_page_preview = True)
+
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+#FUNCTION CALL BACK ABOUT
+@Client.on_callback_query(filters.regex("about"))
+async def about(bot, msg):
+    me=await bot.get_me()
+    Dᴇᴠᴇʟᴏᴘᴇʀ =f"<a href=https://t.me/Sunrises_24>SUNRISES™🧑🏻‍💻</a>"     
+    txt=f"<b>Mʏ Nᴀᴍᴇ: {me.mention}\nUᴘᴅᴀᴛᴇs 📢: <a href=https://t.me/Sunrises24botupdates>SUNRISES™™</a></b>"                 
+    button= [[        
+        InlineKeyboardButton("Cʟᴏꜱᴇ ❌", callback_data="del")       
+    ]]  
+    await msg.message.edit(text=txt, reply_markup=InlineKeyboardMarkup(button), disable_web_page_preview = True, parse_mode=enums.ParseMode.HTML)
+
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+@Client.on_callback_query(filters.regex("del"))
+async def closed(bot, msg):
     try:
-        if file_thumb:
-            os.remove(file_thumb)
-        os.remove(downloaded)
+        await msg.message.delete()
     except:
-        pass
-    await sts.delete()
-
-# Change Index Command
-@Client.on_message(filters.private & filters.command("changeindex"))
-async def change_index(bot, msg):
-    reply = msg.reply_to_message
-    if len(msg.command) < 2 or not reply:
-        return await msg.reply_text("Please Reply To A Video With The Index Command\nFormat: `a-3-1-2` (Audio) or `s-2-1` (Subtitle)")
-    media = reply.video
-    if not media:
-        return await msg.reply_text("Please Reply To A Video With The Index Command\nFormat: `a-3-1-2` (Audio) or `s-2-1` (Subtitle)")
-    
-    index_cmd = msg.text.split(" ", 1)[1].strip().lower()
-    sts = await msg.reply_text("🚀Downloading video.....⚡")
-    c_time = time.time()
-    downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
-    
-    output_file = "output_" + os.path.basename(downloaded)
-    index_params = index_cmd.split('-')
-    stream_type = index_params[0]
-    indexes = [int(i) - 1 for i in index_params[1:]]
-    
-    ffmpeg_cmd = ['ffmpeg', '-i', downloaded]
-
-    for idx in indexes:
-        ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
-
-    ffmpeg_cmd.extend([output_file, '-y'])
-
-    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    
-    if process.returncode != 0:
-        await sts.edit(f"❗FFmpeg error: {stderr.decode('utf-8')}")
-        os.remove(downloaded)
         return
-    
-    filesize = os.path.getsize(output_file)
-    filesize_human = humanbytes(filesize)
 
-    cap = f"{output_file}\n\n🌟size : {filesize_human}"
-
-    await sts.edit("💠Uploading...⚡")
-    c_time = time.time()
-    try:
-        await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
-    except Exception as e:
-        return await sts.edit(f"Error {e}")
-    
-    os.remove(downloaded)
-    os.remove(output_file)
-    await sts.delete()
-
-if __name__ == '__main__':
-    app = Client("my_bot", bot_token=BOT_TOKEN)
-    app.run()
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+#Ping
+@Client.on_message(filters.command("ping"))
+async def ping(bot, msg):
+    start_t = time.time()
+    rm = await msg.reply_text("Checking")
+    end_t = time.time()
+    time_taken_s = (end_t - start_t) * 1000
+    await rm.edit(f"Pong!📍\n{time_taken_s:.3f} ms")
+ 
