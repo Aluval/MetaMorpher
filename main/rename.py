@@ -321,20 +321,16 @@ async def screenshots(bot, msg):
 
 # Function to unzip files
 def unzip_file(file_path, extract_path):
+    extracted_files = []
     try:
         if file_path.endswith('.zip'):
             with zipfile.ZipFile(file_path, 'r') as zip_ref:
                 zip_ref.extractall(extract_path)
-        elif file_path.endswith('.tar.gz') or file_path.endswith('.tgz'):
-            with tarfile.open(file_path, 'r:gz') as tar_ref:
-                tar_ref.extractall(extract_path)
-        elif file_path.endswith('.tar'):
-            with tarfile.open(file_path, 'r:') as tar_ref:
-                tar_ref.extractall(extract_path)
-        else:
-            print("Unsupported file format")
+                extracted_files = zip_ref.namelist()
+        # Add support for other archive formats here if needed
     except Exception as e:
         print(f"Error unzipping file: {e}")
+    return extracted_files
 
 # Unzip file command handler
 @Client.on_message(filters.private & filters.command("unzip"))
@@ -358,10 +354,17 @@ async def unzip(bot, msg):
     os.makedirs(extract_path, exist_ok=True)
 
     await sts.edit("🚀Unzipping file...⚡")
-    unzip_file(input_path, extract_path)
+    extracted_files = unzip_file(input_path, extract_path)
 
-    await sts.edit(f"✅ File unzipped successfully. Extracted files are in: {extract_path}")
+    if extracted_files:
+        files_text = "\n".join(extracted_files)
+        await msg.reply_text(f"✅ File unzipped successfully. Extracted files:\n{files_text}")
+    else:
+        await sts.edit(f"❌ Failed to unzip file.")
 
+    os.remove(input_path)
+    os.rmdir(extract_path)
+    
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
     app.run()
