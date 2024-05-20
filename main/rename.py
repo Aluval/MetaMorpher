@@ -121,17 +121,44 @@ async def change_index(bot, msg):
     os.remove(output_file)
     await sts.delete()
 
+# Change Metadata Function
+def change_video_metadata(input_path, video_title, audio_title, subtitle_title, output_path):
+    command = [
+        'ffmpeg',
+        '-i', input_path,
+        '-metadata', f'title={video_title}',
+        '-metadata:s:v', f'title={video_title}',
+        '-metadata:s:a', f'title={audio_title}',
+        '-metadata:s:s', f'title={subtitle_title}',
+        '-map', '0:v?',
+        '-map', '0:a?',
+        '-map', '0:s?',
+        '-c:v', 'copy',
+        '-c:a', 'copy',
+        '-c:s', 'copy',
+        output_path,
+        '-y'
+    ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+
 # Change Metadata Handler
 @Client.on_message(filters.private & filters.command("changemetadata"))
 async def change_metadata(bot, msg):
     reply = msg.reply_to_message
     if not reply:
-        return await msg.reply_text("Please reply to a media file with the metadata command\nFormat: `changemetadata NewTitle`")
+        return await msg.reply_text("Please reply to a media file with the metadata command\nFormat: `changemetadata video_title | audio_title | subtitle_title`")
 
     if len(msg.command) < 2:
-        return await msg.reply_text("Please provide the new title\nFormat: `changemetadata NewTitle`")
+        return await msg.reply_text("Please provide the new titles\nFormat: `changemetadata video_title | audio_title | subtitle_title`")
 
-    new_title = msg.command[1].strip()
+    titles = " ".join(msg.command[1:]).strip().split('|')
+    if len(titles) != 3:
+        return await msg.reply_text("Please provide all three titles separated by '|'\nFormat: `changemetadata video_title | audio_title | subtitle_title`")
+
+    video_title, audio_title, subtitle_title = titles
     media = reply.document or reply.audio or reply.video
     if not media:
         return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the metadata command.")
@@ -144,26 +171,7 @@ async def change_metadata(bot, msg):
 
     await sts.edit("💠Changing metadata...⚡")
     try:
-        command = [
-            'ffmpeg',
-            '-i', downloaded,
-            '-metadata', f'title={new_title}',
-            '-metadata:s:v', f'title={new_title}',
-            '-metadata:s:a', f'title={new_title}',
-            '-metadata:s:s', f'title={new_title}',
-            '-map', '0:v?',
-            '-map', '0:a?',
-            '-map', '0:s?',
-            '-c:v', 'copy',
-            '-c:a', 'copy',
-            '-c:s', 'copy',
-            output_file,
-            '-y'
-        ]
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        if process.returncode != 0:
-            raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+        change_video_metadata(downloaded, video_title.strip(), audio_title.strip(), subtitle_title.strip(), output_file)
     except Exception as e:
         await sts.edit(f"Error changing metadata: {e}")
         os.remove(downloaded)
@@ -183,6 +191,7 @@ async def change_metadata(bot, msg):
     os.remove(downloaded)
     os.remove(output_file)
     await sts.delete()
+
 
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
