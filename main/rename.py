@@ -253,6 +253,42 @@ async def sample_video(bot, msg):
     os.remove(input_path)
     os.remove(output_file)
     await sts.delete()
+
+# Screenshots by Number Handler
+@Client.on_message(filters.private & filters.command("screenshots"))
+async def screenshots(bot, msg):
+    num_screenshots = int(msg.command[1])
+    if num_screenshots <= 0:
+        return await msg.reply_text("Number of screenshots must be a positive integer.")
+
+    media = msg.reply_to_message.video
+    if not media:
+        return await msg.reply_text("Please reply to a valid video file.")
+
+    sts = await msg.reply_text("🚀Downloading media...⚡")
+    c_time = time.time()
+    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+
+    await msg.reply_text("🚀Generating screenshots...⚡")
+    duration = float(subprocess.check_output(['ffprobe', '-i', input_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv="p=0"']).decode('utf-8'))
+    interval = duration / (num_screenshots - 1)
+
+    for i in range(num_screenshots):
+        time = interval * i
+        output_file = f"screenshot_{i}.jpg"
+        subprocess.run(['ffmpeg', '-i', input_path, '-ss', str(time), '-vframes', '1', output_file])
+
+    await sts.edit("💠Uploading screenshots...⚡")
+    for i in range(num_screenshots):
+        screenshot_path = f"screenshot_{i}.jpg"
+        try:
+            await bot.send_photo(msg.chat.id, photo=screenshot_path)
+        except Exception as e:
+            await sts.edit(f"Error uploading screenshot {i+1}: {e}")
+            os.remove(screenshot_path)
+
+    os.remove(input_path)
+    await sts.delete()
     
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
