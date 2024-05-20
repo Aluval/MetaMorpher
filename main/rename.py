@@ -459,14 +459,14 @@ async def extract_media_handler(bot, msg):
     await sts.delete()
 
 # Command to start the merging process
-@app.on_message(filters.private & filters.command("merge"))
+@Client.on_message(filters.private & filters.command("merge"))
 async def merge_start(client, message):
     user_id = message.from_user.id
     user_files[user_id] = []
     await message.reply_text("Please send the media files to be merged one by one. When done, send /done.")
 
 # Handler to add files to the merge list
-@app.on_message(filters.private & (filters.document | filters.audio | filters.video))
+@Client.on_message(filters.private & (filters.document | filters.audio | filters.video))
 async def add_file(client, message):
     user_id = message.from_user.id
     if user_id not in user_files:
@@ -482,7 +482,7 @@ async def add_file(client, message):
     await message.reply_text("File received. Send the next file or send /done to proceed.")
 
 # Command to finish adding files and show the merge button
-@app.on_message(filters.private & filters.command("done"))
+@Client.on_message(filters.private & filters.command("done"))
 async def done(client, message):
     user_id = message.from_user.id
     if user_id not in user_files or not user_files[user_id]:
@@ -495,7 +495,7 @@ async def done(client, message):
     await message.reply_text("All files received. Click below to start merging.", reply_markup=reply_markup)
 
 # Callback handler to merge files
-@app.on_callback_query(filters.regex("merge_files"))
+@Client.on_callback_query(filters.regex("merge_files"))
 async def merge_files_callback(client, callback_query):
     user_id = callback_query.from_user.id
     if user_id not in user_files or not user_files[user_id]:
