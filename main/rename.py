@@ -490,39 +490,35 @@ async def extract_media_handler(bot, msg):
 
     reply = msg.reply_to_message
     video = reply.video
+    document = reply.document
 
-    if not video:
-        document = reply.document
-        if not document or not document.mime_type.startswith("video"):
-            return await msg.reply_text("Please reply to a valid video file.")
+    if not video and (not document or not document.mime_type.startswith("video")):
+        return await msg.reply_text("Please reply to a valid video file.")
 
-        sts = await msg.reply_text("🚀Downloading media...⚡")
-        c_time = time.time()
-        try:
-            video_path = await bot.download_media(document, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
-        except AttributeError:
-            return await msg.reply_text("Please reply to a valid video file.")
+    sts = await msg.reply_text("💠Extracting media...⚡")
+    c_time = time.time()
 
+    if video:
+        media = video
     else:
-        sts = await msg.reply_text("🚀Downloading media...⚡")
-        c_time = time.time()
-        try:
-            video_path = await bot.download_media(video, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
-        except AttributeError:
-            return await msg.reply_text("Please reply to a valid video file.")
+        media = document
 
-    output_audio_path = os.path.join(DOWNLOAD_LOCATION, "extracted_audio_" + os.path.basename(video_path).split('.')[0] + ".aac")
+    try:
+        media_path = await bot.download_media(media.file_id, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+    except AttributeError:
+        return await msg.reply_text("Please reply to a valid video file.")
+
+    output_audio_path = os.path.join(DOWNLOAD_LOCATION, f"extracted_audio_{os.path.splitext(os.path.basename(media_path))[0]}.aac")
     output_subtitles_path = None
 
     if document and document.mime_type.startswith("video"):
-        output_subtitles_path = os.path.join(DOWNLOAD_LOCATION, "extracted_subtitles_" + os.path.basename(video_path).split('.')[0] + ".srt")
+        output_subtitles_path = os.path.join(DOWNLOAD_LOCATION, f"extracted_subtitles_{os.path.splitext(os.path.basename(media_path))[0]}.srt")
 
-    await sts.edit("💠Extracting media...⚡")
     try:
-        extract_media(video_path, output_audio_path, output_subtitles_path)
+        extract_media(media_path, output_audio_path, output_subtitles_path)
     except Exception as e:
         await sts.edit(f"❗Error extracting media: {e}")
-        os.remove(video_path)
+        os.remove(media_path)
         return
 
     filesize_audio = os.path.getsize(output_audio_path)
@@ -538,7 +534,7 @@ async def extract_media_handler(bot, msg):
     except Exception as e:
         return await sts.edit(f"Error {e}")
 
-    os.remove(video_path)
+    os.remove(media_path)
     os.remove(output_audio_path)
     if output_subtitles_path and os.path.exists(output_subtitles_path):
         os.remove(output_subtitles_path)
