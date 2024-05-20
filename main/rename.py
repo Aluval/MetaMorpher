@@ -238,22 +238,7 @@ async def sample_video(bot, msg):
 
     os.remove(input_path)
     os.remove(output_file)
-    await sts.delete()       return
-
-    filesize = os.path.getsize(output_file)
-    filesize_human = humanbytes(filesize)
-    cap = f"{os.path.basename(output_file)}\n\n🌟Size: {filesize_human}"
-
-    await sts.edit("💠Uploading...⚡")
-    c_time = time.time()
-    try:
-        await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
-    except Exception as e:
-        return await sts.edit(f"Error {e}")
-
-    os.remove(downloaded)
-    os.remove(output_file)
-    await sts.delete()
+    await sts.delete()       
 
 # Screenshots by Number Handler
 @Client.on_message(filters.private & filters.command("screenshots"))
