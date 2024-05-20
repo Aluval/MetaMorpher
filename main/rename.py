@@ -466,14 +466,14 @@ async def merge_videos_and_audios_handler(bot, msg):
 
 
 # Function to extract audio and subtitles from a video
-def extract_media(video_path, output_audio_path, output_subtitles_path=None):
+def extract_media(video_path, output_audio_path, output_subtitles_path):
     ffmpeg_cmd = ['ffmpeg', '-i', video_path]
 
     # Extract audio
     ffmpeg_cmd.extend(['-vn', '-c:a', 'copy', output_audio_path])
 
+    # Extract subtitles if output_subtitles_path is provided
     if output_subtitles_path:
-        # Extract subtitles
         ffmpeg_cmd.extend(['-c:s', 'mov_text', output_subtitles_path])
 
     process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -490,20 +490,23 @@ async def extract_media_handler(bot, msg):
 
     reply = msg.reply_to_message
     video = reply.video
-    document = reply.document
 
-    if not video and (not document or not document.mime_type.startswith("video")):
-        return await msg.reply_text("Please reply to a valid video file.")
+    if not video:
+        document = reply.document
+        if not document or not document.mime_type.startswith("video"):
+            return await msg.reply_text("Please reply to a valid video file.")
 
-    sts = await msg.reply_text("🚀Downloading media...⚡")
-    c_time = time.time()
+        sts = await msg.reply_text("🚀Downloading media...⚡")
+        c_time = time.time()
+        try:
+            video_path = await bot.download_media(document, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+        except AttributeError:
+            return await msg.reply_text("Please reply to a valid video file.")
 
-    if video:
-        media = video
     else:
-        media = document
-
-    video_path = await media.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+        sts = await msg.reply_text("🚀Downloading media...⚡")
+        c_time = time.time()
+        video_path = await video.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
 
     output_audio_path = os.path.join(DOWNLOAD_LOCATION, "extracted_audio_" + os.path.basename(video_path).split('.')[0] + ".aac")
     output_subtitles_path = None
@@ -537,7 +540,7 @@ async def extract_media_handler(bot, msg):
     if output_subtitles_path and os.path.exists(output_subtitles_path):
         os.remove(output_subtitles_path)
     await sts.delete()
-
+    
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
     app.run()
