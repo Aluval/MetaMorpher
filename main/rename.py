@@ -521,11 +521,12 @@ async def merge_videos_callback(client, callback_query):
     merged_file_path = os.path.join(DOWNLOAD_LOCATION, f"merged_{user_id}.mp4")
 
     # Prepare ffmpeg command
-    with open(os.path.join(DOWNLOAD_LOCATION, f"file_list_{user_id}.txt"), 'w') as f:
+    file_list_path = os.path.join(DOWNLOAD_LOCATION, f"file_list_{user_id}.txt")
+    with open(file_list_path, 'w') as f:
         for file_path in user_files[user_id]:
             f.write(f"file '{file_path}'\n")
 
-    ffmpeg_cmd = ['ffmpeg', '-f', 'concat', '-safe', '0', '-i', f"file_list_{user_id}.txt", '-c', 'copy', merged_file_path, '-y']
+    ffmpeg_cmd = ['ffmpeg', '-f', 'concat', '-safe', '0', '-i', file_list_path, '-c', 'copy', merged_file_path, '-y']
 
     process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
@@ -535,6 +536,9 @@ async def merge_videos_callback(client, callback_query):
 
     filesize = os.path.getsize(merged_file_path)
     await sts.edit_text(f"Merged video created: {merged_file_path} (Size: {filesize} bytes)")
+
+    # Cleanup: Remove the file list
+    os.remove(file_list_path)
 
     
 if __name__ == '__main__':
