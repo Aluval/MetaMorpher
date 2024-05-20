@@ -205,21 +205,15 @@ async def sample_video(bot, msg):
     if duration == 0:
         return await msg.reply_text("Invalid command")
 
-    if msg.reply_to_message.document:
-        media = msg.reply_to_message.document
-        if media.mime_type.startswith("video"):
-            input_path = await media.download()
-        else:
-            return await msg.reply_text("Please reply to a valid video file.")
-    elif msg.reply_to_message.video:
-        media = msg.reply_to_message.video
-        input_path = await media.download()
-    else:
-        return await msg.reply_text("Please reply to a valid video file.")
+    if not media:
+        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the metadata command.")
 
+    sts = await msg.reply_text("🚀Downloading media...⚡")
+    c_time = time.time()
+    downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
     output_file = os.path.join(DOWNLOAD_LOCATION, f"sample_video_{duration}s.mp4")
 
-    sts = await msg.reply_text("🚀Generating sample video...⚡")
+    await msg.reply_text("🚀Generating sample video...⚡")
     try:
         generate_sample_video(input_path, duration, output_file)
     except Exception as e:
