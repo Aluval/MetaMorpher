@@ -383,6 +383,73 @@ async def unzip(bot, msg):
 
     os.remove(input_path)
     shutil.rmtree(extract_path)
+
+
+@Client.on_message(filters.private & filters.command("generatesamplevideo"))
+async def generate_sample_video_handler(bot, msg):
+    if not msg.reply_to_message:
+        return await msg.reply_text("Please reply to a file or video file.")
+
+    media = msg.reply_to_message.document or msg.reply_to_message.video
+    if not media:
+        return await msg.reply_text("Please reply to a valid file or video file.")
+
+    duration_choices = ["30s", "60s", "90s", "120s", "150s"]
+    keyboard = [
+        [InlineKeyboardButton(choice, callback_data=choice)] for choice in duration_choices
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await msg.reply_text(
+        "Select the duration for the sample video:",
+        reply_markup=reply_markup
+    )
+
+@Client.on_callback_query()
+async def callback_query(bot, query):
+    duration = query.data
+    if duration in ["30s", "60s", "90s", "120s", "150s"]:
+        await sample_video(bot, query.message, duration)
+
+async def sample_video(bot, msg, duration):
+    durations = {
+        "30s": 30,
+        "60s": 60,
+        "90s": 90,
+        "120s": 120,
+        "150s": 150
+    }
+    duration_seconds = durations.get(duration, 0)
+    if duration_seconds == 0:
+        return await msg.reply_text("Invalid duration")
+
+    media = msg.reply_to_message.document or msg.reply_to_message.video
+    sts = await msg.reply_text("🚀Processing sample video...⚡")
+    c_time = time.time()
+    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Downloading media...⚡️", sts, c_time))
+    output_file = os.path.join(DOWNLOAD_LOCATION, f"sample_video_{duration_seconds}s.mp4")
+
+    await sts.edit("🚀Processing sample video...⚡")
+    try:
+        generate_sample_video(input_path, duration_seconds, output_file)
+    except Exception as e:
+        await sts.edit(f"Error generating sample video: {e}")
+        os.remove(input_path)
+        return
+
+    filesize = os.path.getsize(output_file)
+    filesize_human = humanbytes(filesize)
+    cap = f"{os.path.basename(output_file)}\n\n🌟Size: {filesize_human}"
+
+    await sts.edit("💠Uploading sample video...⚡")
+    c_time = time.time()
+    try:
+        await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+    except Exception as e:
+        return await sts.edit(f"Error {e}")
+
+    os.remove(input_path)
+    os.remove(output_file)
+    await sts.delete()
     
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
