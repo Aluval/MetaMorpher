@@ -465,6 +465,22 @@ async def merge_videos_and_audios_handler(bot, msg):
     await sts.delete()
 
 
+# Function to extract audio and subtitles from a video
+def extract_audio_and_subtitles(video_path, output_audio_path, output_subtitles_path):
+    ffmpeg_cmd = ['ffmpeg', '-i', video_path]
+
+    # Extract audio
+    ffmpeg_cmd.extend(['-vn', '-c:a', 'copy', output_audio_path])
+
+    # Extract subtitles
+    ffmpeg_cmd.extend(['-c:s', 'mov_text', output_subtitles_path])
+
+    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+
+    if process.returncode != 0:
+        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+
 # Command handler to extract audio and subtitles
 @Client.on_message(filters.private & filters.command("extract"))
 async def extract_audio_and_subtitles_handler(bot, msg):
