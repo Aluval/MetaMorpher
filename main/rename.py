@@ -358,13 +358,20 @@ async def unzip(bot, msg):
     extracted_files = unzip_file(input_path, extract_path)
 
     if extracted_files:
-        files_text = "\n".join(extracted_files)
-        await msg.reply_text(f"✅ File unzipped successfully. Extracted files:\n{files_text}")
+        await sts.edit(f"✅ File unzipped successfully. Uploading extracted files...⚡")
+        for file_name in extracted_files:
+            file_path = os.path.join(extract_path, file_name)
+            try:
+                await bot.send_document(msg.chat.id, document=file_path, caption=file_name)
+            except Exception as e:
+                await sts.edit(f"❌ Error uploading {file_name}: {e}")
+                os.remove(file_path)
+        await sts.edit(f"✅ All extracted files uploaded successfully.")
     else:
         await sts.edit(f"❌ Failed to unzip file.")
 
     os.remove(input_path)
-    shutil.rmtree(extract_path)  # Use shutil.rmtree() to remove directory and contents recursively
+    os.rmdir(extract_path)
     
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
