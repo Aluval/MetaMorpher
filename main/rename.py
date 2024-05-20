@@ -18,6 +18,11 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 # Dictionary to store user files
 user_files = {}
 
+# Create the download location directory if it doesn't exist
+if not os.path.exists(DOWNLOAD_LOCATION):
+    os.makedirs(DOWNLOAD_LOCATION)
+    
+
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Rename Command
 @Client.on_message(filters.private & filters.command("rename"))
@@ -458,6 +463,7 @@ async def extract_media_handler(bot, msg):
 
     await sts.delete()
 
+
 # Command to start the merging process
 @Client.on_message(filters.private & filters.command("merge"))
 async def merge_start(client, message):
@@ -509,7 +515,11 @@ async def merge_files_callback(client, callback_query):
     file_list_path = os.path.join(DOWNLOAD_LOCATION, f"file_list_{user_id}.txt")
     with open(file_list_path, 'w') as f:
         for file_path in user_files[user_id]:
-            f.write(f"file '{file_path}'\n")
+            if os.path.exists(file_path):
+                f.write(f"file '{file_path}'\n")
+            else:
+                await sts.edit_text(f"❗ Error: File not found: {file_path}")
+                return
 
     ffmpeg_cmd = ['ffmpeg', '-f', 'concat', '-safe', '0', '-i', file_list_path, '-c', 'copy', merged_file_path, '-y']
 
@@ -531,11 +541,16 @@ async def merge_files_callback(client, callback_query):
 
     # Clean up
     for file_path in user_files[user_id]:
-        os.remove(file_path)
-    os.remove(merged_file_path)
-    os.remove(file_list_path)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    if os.path.exists(merged_file_path):
+        os.remove(merged_file_path)
+    if os.path.exists(file_list_path):
+        os.remove(file_list_path)
+    
     user_files[user_id] = []
     await sts.delete()
+
     
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
