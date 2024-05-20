@@ -8,7 +8,7 @@ from pyrogram import Client, filters
 from pyrogram.enums import MessageMediaType
 from pyrogram.errors import MessageNotModified
 from config import DOWNLOAD_LOCATION, CAPTION
-from main.utils import progress_message, humanbytes
+from main.utils import progress_message, humanbytes, get_duration
 import subprocess
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
