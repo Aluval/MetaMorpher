@@ -466,7 +466,7 @@ async def merge_videos_and_audios_handler(bot, msg):
 
 
 # Function to extract audio and subtitles from a video
-def extract_media(video_path, output_audio_path, output_subtitles_path):
+def extract_media(video_path, output_audio_path, output_subtitles_path=None):
     ffmpeg_cmd = ['ffmpeg', '-i', video_path]
 
     # Extract audio
@@ -506,7 +506,10 @@ async def extract_media_handler(bot, msg):
     else:
         sts = await msg.reply_text("🚀Downloading media...⚡")
         c_time = time.time()
-        video_path = await video.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+        try:
+            video_path = await bot.download_media(video, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+        except AttributeError:
+            return await msg.reply_text("Please reply to a valid video file.")
 
     output_audio_path = os.path.join(DOWNLOAD_LOCATION, "extracted_audio_" + os.path.basename(video_path).split('.')[0] + ".aac")
     output_subtitles_path = None
@@ -514,7 +517,7 @@ async def extract_media_handler(bot, msg):
     if document and document.mime_type.startswith("video"):
         output_subtitles_path = os.path.join(DOWNLOAD_LOCATION, "extracted_subtitles_" + os.path.basename(video_path).split('.')[0] + ".srt")
 
-    await sts.edit("💠Extracting audio and subtitles...⚡")
+    await sts.edit("💠Extracting media...⚡")
     try:
         extract_media(video_path, output_audio_path, output_subtitles_path)
     except Exception as e:
