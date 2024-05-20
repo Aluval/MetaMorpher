@@ -71,8 +71,8 @@ async def change_index(bot, msg):
         return await msg.reply_text("Please provide the index command\nFormat: `a-3-1-2` (Audio) or `s-2-1` (Subtitle)")
 
     index_cmd = msg.command[1].strip().lower()
-    if not (index_cmd.startswith("a-") or index_cmd.startswith("s-")):
-        return await msg.reply_text("Invalid format. Use `a-3-1-2` for audio or `s-2-1` for subtitles.")
+    if not index_cmd.startswith("a-"):
+        return await msg.reply_text("Invalid format. Use `a-3-1-2` for audio.")
 
     media = reply.document or reply.audio or reply.video
     if not media:
@@ -83,25 +83,15 @@ async def change_index(bot, msg):
     downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
 
     output_file = os.path.join(DOWNLOAD_LOCATION, "output_" + os.path.basename(downloaded))
-    index_params = index_cmd.split(' ')
+    indexes = [int(i) - 1 for i in index_cmd.split('-')[1:]]
 
     ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']  # Always map video stream
-    copy_subtitle = True
 
-    for param in index_params:
-        stream_type = param.split('-')[0]
-        indexes = [int(i) - 1 for i in param.split('-')[1:]]
-        for idx in indexes:
-            if stream_type.startswith('a'):
-                ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
-            elif stream_type.startswith('s'):
-                ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
-                copy_subtitle = False  # Set to False if subtitles are explicitly specified
+    for idx in indexes:
+        ffmpeg_cmd.extend(['-map', f'0:{idx}'])
 
-    if copy_subtitle:
-        ffmpeg_cmd.extend(['-c:s', 'copy'])  # Copy subtitles by default
-
-    ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
+    # Copy audio and subtitles
+    ffmpeg_cmd.extend(['-c:v', 'copy', '-c:a', 'copy', '-c:s', 'copy', output_file, '-y'])
 
     process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
