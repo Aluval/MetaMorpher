@@ -175,24 +175,7 @@ async def change_metadata(bot, msg):
     except Exception as e:
         await sts.edit(f"Error changing metadata: {e}")
         os.remove(downloaded)
-        return
-
-    filesize = os.path.getsize(output_file)
-    filesize_human = humanbytes(filesize)
-    cap = f"{os.path.basename(output_file)}\n\n🌟Size: {filesize_human}"
-
-    await sts.edit("💠Uploading...⚡")
-    c_time = time.time()
-    try:
-        await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
-    except Exception as e:
-        return await sts.edit(f"Error {e}")
-
-    os.remove(downloaded)
-    os.remove(output_file)
-    await sts.delete()
-
-# Sample Video Generation Function
+ # Sample Video Generation Function
 def generate_sample_video(input_path, duration, output_path):
     command = [
         'ffmpeg',
@@ -221,6 +204,9 @@ async def sample_video(bot, msg):
     duration = durations.get(msg.command[0], 0)
     if duration == 0:
         return await msg.reply_text("Invalid command")
+
+    if not msg.reply_to_message:
+        return await msg.reply_text("Please reply to a valid video file or document.")
 
     media = msg.reply_to_message.video or msg.reply_to_message.document
     if not media:
@@ -251,6 +237,21 @@ async def sample_video(bot, msg):
         return await sts.edit(f"Error {e}")
 
     os.remove(input_path)
+    os.remove(output_file)
+    await sts.delete()       return
+
+    filesize = os.path.getsize(output_file)
+    filesize_human = humanbytes(filesize)
+    cap = f"{os.path.basename(output_file)}\n\n🌟Size: {filesize_human}"
+
+    await sts.edit("💠Uploading...⚡")
+    c_time = time.time()
+    try:
+        await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+    except Exception as e:
+        return await sts.edit(f"Error {e}")
+
+    os.remove(downloaded)
     os.remove(output_file)
     await sts.delete()
 
