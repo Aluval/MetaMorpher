@@ -386,14 +386,18 @@ async def unzip(bot, msg):
 
 
 @Client.on_message(filters.private & filters.command("generatesamplevideo"))
-async def generate_sample_video_handler(bot, msg):
+async def sample_video(bot, msg, duration):
     if not msg.reply_to_message:
         return await msg.reply_text("Please reply to a file or video file.")
 
-    media = msg.reply_to_message.document or msg.reply_to_message.video
-    if not media:
+    if msg.reply_to_message.document:
+        media = msg.reply_to_message.document
+    elif msg.reply_to_message.video:
+        media = msg.reply_to_message.video
+    else:
         return await msg.reply_text("Please reply to a valid file or video file.")
 
+  
     duration_choices = ["30s", "60s", "90s", "120s", "150s"]
     keyboard = [
         [InlineKeyboardButton(choice, callback_data=choice)] for choice in duration_choices
