@@ -205,20 +205,28 @@ async def sample_video(bot, msg):
     if duration == 0:
         return await msg.reply_text("Invalid command")
 
-    if not media:
-        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the metadata command.")
+    if not msg.reply_to_message:
+        return await msg.reply_text("Please reply to a message containing a valid media file (audio, video, or document) with the sample video command.")
+
+    reply = msg.reply_to_message
+    if reply.document:
+        media = reply.document
+    elif reply.video:
+        media = reply.video
+    else:
+        return await msg.reply_text("Please reply to a valid video file.")
 
     sts = await msg.reply_text("🚀Downloading media...⚡")
     c_time = time.time()
-    downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+    downloaded = await media.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
     output_file = os.path.join(DOWNLOAD_LOCATION, f"sample_video_{duration}s.mp4")
 
     await msg.reply_text("🚀Generating sample video...⚡")
     try:
-        generate_sample_video(input_path, duration, output_file)
+        generate_sample_video(downloaded, duration, output_file)
     except Exception as e:
         await sts.edit(f"Error generating sample video: {e}")
-        os.remove(input_path)
+        os.remove(downloaded)
         return
 
     filesize = os.path.getsize(output_file)
@@ -232,7 +240,7 @@ async def sample_video(bot, msg):
     except Exception as e:
         return await sts.edit(f"Error {e}")
 
-    os.remove(input_path)
+    os.remove(downloaded)
     os.remove(output_file)
     await sts.delete()
     
