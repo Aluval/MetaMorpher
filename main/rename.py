@@ -321,6 +321,7 @@ async def screenshots(bot, msg):
     await sts.delete()
 
 # Function to unzip files
+def u# Function to unzip files
 def unzip_file(file_path, extract_path):
     extracted_files = []
     try:
@@ -332,6 +333,18 @@ def unzip_file(file_path, extract_path):
     except Exception as e:
         print(f"Error unzipping file: {e}")
     return extracted_files
+
+# Recursive function to upload files
+async def upload_files(bot, chat_id, directory, base_path=""):
+    for item in os.listdir(directory):
+        item_path = os.path.join(directory, item)
+        if os.path.isfile(item_path):
+            try:
+                await bot.send_document(chat_id, document=item_path, caption=item)
+            except Exception as e:
+                print(f"Error uploading {item}: {e}")
+        elif os.path.isdir(item_path):
+            await upload_files(bot, chat_id, item_path, base_path=os.path.join(base_path, item))
 
 # Unzip file command handler
 @Client.on_message(filters.private & filters.command("unzip"))
@@ -359,23 +372,13 @@ async def unzip(bot, msg):
 
     if extracted_files:
         await sts.edit(f"✅ File unzipped successfully. Uploading extracted files...⚡")
-        for file_name in extracted_files:
-            file_path = os.path.join(extract_path, file_name)
-            try:
-                await bot.send_document(msg.chat.id, document=file_path, caption=file_name)
-            except Exception as e:
-                await sts.edit(f"❌ Error uploading {file_name}: {e}")
-                os.remove(file_path)
+        await upload_files(bot, msg.chat.id, extract_path)
         await sts.edit(f"✅ All extracted files uploaded successfully.")
     else:
         await sts.edit(f"❌ Failed to unzip file.")
 
     os.remove(input_path)
-    os.rmdir(extract_path)
-
-import os
-import subprocess
-from pyrogram import Client, filters
+    shutil.rmtree(extract_path)
 
 # Function to merge videos and audios
 def merge_videos_and_audios(video_paths, audio_paths, output_path):
