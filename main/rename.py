@@ -23,7 +23,7 @@ DOWNLOAD_LOCATION = "./downloads/"
 
 # Create the download location directory if it doesn't exist
 if not os.path.exists(DOWNLOAD_LOCATION):
-    os.makedirs(DOWNLOAD_LOCATION))
+    os.makedirs(DOWNLOAD_LOCATION)
     
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
