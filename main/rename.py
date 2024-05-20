@@ -10,7 +10,7 @@ from pyrogram import Client, filters
 from pyrogram.enums import MessageMediaType
 from pyrogram.errors import MessageNotModified
 from config import DOWNLOAD_LOCATION, CAPTION
-from main.utils import progress_message, humanbytes, get_duration
+from main.utils import progress_message, humanbytes
 import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -458,33 +458,31 @@ async def extract_media_handler(bot, msg):
 
     await sts.delete()
 
-
-
 # Command to start the merging process
-@Client.on_message(filters.private & filters.command("merge"))
+@app.on_message(filters.private & filters.command("merge"))
 async def merge_start(client, message):
     user_id = message.from_user.id
     user_files[user_id] = []
     await message.reply_text("Please send the media files to be merged one by one. When done, send /done.")
 
 # Handler to add files to the merge list
-@Client.on_message(filters.private & (filters.document | filters.audio | filters.video))
+@app.on_message(filters.private & (filters.document | filters.audio | filters.video))
 async def add_file(client, message):
     user_id = message.from_user.id
     if user_id not in user_files:
         return await message.reply_text("Please start the merge process by sending /merge.")
-
+    
     file = message.document or message.audio or message.video
     if not file:
         return await message.reply_text("Please send a valid media file (audio, video, or document).")
     
-    file_path = os.path.join(DOWNLOAD_LOCATION, file.file_id)
+    file_path = os.path.join(DOWNLOAD_LOCATION, file.file_id + os.path.splitext(file.file_name)[1])
     user_files[user_id].append(file_path)
-    await file.download(file_path)
+    await client.download_media(message, file_path)
     await message.reply_text("File received. Send the next file or send /done to proceed.")
 
 # Command to finish adding files and show the merge button
-@Client.on_message(filters.private & filters.command("done"))
+@app.on_message(filters.private & filters.command("done"))
 async def done(client, message):
     user_id = message.from_user.id
     if user_id not in user_files or not user_files[user_id]:
@@ -497,13 +495,13 @@ async def done(client, message):
     await message.reply_text("All files received. Click below to start merging.", reply_markup=reply_markup)
 
 # Callback handler to merge files
-@Client.on_callback_query(filters.regex("merge_files"))
+@app.on_callback_query(filters.regex("merge_files"))
 async def merge_files_callback(client, callback_query):
     user_id = callback_query.from_user.id
     if user_id not in user_files or not user_files[user_id]:
-        return await callback_query.message.edit("No files to merge.")
+        return await callback_query.message.edit_text("No files to merge.")
 
-    sts = await callback_query.message.edit("🚀 Merging files... ⚡")
+    sts = await callback_query.message.edit_text("🚀 Merging files... ⚡")
 
     merged_file_path = os.path.join(DOWNLOAD_LOCATION, f"merged_{user_id}.mp4")
 
@@ -519,7 +517,25 @@ async def merge_files_callback(client, callback_query):
     stdout, stderr = process.communicate()
 
     if process.returncode != 0:
-        return await sts
+        return await sts.edit_text(f"❗ FFmpeg error: {stderr.decode('utf-8')}")
+
+    filesize = os.path.getsize(merged_file_path)
+    filesize_human = humanbytes(filesize)
+    cap = f"Merged file\n\n🌟 Size: {filesize_human}"
+
+    sts = await sts.edit_text("💠 Uploading... ⚡")
+    try:
+        await client.send_document(callback_query.message.chat.id, document=merged_file_path, caption=cap)
+    except Exception as e:
+        return await sts.edit_text(f"Error: {e}")
+
+    # Clean up
+    for file_path in user_files[user_id]:
+        os.remove(file_path)
+    os.remove(merged_file_path)
+    os.remove(file_list_path)
+    user_files[user_id] = []
+    await sts.delete()
     
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
