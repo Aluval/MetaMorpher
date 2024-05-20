@@ -92,14 +92,21 @@ async def change_index(bot, msg):
     for idx in indexes:
         ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
 
-    # Check if subtitles are included and copy them
-    if 's' in index_cmd:
-        ffmpeg_cmd.extend(['-c', 'copy', '-c:s', 'copy'])
+    # Check if both audio and subtitle streams are to be handled
+    if 'a' in index_cmd and 's' in index_cmd:
+        for idx in indexes:
+            ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
+        ffmpeg_cmd.extend(['-c:v', 'copy', '-c:a', 'copy', '-c:s', 'copy'])
+    elif 'a' in index_cmd:
+        ffmpeg_cmd.extend(['-c:v', 'copy', '-c:a', 'copy'])
+    elif 's' in index_cmd:
+        ffmpeg_cmd.extend(['-c:v', 'copy', '-c:s', 'copy'])
     else:
         ffmpeg_cmd.extend(['-c', 'copy'])
 
     ffmpeg_cmd.extend([output_file, '-y'])
 
+    await sts.edit("💠Changing indexing...⚡")
     process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
 
@@ -110,7 +117,7 @@ async def change_index(bot, msg):
 
     filesize = os.path.getsize(output_file)
     filesize_human = humanbytes(filesize)
-    cap = f"{os.path.basename(output_file)}\n\n🌟size : {filesize_human}"
+    cap = f"{os.path.basename(output_file)}\n\n🌟Size: {filesize_human}"
 
     await sts.edit("💠Uploading...⚡")
     c_time = time.time()
