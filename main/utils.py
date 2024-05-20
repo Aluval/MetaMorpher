@@ -3,6 +3,8 @@ from pyrogram.types import *
 import math
 import os
 import time
+import subprocess
+
 
 PROGRESS_BAR = "\n\n📁 : {b} | {c}\n🚀 : {a}%\n⚡ : {d}/s\n⏱️ : {f}"
 
@@ -58,3 +60,8 @@ def TimeFormatter(milliseconds: int) -> str:
 
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+def get_duration(file_path):
+    result = subprocess.run(['ffprobe', '-i', file_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv=p=0'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    duration_str = result.stdout.decode('utf-8').strip()
+    duration = float(duration_str) if duration_str else None
+    return duration
