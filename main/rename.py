@@ -92,7 +92,13 @@ async def change_index(bot, msg):
     for idx in indexes:
         ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
 
-    ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
+    # Check if subtitles are included and copy them
+    if 's' in index_cmd:
+        ffmpeg_cmd.extend(['-c', 'copy', '-c:s', 'copy'])
+    else:
+        ffmpeg_cmd.extend(['-c', 'copy'])
+
+    ffmpeg_cmd.extend([output_file, '-y'])
 
     process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
