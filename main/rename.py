@@ -61,6 +61,13 @@ async def rename_file(bot, msg):
     await sts.delete()
 
 # Changeindex Command
+import os
+import time
+import subprocess
+from pyrogram import Client, filters
+from config import DOWNLOAD_LOCATION, BOT_TOKEN
+from main.utils import progress_message, humanbytes
+
 @Client.on_message(filters.private & filters.command("changeindex"))
 async def change_index(bot, msg):
     reply = msg.reply_to_message
@@ -83,22 +90,25 @@ async def change_index(bot, msg):
     downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
 
     output_file = os.path.join(DOWNLOAD_LOCATION, "output_" + os.path.basename(downloaded))
-    index_params = index_cmd.split('-')
-    stream_type = index_params[0]
-    indexes = [int(i) - 1 for i in index_params[1:]]
-
+    index_params = index_cmd.split()
+    
     ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']  # Always map video stream
 
-    # Map audio streams
-    if stream_type == 'a':
-        for idx in indexes:
-            ffmpeg_cmd.extend(['-map', f'0:a:{idx}'])
-    # Map subtitle streams
-    if stream_type == 's':
-        for idx in indexes:
-            ffmpeg_cmd.extend(['-map', f'0:s:{idx}'])
+    audio_indexes = []
+    subtitle_indexes = []
 
-    # Copy all mapped streams
+    for param in index_params:
+        if param.startswith("a-"):
+            audio_indexes = [int(i) - 1 for i in param.split('-')[1:]]
+        elif param.startswith("s-"):
+            subtitle_indexes = [int(i) - 1 for i in param.split('-')[1:]]
+
+    for idx in audio_indexes:
+        ffmpeg_cmd.extend(['-map', f'0:a:{idx}'])
+
+    for idx in subtitle_indexes:
+        ffmpeg_cmd.extend(['-map', f'0:s:{idx}'])
+
     ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
 
     process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
