@@ -464,11 +464,8 @@ async def merge_videos_and_audios_handler(bot, msg):
     # Remove the downloaded files and the merged file
     for audio_path in audio_paths:
         os.remove(audio_path)
-    os.remove(output_path) stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-
-    if process.returncode != 0:
-        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+    os.remove(output_path)
+   
 
 # Function to extract audio and subtitles from a video
 def extract_media(video_path, output_audio_path, output_subtitles_path=None):
