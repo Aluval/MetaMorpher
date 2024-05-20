@@ -229,7 +229,7 @@ async def sample_video(bot, msg):
 
     sts = await msg.reply_text("🚀Downloading media...⚡")
     c_time = time.time()
-    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Downloading media...⚡️", sts, c_time))
+    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Generating samplevideo...⚡️", sts, c_time))
 
     filesize = os.path.getsize(input_path)
     filesize_human = humanbytes(filesize)
@@ -258,9 +258,9 @@ async def screenshots(bot, msg):
     except ValueError:
         return await msg.reply_text("Please provide a valid number of screenshots.")
 
-    media = msg.reply_to_message.video
+    media = msg.reply_to_message.video or msg.reply_to_message.document
     if not media:
-        return await msg.reply_text("Please reply to a valid video file.")
+        return await msg.reply_text("Please reply to a valid video file or document.")
 
     sts = await msg.reply_text("🚀Downloading media...⚡")
     c_time = time.time()
@@ -271,9 +271,9 @@ async def screenshots(bot, msg):
     interval = duration / (num_screenshots - 1)
 
     for i in range(num_screenshots):
-        time = interval * i
+        time_val = interval * i
         output_file = f"screenshot_{i}.jpg"
-        subprocess.run(['ffmpeg', '-i', input_path, '-ss', str(time), '-vframes', '1', output_file])
+        subprocess.run(['ffmpeg', '-i', input_path, '-ss', str(time_val), '-vframes', '1', output_file])
 
     await sts.edit("💠Uploading screenshots...⚡")
     for i in range(num_screenshots):
