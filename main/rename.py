@@ -1,5 +1,7 @@
 import os
 import time
+import zipfile
+import tarfile
 from pyrogram import Client, filters
 from pyrogram.enums import MessageMediaType
 from pyrogram.errors import MessageNotModified
@@ -316,7 +318,53 @@ async def screenshots(bot, msg):
     for screenshot_path in screenshot_paths:
         os.remove(screenshot_path)
     await sts.delete()
-    
+
+# Function to unzip files
+def unzip_file(file_path, extract_path):
+    try:
+        if file_path.endswith('.zip'):
+            with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_path)
+        elif file_path.endswith('.tar.gz') or file_path.endswith('.tgz'):
+            with tarfile.open(file_path, 'r:gz') as tar_ref:
+                tar_ref.extractall(extract_path)
+        elif file_path.endswith('.tar'):
+            with tarfile.open(file_path, 'r:') as tar_ref:
+                tar_ref.extractall(extract_path)
+        else:
+            print("Unsupported file format")
+    except Exception as e:
+        print(f"Error unzipping file: {e}")
+
+# Unzip file command handler
+@Client.on_message(filters.private & filters.command("unzip"))
+async def unzip(bot, msg):
+    if not msg.reply_to_message:
+        return await msg.reply_text("Please reply to a file to unzip.")
+
+    media = msg.reply_to_message.document
+    if not media:
+        return await msg.reply_text("Please reply to a valid zip file.")
+
+    sts = await msg.reply_text("🚀Downloading file...⚡")
+    c_time = time.time()
+    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Downloading file...⚡️", sts, c_time))
+
+    if not os.path.exists(input_path):
+        await sts.edit(f"Error: The downloaded file does not exist.")
+        return
+
+    extract_path = os.path.join(DOWNLOAD_LOCATION, "extracted")
+    os.makedirs(extract_path, exist_ok=True)
+
+    await sts.edit("🚀Unzipping file...⚡")
+    unzip_file(input_path, extract_path)
+
+    await sts.edit(f"✅ File unzipped successfully. Extracted files are in: {extract_path}")
+
+# Start the bot
+app.run()
+
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
     app.run()
