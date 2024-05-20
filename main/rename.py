@@ -385,7 +385,6 @@ async def unzip(bot, msg):
     shutil.rmtree(extract_path)
 
 
-# Command handler for /generatesamplevideo
 @Client.on_message(filters.private & filters.command("generatesamplevideo"))
 async def generate_sample_video_handler(bot, msg):
     if not msg.reply_to_message:
@@ -422,10 +421,10 @@ async def sample_video(bot, msg, duration):
     if duration_seconds == 0:
         return await msg.reply_text("Invalid duration")
 
-    if not msg.reply_to_message:
-        return await msg.reply_text("Please reply to a file or video file.")
-
     media = msg.reply_to_message.document or msg.reply_to_message.video
+    if not media:
+        return await msg.reply_text("Please reply to a valid file or video file.")
+
     sts = await msg.reply_text("🚀Processing sample video...⚡")
     c_time = time.time()
     input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Downloading media...⚡️", sts, c_time))
