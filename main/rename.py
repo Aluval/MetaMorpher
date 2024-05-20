@@ -3,7 +3,9 @@ import time
 import datetime
 import shutil
 import zipfile
-import tarfile, json
+import tarfile
+from pyrogram.types import Message
+from pyrogram.types import Document, Video
 from pyrogram import Client, filters
 from pyrogram.enums import MessageMediaType
 from pyrogram.errors import MessageNotModified
@@ -381,98 +383,79 @@ async def unzip(bot, msg):
     shutil.rmtree(extract_path)
 
 
-  #Function of merge video                             
-async def merge_videos_and_audios(bot, msg, video_paths, audio_paths):
-    output_path = os.path.join(DOWNLOAD_LOCATION, "merged_video.mp4")
-    
-    # Merge the files
-    try:
-        ffmpeg_cmd = ['ffmpeg']
-        # Add input video files
-        for video_path in video_paths:
-            ffmpeg_cmd.extend(['-i', video_path])
-        
-        # Add input audio files
-        for audio_path in audio_paths:
-            ffmpeg_cmd.extend(['-i', audio_path])
-        
-        # Concatenate videos and audios
-        ffmpeg_cmd.extend(['-filter_complex', f'[0:v]concat=n={len(video_paths)}:v=1:a=1[outv];{";".join([f'[{i+1}:a]' for i in range(len(video_paths))])}concat=n={len(audio_paths)}:v=0:a=1[outa]', '-map', '[outv]', '-map', '[outa]'])
-        
-        # Set output format and codec
-        ffmpeg_cmd.extend(['-c:v', 'copy', '-c:a', 'aac', output_path, '-y'])
-        
-        process = await asyncio.create_subprocess_exec(*ffmpeg_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-        _, stderr = await process.communicate()
-        
-        if process.returncode != 0:
-            raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
-    except Exception as e:
-        # Handle any errors during merging
-        raise e
 
+@Client.on_message(filters.private & filters.command("merge"))
+async def merge_videos_handler(bot, msg):
+    if len(msg.command) < 2:
+        return await msg.reply_text("Please specify the number of videos to merge.")
+
+    try:
+        num_videos = int(msg.command[1])
+        if num_videos < 2:
+            return await msg.reply_text("Number of videos to merge must be at least 2.")
+
+        reply = msg.reply_to_message
+        if not reply:
+            return await msg.reply_text("Please reply to the videos you want to merge.")
+
+        videos = await gather_videos(reply, num_videos)
+        if len(videos) != num_videos:
+            return await msg.reply_text(f"Please reply to {num_videos} videos to merge.")
+
+        sts = await msg.reply_text("🚀Downloading videos...⚡")
+        downloaded_videos = await download_videos(videos, sts)
+
+        await sts.edit("💠Merging videos...⚡")
+        merged_video_path = await merge_videos(downloaded_videos)
+
+        await sts.edit("💠Uploading merged video...⚡")
+        await upload_video(bot, msg, merged_video_path)
+
+        cleanup_files(downloaded_videos, merged_video_path)
+        await sts.delete()
+
+    except ValueError as ve:
+        await msg.reply_text(str(ve))
+
+async def gather_videos(reply, num_videos):
+    videos = []
+    for media_type in ("document", "video"):
+        for _ in range(num_videos):
+            video = getattr(reply, media_type)
+            if video:
+                videos.append(video)
+                break
+    return videos
+
+async def download_videos(videos, status_message):
+    downloaded_videos = []
+    for i, video in enumerate(videos):
+        c_time = time.time()
+        downloaded_video = await video.download(file_name=f"video_{i+1}.mp4", progress=progress_message, progress_args=(f"🚀Downloading Video {i+1}...⚡", status_message, c_time))
+        downloaded_videos.append(downloaded_video)
+    return downloaded_videos
+
+async def merge_videos(video_paths):
+    output_path = "merged_video.mp4"
+    input_files = " ".join([f"-i {path}" for path in video_paths])
+    filter_complex = "".join([f"[{i}:v:0][{i}:a:0]" for i in range(len(video_paths))])
+    filter_complex += f"concat=n={len(video_paths)}:v=1:a=1[outv][outa]"
+    command = f"ffmpeg {input_files} -filter_complex \"{filter_complex}\" -map \"[outv]\" -map \"[outa]\" {output_path}"
+    os.system(command)
     return output_path
 
-# Command handler to merge videos and audios
-@Client.on_message(filters.private & filters.command("merge"))
-async def merge_videos_and_audios_handler(bot, msg):
-    if not msg.reply_to_message:
-        return await msg.reply_text("Please reply to a video file to merge.")
+async def upload_video(bot, msg, video_path):
+    await bot.send_video(msg.chat.id, video=video_path, caption="Merged Video")
 
-    # Store the initial message to check if subsequent messages are sent after the command
-    initial_message = msg
+def cleanup_files(downloaded_files, merged_file):
+    for file in downloaded_files:
+        os.remove(file)
+    os.remove(merged_file)
 
-    # Lists to store video and audio paths
-    video_paths = []
-    audio_paths = []
 
-    # Wait for subsequent messages until a timeout or until 10 files are received
-    async for message in msg.iter_media():
-        if len(video_paths) >= 10:
-            break
+# Example usage: /merge 3                               
+ 
 
-        media = message.video or message.document
-        if media:
-            media_path = await media.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
-            if message.video:
-                video_paths.append(media_path)
-            else:
-                audio_paths.append(media_path)
-
-    # If no files were received after the command, return with a message
-    if initial_message == msg:
-        return await msg.reply_text("No files were received after the command.")
-
-    # Merge the files
-    try:
-        output_path = await merge_videos_and_audios(bot, msg, video_paths, audio_paths)
-    except Exception as e:
-        # Handle any errors during merging
-        return await msg.reply_text(f"❗Error merging videos and audios: {e}")
-
-    # Upload the merged file
-    filesize = os.path.getsize(output_path)
-    filesize_human = humanbytes(filesize)
-    cap = f"{os.path.basename(output_path)}\n\n🌟Size: {filesize_human}"
-
-    await msg.reply_text("💠Merging complete. Uploading...⚡")
-
-    try:
-        await bot.send_document(msg.chat.id, document=output_path, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
-    except Exception as e:
-        return await msg.reply_text(f"Error uploading merged file: {e}")
-
-    # Remove the downloaded files and the merged file
-    for audio_path in audio_paths:
-        os.remove(audio_path)
-    os.remove(output_path)
-   
-
-import os
-import subprocess
-import time
-from pyrogram.types import Document, Video
-from pyrogram import Client
 
 # Function to extract audio and subtitles from a video
 def extract_media(video_path, output_audio_path, output_subtitles_path=None):
