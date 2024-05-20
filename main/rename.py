@@ -121,6 +121,69 @@ async def change_index(bot, msg):
     os.remove(output_file)
     await sts.delete()
 
+# Change Metadata Handler
+@Client.on_message(filters.private & filters.command("changemetadata"))
+async def change_metadata(bot, msg):
+    reply = msg.reply_to_message
+    if not reply:
+        return await msg.reply_text("Please reply to a media file with the metadata command\nFormat: `changemetadata NewTitle`")
+
+    if len(msg.command) < 2:
+        return await msg.reply_text("Please provide the new title\nFormat: `changemetadata NewTitle`")
+
+    new_title = msg.command[1].strip()
+    media = reply.document or reply.audio or reply.video
+    if not media:
+        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the metadata command.")
+
+    sts = await msg.reply_text("🚀Downloading media...⚡")
+    c_time = time.time()
+    downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+
+    output_file = os.path.join(DOWNLOAD_LOCATION, "output_" + os.path.basename(downloaded))
+
+    await sts.edit("💠Changing metadata...⚡")
+    try:
+        command = [
+            'ffmpeg',
+            '-i', downloaded,
+            '-metadata', f'title={new_title}',
+            '-metadata:s:v', f'title={new_title}',
+            '-metadata:s:a', f'title={new_title}',
+            '-metadata:s:s', f'title={new_title}',
+            '-map', '0:v?',
+            '-map', '0:a?',
+            '-map', '0:s?',
+            '-c:v', 'copy',
+            '-c:a', 'copy',
+            '-c:s', 'copy',
+            output_file,
+            '-y'
+        ]
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+        if process.returncode != 0:
+            raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+    except Exception as e:
+        await sts.edit(f"Error changing metadata: {e}")
+        os.remove(downloaded)
+        return
+
+    filesize = os.path.getsize(output_file)
+    filesize_human = humanbytes(filesize)
+    cap = f"{os.path.basename(output_file)}\n\n🌟Size: {filesize_human}"
+
+    await sts.edit("💠Uploading...⚡")
+    c_time = time.time()
+    try:
+        await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+    except Exception as e:
+        return await sts.edit(f"Error {e}")
+
+    os.remove(downloaded)
+    os.remove(output_file)
+    await sts.delete()
+
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
     app.run()
