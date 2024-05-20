@@ -7,6 +7,7 @@ from config import FSUB_CHANNEL
 
 START_TEXT = """
 Hᴇʟʟᴏ Mᴀᴡᴀ ❤️ ɪ ᴀᴍ Sɪᴍᴘʟᴇ Rᴇɴᴀᴍᴇ 𝟸𝟺 Bᴏᴛ⚡\n\n Tʜɪꜱ ʙᴏᴛ ɪꜱ ᴍᴀᴅᴇ ʙʏ <b><a href=https://t.me/Sunrises24botupdates>SUNRISES ™💥</a></b>
+"🎉 Mᴇᴇᴛ ᴛʜᴇ Sɪᴍᴘʟᴇ Rᴇɴᴀᴍᴇ 𝟸𝟺 Bᴏᴛ ⚡! Cʀᴇᴀᴛᴇᴅ ᴡɪᴛʜ ʟᴏᴠᴇ ʙʏ <b><a href=https://t.me/Sunrises_24>Sᴜɴʀɪꜱᴇꜱ Hᴀʀꜱʜᴀ 𝟸𝟺❤️</a></b>, ᴛʜɪꜱ ʙᴏᴛ ᴘᴀᴄᴋꜱ ᴀ ᴘᴜɴᴄʜ ᴡɪᴛʜ ɪᴛꜱ ɪɴᴄʀᴇᴅɪʙʟᴇ ғᴇᴀᴛᴜʀᴇꜱ. Fʀᴏᴍ ʀᴇɴᴀᴍɪɴɢ ᴍᴀꜱꜱɪᴠᴇ ғɪʟᴇꜱ ᴛᴏ ᴍᴀɴᴀɢɪɴɢ ᴍᴇᴛᴀᴅᴀᴛᴀ ᴀɴᴅ ɢᴇɴᴇʀᴀᴛɪɴɢ ꜱᴀᴍᴘʟᴇ ᴠɪᴅᴇᴏꜱ, ɪᴛ'ꜱ ʏᴏᴜʀ ᴜʟᴛɪᴍᴀᴛᴇ ᴄᴏᴍᴘᴀɴɪᴏɴ ғᴏʀ ᴍᴇᴅɪᴀ ᴛᴀꜱᴋꜱ. Nᴇᴇᴅ ꜱᴄʀᴇᴇɴꜱʜᴏᴛꜱ ᴏʀ ᴛᴏ ᴜɴᴢɪᴘ ғɪʟᴇꜱ? Nᴏ ᴘʀᴏʙʟᴇᴍ! Jᴜꜱᴛ ꜱᴘᴇᴄɪғʏ ʏᴏᴜʀ ᴘʀᴇғᴇʀᴇɴᴄᴇꜱ, ᴀɴᴅ ʟᴇᴛ ᴛʜᴇ ʙᴏᴛ ʜᴀɴᴅʟᴇ ᴛʜᴇ ʀᴇꜱᴛ. Exᴘʟᴏʀᴇ ᴛʜᴇ ᴘᴏᴡᴇʀ ᴏғ ꜱɪᴍᴘʟɪᴄɪᴛʏ ᴛᴏᴅᴀʏ! 💥 #SUNRISES24BOTS #SIMPLERENAME24BOT"
 """
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
@@ -53,7 +54,7 @@ async def about_command(bot, msg):
 <b>✯ Mʏ Nᴀᴍᴇ : <a href=https://t.me/INFINITYSTARRENAME24BOT>INFINITY ♾️</a></b>
 <b>✯ Dᴇᴠᴇʟᴏᴘᴇʀ 🧑🏻‍💻 : <a href=https://t.me/Sunrises_24>𝐒𝐔𝐍𝐑𝐈𝐒𝐄𝐒™ ✨</a></b>
 <b>✯ Uᴘᴅᴀᴛᴇs 📢 : <a href=https://t.me/Sunrises24BotUpdates>𝐔𝐏𝐃𝐀𝐓𝐄𝐒 📢</a></b>
-<b>✯ Bᴜɪʟᴅ Sᴛᴀᴛᴜs 📊 : ᴠ2 [Sᴛᴀʙʟᴇ]</b>
+<b>✯ Bᴜɪʟᴅ Sᴛᴀᴛᴜs 📊 : ᴠ2.4 [Sᴛᴀʙʟᴇ]</b>
     """
     await msg.reply_text(about_text)
 
