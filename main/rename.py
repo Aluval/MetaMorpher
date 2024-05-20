@@ -18,9 +18,12 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 # Dictionary to store user files
 user_files = {}
 
+# Directory to store downloaded videos and the merged video
+DOWNLOAD_LOCATION = "./downloads/"
+
 # Create the download location directory if it doesn't exist
 if not os.path.exists(DOWNLOAD_LOCATION):
-    os.makedirs(DOWNLOAD_LOCATION)
+    os.makedirs(DOWNLOAD_LOCATION))
     
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
@@ -464,64 +467,65 @@ async def extract_media_handler(bot, msg):
     await sts.delete()
 
 
+
+
+
 # Command to start the merging process
 @Client.on_message(filters.private & filters.command("merge"))
 async def merge_start(client, message):
     user_id = message.from_user.id
     user_files[user_id] = []
-    await message.reply_text("Please send the media files to be merged one by one. When done, send /done.")
+    await message.reply_text("Please send the video files to be merged one by one. When done, send /done.")
 
-# Handler to add files to the merge list
-@Client.on_message(filters.private & (filters.document | filters.audio | filters.video))
-async def add_file(client, message):
+# Handler to add video files to the merge list
+@Client.on_message(filters.private & filters.video)
+async def add_video(client, message):
     user_id = message.from_user.id
     if user_id not in user_files:
         return await message.reply_text("Please start the merge process by sending /merge.")
     
-    file = message.document or message.audio or message.video
+    file = message.video
     if not file:
-        return await message.reply_text("Please send a valid media file (audio, video, or document).")
+        return await message.reply_text("Please send a valid video file.")
     
-    file_path = os.path.join(DOWNLOAD_LOCATION, file.file_id + os.path.splitext(file.file_name)[1])
+    file_path = os.path.join(DOWNLOAD_LOCATION, f"{file.file_id}.mp4")
     user_files[user_id].append(file_path)
     await client.download_media(message, file_path)
-    await message.reply_text("File received. Send the next file or send /done to proceed.")
+    
+    if os.path.exists(file_path):
+        await message.reply_text(f"Video received: {file_path}. Send the next video or send /done to proceed.")
+    else:
+        await message.reply_text(f"Error downloading video: {file_path}")
 
-# Command to finish adding files and show the merge button
+# Command to finish adding video files and start merging
 @Client.on_message(filters.private & filters.command("done"))
 async def done(client, message):
     user_id = message.from_user.id
     if user_id not in user_files or not user_files[user_id]:
-        return await message.reply_text("No files received. Use /merge to start again.")
+        return await message.reply_text("No videos received. Use /merge to start again.")
     
     keyboard = [
-        [InlineKeyboardButton("Merge Files", callback_data='merge_files')]
+        [InlineKeyboardButton("Merge Videos", callback_data='merge_videos')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await message.reply_text("All files received. Click below to start merging.", reply_markup=reply_markup)
+    await message.reply_text("All videos received. Click below to start merging.", reply_markup=reply_markup)
 
-# Callback handler to merge files
-@Client.on_callback_query(filters.regex("merge_files"))
-async def merge_files_callback(client, callback_query):
+# Callback handler to merge videos
+@Client.on_callback_query(filters.regex("merge_videos"))
+async def merge_videos_callback(client, callback_query):
     user_id = callback_query.from_user.id
     if user_id not in user_files or not user_files[user_id]:
-        return await callback_query.message.edit_text("No files to merge.")
-
-    sts = await callback_query.message.edit_text("🚀 Merging files... ⚡")
-
+        return await callback_query.message.edit_text("No videos to merge.")
+    
+    sts = await callback_query.message.edit_text("🚀 Merging videos... ⚡")
     merged_file_path = os.path.join(DOWNLOAD_LOCATION, f"merged_{user_id}.mp4")
 
     # Prepare ffmpeg command
-    file_list_path = os.path.join(DOWNLOAD_LOCATION, f"file_list_{user_id}.txt")
-    with open(file_list_path, 'w') as f:
+    with open(os.path.join(DOWNLOAD_LOCATION, f"file_list_{user_id}.txt"), 'w') as f:
         for file_path in user_files[user_id]:
-            if os.path.exists(file_path):
-                f.write(f"file '{file_path}'\n")
-            else:
-                await sts.edit_text(f"❗ Error: File not found: {file_path}")
-                return
+            f.write(f"file '{file_path}'\n")
 
-    ffmpeg_cmd = ['ffmpeg', '-f', 'concat', '-safe', '0', '-i', file_list_path, '-c', 'copy', merged_file_path, '-y']
+    ffmpeg_cmd = ['ffmpeg', '-f', 'concat', '-safe', '0', '-i', f"file_list_{user_id}.txt", '-c', 'copy', merged_file_path, '-y']
 
     process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
@@ -530,26 +534,7 @@ async def merge_files_callback(client, callback_query):
         return await sts.edit_text(f"❗ FFmpeg error: {stderr.decode('utf-8')}")
 
     filesize = os.path.getsize(merged_file_path)
-    filesize_human = humanbytes(filesize)
-    cap = f"Merged file\n\n🌟 Size: {filesize_human}"
-
-    sts = await sts.edit_text("💠 Uploading... ⚡")
-    try:
-        await client.send_document(callback_query.message.chat.id, document=merged_file_path, caption=cap)
-    except Exception as e:
-        return await sts.edit_text(f"Error: {e}")
-
-    # Clean up
-    for file_path in user_files[user_id]:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-    if os.path.exists(merged_file_path):
-        os.remove(merged_file_path)
-    if os.path.exists(file_list_path):
-        os.remove(file_list_path)
-    
-    user_files[user_id] = []
-    await sts.delete()
+    await sts.edit_text(f"Merged video created: {merged_file_path} (Size: {filesize} bytes)")
 
     
 if __name__ == '__main__':
