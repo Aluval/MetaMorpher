@@ -268,6 +268,9 @@ async def screenshots(bot, msg):
     except ValueError:
         return await msg.reply_text("Please provide a valid number of screenshots.")
 
+    if not msg.reply_to_message:
+        return await msg.reply_text("Please reply to a valid video file or document.")
+    
     media = msg.reply_to_message.video or msg.reply_to_message.document
     if not media:
         return await msg.reply_text("Please reply to a valid video file.")
@@ -276,10 +279,20 @@ async def screenshots(bot, msg):
     c_time = time.time()
     input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Downloading media...⚡️", sts, c_time))
 
+    if not os.path.exists(input_path):
+        await sts.edit(f"Error: The downloaded file does not exist.")
+        return
+
     try:
-        duration = float(subprocess.check_output(['ffprobe', '-i', input_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv="p=0"']).decode('utf-8'))
+        await sts.edit("🚀Reading video duration...⚡")
+        duration_output = subprocess.check_output(['ffprobe', '-i', input_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv="p=0"'], stderr=subprocess.STDOUT)
+        duration = float(duration_output.decode('utf-8').strip())
     except subprocess.CalledProcessError as e:
-        await sts.edit(f"Error reading video duration: {e}")
+        await sts.edit(f"Error reading video duration: {e.output.decode('utf-8')}")
+        os.remove(input_path)
+        return
+    except ValueError:
+        await sts.edit("Error reading video duration: Unable to convert duration to float.")
         os.remove(input_path)
         return
 
@@ -295,13 +308,16 @@ async def screenshots(bot, msg):
             '-i', input_path,
             '-ss', str(time_position),
             '-vframes', '1',
-            screenshot_path
+            screenshot_path,
+            '-y'
         ]
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        process.communicate()
+        stdout, stderr = process.communicate()
         if process.returncode != 0:
-            await sts.edit(f"Error generating screenshot {i+1}")
+            await sts.edit(f"Error generating screenshot {i+1}: {stderr.decode('utf-8')}")
             os.remove(input_path)
+            for path in screenshot_paths:
+                os.remove(path)
             return
         screenshot_paths.append(screenshot_path)
 
