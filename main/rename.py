@@ -286,7 +286,7 @@ async def screenshots(bot, msg):
 
     interval = duration / num_screenshots
 
-    await sts.edit("🚀Generating screenshots...⚡")
+    await sts.edit("🚀Generating screenshots... It's Take Time 5Min for 10 Screenshots⚡")
     screenshot_paths = []
     for i in range(num_screenshots):
         time_position = interval * i
