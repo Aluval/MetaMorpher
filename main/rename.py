@@ -192,21 +192,6 @@ async def change_metadata(bot, msg):
     os.remove(output_file)
     await sts.delete()
 
-# Generate Sample Video Function
-def generate_sample_video(duration, output_path):
-    command = [
-        'ffmpeg',
-        '-f', 'lavfi',
-        '-i', f'color=c=red:s=640x480:r=30',
-        '-t', str(duration),
-        output_path,
-        '-y'
-    ]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
-
 # Sample Video Generation Handler
 @Client.on_message(filters.private & filters.command(["samplevideo150", "samplevideo120", "samplevideo90", "samplevideo60", "samplevideo30"]))
 async def sample_video(bot, msg):
@@ -221,13 +206,19 @@ async def sample_video(bot, msg):
     if duration == 0:
         return await msg.reply_text("Invalid command")
 
+    media = msg.reply_to_message.document or msg.reply_to_message.video
+    if not media:
+        return await msg.reply_text("Please reply to a valid media file (video or document).")
+
+    input_path = await media.download()
     output_file = os.path.join(DOWNLOAD_LOCATION, f"sample_video_{duration}s.mp4")
 
     sts = await msg.reply_text("🚀Generating sample video...⚡")
     try:
-        generate_sample_video(duration, output_file)
+        generate_sample_video(input_path, duration, output_file)
     except Exception as e:
         await sts.edit(f"Error generating sample video: {e}")
+        os.remove(input_path)
         return
 
     filesize = os.path.getsize(output_file)
@@ -241,6 +232,7 @@ async def sample_video(bot, msg):
     except Exception as e:
         return await sts.edit(f"Error {e}")
 
+    os.remove(input_path)
     os.remove(output_file)
     await sts.delete()
     
