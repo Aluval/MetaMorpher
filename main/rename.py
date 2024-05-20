@@ -205,18 +205,13 @@ async def sample_video(bot, msg):
     if duration == 0:
         return await msg.reply_text("Invalid command")
 
-    media = msg.reply_to_message.document or msg.reply_to_message.video
+    media = msg.reply_to_message.video
     if not media:
-        return await msg.reply_text("Please reply to a valid media file (video or document).")
+        return await msg.reply_text("Please reply to a valid video file.")
 
-    input_path = None
-    if msg.reply_to_message.document:
-        input_path = await media.download(file_name="input_file.mp4")
-    elif msg.reply_to_message.video:
-        input_path = await media.download()
-
+    input_path = await media.download()
     if not input_path:
-        return await msg.reply_text("Error downloading the media file.")
+        return await msg.reply_text("Error downloading the video file.")
 
     output_file = os.path.join(DOWNLOAD_LOCATION, f"sample_video_{duration}s.mp4")
 
