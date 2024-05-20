@@ -466,14 +466,15 @@ async def merge_videos_and_audios_handler(bot, msg):
 
 
 # Function to extract audio and subtitles from a video
-def extract_audio_and_subtitles(video_path, output_audio_path, output_subtitles_path):
+def extract_media(video_path, output_audio_path, output_subtitles_path=None):
     ffmpeg_cmd = ['ffmpeg', '-i', video_path]
 
     # Extract audio
     ffmpeg_cmd.extend(['-vn', '-c:a', 'copy', output_audio_path])
 
-    # Extract subtitles
-    ffmpeg_cmd.extend(['-c:s', 'mov_text', output_subtitles_path])
+    if output_subtitles_path:
+        # Extract subtitles
+        ffmpeg_cmd.extend(['-c:s', 'mov_text', output_subtitles_path])
 
     process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
@@ -483,51 +484,59 @@ def extract_audio_and_subtitles(video_path, output_audio_path, output_subtitles_
 
 # Command handler to extract audio and subtitles
 @Client.on_message(filters.private & filters.command("extract"))
-async def extract_audio_and_subtitles_handler(bot, msg):
+async def extract_media_handler(bot, msg):
     if not msg.reply_to_message:
         return await msg.reply_text("Please reply to a video file to extract audio and subtitles.")
 
     reply = msg.reply_to_message
     video = reply.video
-    if not video:
-        document = reply.document
-        if not document or not document.mime_type.startswith("video"):
-            return await msg.reply_text("Please reply to a valid video file.")
+    document = reply.document
 
-        # Download the video document
-        sts = await msg.reply_text("🚀Downloading media...⚡")
-        c_time = time.time()
-        video_path = await bot.download_media(document, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+    if not video and (not document or not document.mime_type.startswith("video")):
+        return await msg.reply_text("Please reply to a valid video file.")
 
-        output_audio_path = os.path.join(DOWNLOAD_LOCATION, "extracted_audio_" + os.path.basename(video_path).split('.')[0] + ".aac")
+    sts = await msg.reply_text("🚀Downloading media...⚡")
+    c_time = time.time()
+
+    if video:
+        media = video
+    else:
+        media = document
+
+    video_path = await media.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+
+    output_audio_path = os.path.join(DOWNLOAD_LOCATION, "extracted_audio_" + os.path.basename(video_path).split('.')[0] + ".aac")
+    output_subtitles_path = None
+
+    if document and document.mime_type.startswith("video"):
         output_subtitles_path = os.path.join(DOWNLOAD_LOCATION, "extracted_subtitles_" + os.path.basename(video_path).split('.')[0] + ".srt")
 
-        await sts.edit("💠Extracting audio and subtitles...⚡")
-        try:
-            extract_audio_and_subtitles(video_path, output_audio_path, output_subtitles_path)
-        except Exception as e:
-            await sts.edit(f"❗Error extracting audio and subtitles: {e}")
-            os.remove(video_path)
-            return
-
-        filesize_audio = os.path.getsize(output_audio_path)
-        filesize_subtitles = os.path.getsize(output_subtitles_path)
-        filesize_audio_human = humanbytes(filesize_audio)
-        filesize_subtitles_human = humanbytes(filesize_subtitles)
-        cap = f"🔉 Extracted Audio: {os.path.basename(output_audio_path)}\n📝 Extracted Subtitles: {os.path.basename(output_subtitles_path)}\n\n🌟Audio Size: {filesize_audio_human}\n🌟Subtitles Size: {filesize_subtitles_human}"
-
-        await sts.edit("💠Uploading...⚡")
-        c_time = time.time()
-        try:
-            await bot.send_document(msg.chat.id, document=output_audio_path, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
-            await bot.send_document(msg.chat.id, document=output_subtitles_path, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
-        except Exception as e:
-            return await sts.edit(f"Error {e}")
-
+    await sts.edit("💠Extracting audio and subtitles...⚡")
+    try:
+        extract_media(video_path, output_audio_path, output_subtitles_path)
+    except Exception as e:
+        await sts.edit(f"❗Error extracting media: {e}")
         os.remove(video_path)
-        os.remove(output_audio_path)
+        return
+
+    filesize_audio = os.path.getsize(output_audio_path)
+    filesize_audio_human = humanbytes(filesize_audio)
+    cap = f"🔉 Extracted Audio: {os.path.basename(output_audio_path)}\n🌟Audio Size: {filesize_audio_human}"
+
+    await sts.edit("💠Uploading...⚡")
+    c_time = time.time()
+    try:
+        await bot.send_document(msg.chat.id, document=output_audio_path, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+        if output_subtitles_path and os.path.exists(output_subtitles_path):
+            await bot.send_document(msg.chat.id, document=output_subtitles_path, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+    except Exception as e:
+        return await sts.edit(f"Error {e}")
+
+    os.remove(video_path)
+    os.remove(output_audio_path)
+    if output_subtitles_path and os.path.exists(output_subtitles_path):
         os.remove(output_subtitles_path)
-        await sts.delete()
+    await sts.delete()
 
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
