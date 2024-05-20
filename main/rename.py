@@ -372,7 +372,161 @@ async def unzip(bot, msg):
 
     os.remove(input_path)
     os.rmdir(extract_path)
-    
+
+import os
+import subprocess
+from pyrogram import Client, filters
+
+# Function to merge videos and audios
+def merge_videos_and_audios(video_paths, audio_paths, output_path):
+    ffmpeg_cmd = ['ffmpeg']
+
+    # Add input video files
+    for video_path in video_paths:
+        ffmpeg_cmd.extend(['-i', video_path])
+
+    # Add input audio files
+    for audio_path in audio_paths:
+        ffmpeg_cmd.extend(['-i', audio_path])
+
+    # Concatenate videos and audios
+    ffmpeg_cmd.extend(['-filter_complex', f'[0:v]concat=n={len(video_paths)}:v=1:a=1[outv];{";".join([f'[{i+1}:a]' for i in range(len(video_paths))])}concat=n={len(audio_paths)}:v=0:a=1[outa]', '-map', '[outv]', '-map', '[outa]'])
+
+    # Set output format and codec
+    ffmpeg_cmd.extend(['-c:v', 'copy', '-c:a', 'aac', output_path, '-y'])
+
+    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+
+    if process.returncode != 0:
+        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+
+# Command handler to merge videos and audios
+@Client.on_message(filters.private & filters.command("merge"))
+async def merge_videos_and_audios_handler(bot, msg):
+    if not msg.reply_to_message:
+        return await msg.reply_text("Please reply to a video file to merge.")
+
+    reply = msg.reply_to_message
+    video = reply.video or reply.document
+    if not video:
+        return await msg.reply_text("Please reply to a valid video file.")
+
+    sts = await msg.reply_text("🚀Downloading media...⚡")
+    c_time = time.time()
+    video_path = await video.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+
+    # Gather video paths and audio paths
+    video_paths = [video_path]
+    audio_paths = []
+
+    # Iterate over subsequent messages to gather more videos and audios
+    async for message in msg.iter_media():
+        if len(video_paths) >= 10:
+            break
+
+        media = message.video or message.document
+        if media:
+            media_path = await media.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+            if message.video:
+                video_paths.append(media_path)
+            else:
+                audio_paths.append(media_path)
+
+    output_path = os.path.join(DOWNLOAD_LOCATION, "merged_video.mp4")
+
+    await sts.edit("💠Merging videos and audios...⚡")
+    try:
+        merge_videos_and_audios(video_paths, audio_paths, output_path)
+    except Exception as e:
+        await sts.edit(f"❗Error merging videos and audios: {e}")
+        os.remove(video_path)
+        for audio_path in audio_paths:
+            os.remove(audio_path)
+        return
+
+    filesize = os.path.getsize(output_path)
+    filesize_human = humanbytes(filesize)
+    cap = f"{os.path.basename(output_path)}\n\n🌟Size: {filesize_human}"
+
+    await sts.edit("💠Uploading...⚡")
+    c_time = time.time()
+    try:
+        await bot.send_document(msg.chat.id, document=output_path, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+    except Exception as e:
+        return await sts.edit(f"Error {e}")
+
+    os.remove(video_path)
+    for audio_path in audio_paths:
+        os.remove(audio_path)
+    os.remove(output_path)
+    await sts.delete()
+
+import os
+import subprocess
+from pyrogram import Client, filters
+
+# Function to extract audio and subtitles from a video
+def extract_audio_and_subtitles(video_path, output_audio_path, output_subtitles_path):
+    ffmpeg_cmd = ['ffmpeg', '-i', video_path]
+
+    # Extract audio
+    ffmpeg_cmd.extend(['-vn', '-c:a', 'copy', output_audio_path])
+
+    # Extract subtitles
+    ffmpeg_cmd.extend(['-c:s', 'mov_text', output_subtitles_path])
+
+    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+
+    if process.returncode != 0:
+        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+
+# Command handler to extract audio and subtitles
+@Client.on_message(filters.private & filters.command("extract"))
+async def extract_audio_and_subtitles_handler(bot, msg):
+    if not msg.reply_to_message:
+        return await msg.reply_text("Please reply to a video file to extract audio and subtitles.")
+
+    reply = msg.reply_to_message
+    video = reply.video or reply.document
+    if not video:
+        return await msg.reply_text("Please reply to a valid video file.")
+
+    sts = await msg.reply_text("🚀Downloading media...⚡")
+    c_time = time.time()
+    video_path = await video.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+
+    output_audio_path = os.path.join(DOWNLOAD_LOCATION, "extracted_audio_" + os.path.basename(video_path).split('.')[0] + ".aac")
+    output_subtitles_path = os.path.join(DOWNLOAD_LOCATION, "extracted_subtitles_" + os.path.basename(video_path).split('.')[0] + ".srt")
+
+    await sts.edit("💠Extracting audio and subtitles...⚡")
+    try:
+        extract_audio_and_subtitles(video_path, output_audio_path, output_subtitles_path)
+    except Exception as e:
+        await sts.edit(f"❗Error extracting audio and subtitles: {e}")
+        os.remove(video_path)
+        return
+
+    filesize_audio = os.path.getsize(output_audio_path)
+    filesize_subtitles = os.path.getsize(output_subtitles_path)
+    filesize_audio_human = humanbytes(filesize_audio)
+    filesize_subtitles_human = humanbytes(filesize_subtitles)
+    cap = f"🔉 Extracted Audio: {os.path.basename(output_audio_path)}\n📝 Extracted Subtitles: {os.path.basename(output_subtitles_path)}\n\n🌟Audio Size: {filesize_audio_human}\n🌟Subtitles Size: {filesize_subtitles_human}"
+
+    await sts.edit("💠Uploading...⚡")
+    c_time = time.time()
+    try:
+        await bot.send_document(msg.chat.id, document=output_audio_path, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+        await bot.send_document(msg.chat.id, document=output_subtitles_path, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+    except Exception as e:
+        return await sts.edit(f"Error {e}")
+
+    os.remove(video_path)
+    os.remove(output_audio_path)
+    os.remove(output_subtitles_path)
+    await sts.delete()
+
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
     app.run()
