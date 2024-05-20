@@ -192,6 +192,22 @@ async def change_metadata(bot, msg):
     os.remove(output_file)
     await sts.delete()
 
+# Sample Video Generation Function
+def generate_sample_video(input_path, duration, output_path):
+    command = [
+        'ffmpeg',
+        '-i', input_path,
+        '-t', str(duration),
+        '-c:v', 'copy',
+        '-c:a', 'copy',
+        output_path,
+        '-y'
+    ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+
 # Sample Video Handler
 @Client.on_message(filters.private & filters.command(["samplevideo150", "samplevideo120", "samplevideo90", "samplevideo60", "samplevideo30"]))
 async def sample_video(bot, msg):
