@@ -14,7 +14,7 @@ from main.utils import progress_message, humanbytes
 import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP
-from pymediainfo import MediaInfo
+
   
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Rename Command
@@ -446,62 +446,7 @@ async def unzip_private(client, message):
     InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
   ]]
   reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
-
-# Command handler for /mediainfo
-@Client.on_message(filters.command("mediainfo") & filters.chat(GROUP))
-async def mediainfo_handler(bot, msg):
-    if not msg.reply_to_message:
-        return await msg.reply_text("Please reply to a file or video file.")
-
-    # Get the media file from the replied message
-    media_message = msg.reply_to_message.document or msg.reply_to_message.video
-    if not media_message:
-        return await msg.reply_text("Please reply to a valid file or video file.")
-
-    # Send a status message indicating media download
-    sts = await msg.reply_text("🚀Downloading media...⚡")
-    try:
-        # Download the media file
-        input_path = await bot.download_media(media_message)
-    except Exception as e:
-        return await sts.edit(f"Error downloading media: {e}")
-
-    # Check if the downloaded file exists
-    if not os.path.exists(input_path):
-        return await sts.edit("Error: The downloaded file does not exist.")
-
-    # Get media information using the get_media_info function
-    info_text = get_media_info(input_path)
-
-    # Edit the status message to include the media information
-    await sts.edit(f"📄 Media Information:\n\n{info_text}")
-
-@Client.on_message(filters.command("mediainfo"))
-async def mediainfo_private(client, message):
-  buttons = [[
-    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
-  ]]
-  reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
-
-# Function to get media information
-def get_media_info(file_path):
-    media_info = MediaInfo.parse(file_path)
-    media_tracks = media_info.tracks
-    info_text = ""
-    for track in media_tracks:
-        if track.track_type == "General":
-            info_text += f"General Information:\n"
-        elif track.track_type == "Video":
-            info_text += f"Video Information:\n"
-        elif track.track_type == "Audio":
-            info_text += f"Audio Information:\n"
-        info_text += f"Format: {track.format}\n"
-        info_text += f"Duration: {track.duration}\n"
-        info_text += f"Bit rate: {track.bit_rate}\n"
-        info_text += f"Codec ID: {track.codec_id}\n\n"
-    return info_text
+  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)    
   
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
