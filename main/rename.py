@@ -4,6 +4,7 @@ import shutil
 import zipfile
 import tarfile
 import requests
+import aiohttp
 from pyrogram.types import Message
 from pyrogram.types import Document, Video
 from pyrogram import Client, filters
@@ -446,7 +447,79 @@ async def unzip_private(client, message):
   ]]
   reply_markup = InlineKeyboardMarkup(buttons)
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
-       
+
+
+
+
+@Client.on_message(filters.command("renamelink") & filters.chat(GROUP))
+async def rename_file(bot, msg):
+    reply = msg.reply_to_message
+    if len(msg.command) < 2 or not (reply or len(msg.command) > 1):
+        return await msg.reply_text("Please reply to a file, video, audio, or provide a direct download link with filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+    
+    new_name = msg.text.split(" ", 1)[1]
+    sts = await msg.reply_text("🚀Downloading.....⚡")
+    c_time = time.time()
+    
+    if reply:
+        media = reply.document or reply.audio or reply.video
+        if not media:
+            return await msg.reply_text("Please reply to a file, video, or audio with filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+        
+        downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+        filesize = humanbytes(media.file_size)
+        
+        # Handle caption
+        cap = f"{new_name}\n\n🌟size : {filesize}"
+        if CAPTION:
+            try:
+                cap = CAPTION.format(file_name=new_name, file_size=filesize)
+            except Exception as e:
+                return await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
+
+        # Thumbnail handling
+        file_thumb = None
+        if hasattr(media, 'thumb') and media.thumbs:
+            file_thumb = await bot.download_media(media.thumbs[0].file_id)
+    else:
+        url = msg.command[1]
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    with open(new_name, 'wb') as f:
+                        f.write(await resp.read())
+                else:
+                    return await sts.edit("Failed to download the file from the provided URL.")
+        
+        downloaded = new_name
+        filesize = humanbytes(os.path.getsize(downloaded))
+        cap = f"{new_name}\n\n🌟size : {filesize}"
+        file_thumb = None
+
+    await sts.edit("💠Uploading...⚡")
+    c_time = time.time()
+    try:
+        await bot.send_document(msg.chat.id, document=downloaded, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+    except Exception as e:
+        return await sts.edit(f"Error {e}")
+    
+    # Clean up
+    try:
+        if file_thumb:
+            os.remove(file_thumb)
+        os.remove(downloaded)
+    except:
+        pass
+    await sts.delete()
+
+@Client.on_message(filters.command("renamelink"))
+async def renamelink_private(client, message):
+  buttons = [[
+    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
+  ]]
+  reply_markup = InlineKeyboardMarkup(buttons)
+  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
+  
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
     app.run()
