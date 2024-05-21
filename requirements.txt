@@ -4,5 +4,6 @@ ffmpeg-python
 rarfile
 ffmpeg
 requests
+pymediainfo 
 
 
