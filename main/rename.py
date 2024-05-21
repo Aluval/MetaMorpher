@@ -14,6 +14,7 @@ from main.utils import progress_message, humanbytes
 import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP
+from pymediainfo import MediaInfo
   
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Rename Command
@@ -447,6 +448,41 @@ async def unzip_private(client, message):
   reply_markup = InlineKeyboardMarkup(buttons)
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
 
+# Command handler for /mediainfo
+@Client.on_message(filters.command("mediainfo") & filters.chat(GROUP))
+async def mediainfo_handler(bot, msg):
+    if not msg.reply_to_message:
+        return await msg.reply_text("Please reply to a file or video file.")
+
+    media = msg.reply_to_message.document or msg.reply_to_message.video
+    if not media:
+        return await msg.reply_text("Please reply to a valid file or video file.")
+
+    sts = await msg.reply_text("🚀Downloading media...⚡")
+    c_time = time.time()
+    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Downloading media...⚡️", sts, c_time))
+
+    await sts.edit("🚀Fetching media information...⚡")
+    try:
+        media_info = MediaInfo.parse(input_path)
+        info_text = "\n".join([f"{track.track_type}: {track.to_data()}" for track in media_info.tracks])
+    except Exception as e:
+        await sts.edit(f"Error fetching media information: {e}")
+        os.remove(input_path)
+        return
+
+    await sts.edit(f"📄 Media Information:\n{info_text}")
+
+    os.remove(input_path)
+
+@Client.on_message(filters.command("mediainfo"))
+async def mediainfo_private(client, message):
+  buttons = [[
+    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
+  ]]
+  reply_markup = InlineKeyboardMarkup(buttons)
+  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
+  
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
     app.run()
