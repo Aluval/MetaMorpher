@@ -15,6 +15,7 @@ import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP
 from pymediainfo import MediaInfo
+from telegraph import Telegraph
   
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Rename Command
@@ -460,18 +461,29 @@ async def mediainfo_handler(bot, msg):
 
     sts = await msg.reply_text("🚀Downloading media...⚡")
     c_time = time.time()
-    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Downloading media...⚡️", sts, c_time))
+    try:
+        input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Downloading media...⚡️", sts, c_time))
+    except Exception as e:
+        return await sts.edit(f"Error downloading media: {e}")
+
+    if not os.path.exists(input_path):
+        return await sts.edit("Error: The downloaded file does not exist.")
 
     await sts.edit("🚀Fetching media information...⚡")
     try:
         media_info = MediaInfo.parse(input_path)
-        info_text = "\n".join([f"{track.track_type}: {track.to_data()}" for track in media_info.tracks])
+        info_text = "<br>".join([f"<b>{track.track_type}</b>: {track.to_data()}" for track in media_info.tracks])
+        
+        response = telegraph.create_page(
+            title="Media Information",
+            html_content=info_text
+        )
+        url = response['url']
+        await sts.edit(f"📄 Media Information: [Click here to view]({url})", disable_web_page_preview=True)
     except Exception as e:
         await sts.edit(f"Error fetching media information: {e}")
         os.remove(input_path)
         return
-
-    await sts.edit(f"📄 Media Information:\n{info_text}")
 
     os.remove(input_path)
 
