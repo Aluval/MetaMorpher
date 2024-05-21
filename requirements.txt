@@ -5,8 +5,6 @@ rarfile
 ffmpeg
 requests
 pymediainfo
-telegraph
-humanize
-mediainfo
+pydub
 
 
