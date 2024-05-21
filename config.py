@@ -10,5 +10,6 @@ FSUB_CHANNEL = os.environ.get("FSUB_CHANNEL", "Sunrises24BotUpdates")
 CAPTION = os.environ.get("CAPTION", "")
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 DOWNLOAD_LOCATION = "./DOWNLOADS"
-GROUP = os.environ.get("GROUP", "")
+group = environ.get('GROUP', '-1002128043143')
+GROUP = int(group) if group and id_pattern.search(group) else None
 
