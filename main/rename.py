@@ -224,7 +224,7 @@ def generate_sample_video(input_path, duration, output_path):
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
 
 # Sample Video Handler
-@Client.on_message(filters.command(["samplevideo150", "samplevideo120", "samplevideo90", "samplevideo60", "samplevideo30"] & filters.chat(GROUP)))
+@Client.on_message(filters.command(["samplevideo150", "samplevideo120", "samplevideo90", "samplevideo60", "samplevideo30"]) & filters.chat(GROUP))
 async def sample_video(bot, msg):
     durations = {
         "samplevideo150": 150,
