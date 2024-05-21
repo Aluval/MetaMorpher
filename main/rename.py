@@ -145,7 +145,6 @@ async def changeindex_private(client, message):
   reply_markup = InlineKeyboardMarkup(buttons)
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
     
-# Change Metadata Function
 def change_video_metadata(input_path, video_title, audio_title, subtitle_title, output_path):
     command = [
         'ffmpeg',
@@ -168,7 +167,6 @@ def change_video_metadata(input_path, video_title, audio_title, subtitle_title, 
     if process.returncode != 0:
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
 
-# Change Metadata Handler
 @Client.on_message(filters.command("changemetadata") & filters.chat(GROUP))
 async def change_metadata(bot, msg):
     reply = msg.reply_to_message
@@ -187,18 +185,33 @@ async def change_metadata(bot, msg):
     if not media:
         return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the metadata command.")
 
-    sts = await msg.reply_text("🚀Downloading media...⚡")
+    sts = await msg.reply_text("🚀 Downloading media... ⚡")
     c_time = time.time()
-    downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+    try:
+        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
+    except Exception as e:
+        await sts.edit(f"Error downloading media: {e}")
+        return
 
     output_file = os.path.join(DOWNLOAD_LOCATION, "output_" + os.path.basename(downloaded))
 
-    await sts.edit("💠Changing metadata...⚡")
+    await sts.edit("💠 Changing metadata... ⚡")
     try:
         change_video_metadata(downloaded, video_title.strip(), audio_title.strip(), subtitle_title.strip(), output_file)
     except Exception as e:
         await sts.edit(f"Error changing metadata: {e}")
         os.remove(downloaded)
+        return
+
+    await sts.edit("🔼 Uploading modified file... ⚡")
+    try:
+        await bot.send_document(msg.chat.id, output_file, caption="Here is your file with updated metadata.")
+        await sts.delete()
+    except Exception as e:
+        await sts.edit(f"Error uploading modified file: {e}")
+    finally:
+        os.remove(downloaded)
+        os.remove(output_file)
 
 @Client.on_message(filters.command("changemetadata"))
 async def metadata_private(client, message):
