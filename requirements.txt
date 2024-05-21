@@ -3,4 +3,5 @@ Tgcrypto
 ffmpeg-python
 rarfile
 ffmpeg
+requests
 
