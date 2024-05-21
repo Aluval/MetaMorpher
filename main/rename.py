@@ -4,7 +4,6 @@ import shutil
 import zipfile
 import tarfile
 import requests
-import aiohttp
 from pyrogram.types import Message
 from pyrogram.types import Document, Video
 from pyrogram import Client, filters
@@ -448,64 +447,6 @@ async def unzip_private(client, message):
   reply_markup = InlineKeyboardMarkup(buttons)
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
 
-
-
-
-@Client.on_message(filters.command("renamelink") & filters.chat(GROUP))
-async def rename_link(bot, msg):
-    # Split the command to extract the URL and new file name
-    command_parts = msg.text.split(" ", 2)
-    if len(command_parts) < 3:
-        return await msg.reply_text("Please provide a URL and the new filename with extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
-    
-    url = command_parts[1]
-    new_name = command_parts[2]
-
-    sts = await msg.reply_text("🚀Downloading.....⚡")
-    c_time = time.time()
-    
-    # Download the file from the URL
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
-            if resp.status == 200:
-                with open(new_name, 'wb') as f:
-                    f.write(await resp.read())
-            else:
-                return await sts.edit("Failed to download the file from the provided URL.")
-    
-    downloaded = new_name
-    filesize = humanbytes(os.path.getsize(downloaded))
-    
-    # Handle caption
-    cap = f"{new_name}\n\n🌟size : {filesize}"
-    if CAPTION:
-        try:
-            cap = CAPTION.format(file_name=new_name, file_size=filesize)
-        except Exception as e:
-            return await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
-
-    await sts.edit("💠Uploading...⚡")
-    c_time = time.time()
-    try:
-        await bot.send_document(msg.chat.id, document=downloaded, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
-    except Exception as e:
-        return await sts.edit(f"Error {e}")
-    
-    # Clean up
-    try:
-        os.remove(downloaded)
-    except:
-        pass
-    await sts.delete()
-
-@Client.on_message(filters.command("renamelink"))
-async def renamelink_private(client, message):
-  buttons = [[
-    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
-  ]]
-  reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
-  
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
     app.run()
