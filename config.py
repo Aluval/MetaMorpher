@@ -1,6 +1,9 @@
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+import re
 from os import environ
 import os
+id_pattern = re.compile(r'^.\d+$')
+
 
 API_ID = int(os.environ.get("API_ID", "10811400"))
 API_HASH = os.environ.get("API_HASH", "191bf5ae7a6c39771e7b13cf4ffd1279")
