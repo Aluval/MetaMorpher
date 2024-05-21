@@ -4,6 +4,8 @@ ffmpeg-python
 rarfile
 ffmpeg
 requests
-pymediainfo 
+pymediainfo
+telegraph
+humanize
 
 
