@@ -52,8 +52,9 @@ async def start(bot, msg: Message):
 async def about_command(bot, msg):
     about_text = """
 <b>✯ Mʏ Nᴀᴍᴇ : <a href=https://t.me/INFINITYSTARRENAME24BOT>INFINITY ♾️</a></b>
-<b>✯ Dᴇᴠᴇʟᴏᴘᴇʀ 🧑🏻‍💻 : <a href=https://t.me/Sunrises_24>𝐒𝐔𝐍𝐑𝐈𝐒𝐄𝐒™ ✨</a></b>
+<b>✯ Dᴇᴠᴇʟᴏᴘᴇʀ 🧑🏻‍💻 : <a href=https://t.me/Sunrises_24>𝐒𝐔𝐍𝐑𝐈𝐒𝐄𝐒™ ⚡</a></b>
 <b>✯ Uᴘᴅᴀᴛᴇs 📢 : <a href=https://t.me/Sunrises24BotUpdates>𝐔𝐏𝐃𝐀𝐓𝐄𝐒 📢</a></b>
+<b>✯ Sᴜᴘᴘᴏʀᴛ ✨ : <a href=https://t.me/Sunrises24BotUpdates>𝐒𝐔𝐏𝐏𝐎𝐑𝐓 ✨</a></b>
 <b>✯ Bᴜɪʟᴅ Sᴛᴀᴛᴜs 📊 : ᴠ2.4 [Sᴛᴀʙʟᴇ]</b>
     """
     await msg.reply_text(about_text)
@@ -99,15 +100,15 @@ ping - 𝑇𝑜 𝐶ℎ𝑒𝑐𝑘 𝑇ℎ𝑒 𝑃𝑖𝑛𝑔 𝑂𝑓 𝑇�
 @Client.on_callback_query(filters.regex("help"))
 async def help(bot, msg):
     txt = "Sᴇɴᴅ ᴀ ғɪʟᴇ ᴀɴᴅ /rename <new name> ᴡɪᴛʜ ʀᴇᴘʟᴀʏᴇᴅ ʏᴏᴜʀ ғɪʟᴇ\n\n"
-    txt += "Rᴇɴᴀᴍᴇ [𝟸GB] - Rᴇɴᴀᴍᴇ ғɪʟᴇꜱ"
-    txt += "Mᴇᴛᴀᴅᴀᴛᴀ - Mᴏᴅɪғʏ ᴍᴇᴛᴀᴅᴀᴛᴀ\n\nFᴏʀᴍᴀᴛ: ᴄʜᴀɴɢᴇᴍᴇᴛᴀᴅᴀᴛᴀ ᴠɪᴅᴇᴏ_ᴛɪᴛʟᴇ | ᴀᴜᴅɪᴏ_ᴛɪᴛʟᴇ | ꜱᴜʙᴛɪᴛʟᴇ_ᴛɪᴛʟᴇ"
-    txt += "Cʜᴀɴɢᴇɪɴᴅᴇx - Rᴇᴀʀʀᴀɴɢᴇ ᴛʜᴇ ɪɴᴅᴇx\n\nFᴏʀᴍᴀᴛ:1)ᴀ-𝟷 ғᴏʀ ʀᴇᴍᴏᴠᴇ ᴀᴜᴅɪᴏ\n2)ᴀ-𝟸-𝟷-𝟹-𝟺 ғᴏʀ ꜱᴡᴀᴘ ᴀᴜᴅɪᴏ"
-    txt += "Gᴇɴᴇʀᴀᴛᴇ Sᴀᴍᴘʟᴇ Vɪᴅᴇᴏ - Cʀᴇᴀᴛᴇ ꜱᴀᴍᴘʟᴇ ᴠɪᴅᴇᴏꜱ (𝟹𝟶ꜱ, 𝟼𝟶ꜱ, 𝟿𝟶ꜱ, 𝟷𝟸𝟶ꜱ, 𝟷𝟻𝟶ꜱ)"
-    txt += "Sᴄʀᴇᴇɴꜱʜᴏᴛꜱ - Tᴀᴋᴇ ꜱᴄʀᴇᴇɴꜱʜᴏᴛꜱ (ᴇxᴀᴍᴘʟᴇ: /ꜱᴄʀᴇᴇɴꜱʜᴏᴛꜱ 𝟷𝟶)"
-    txt += "Uɴᴢɪᴘ ᴛʜᴇ Fɪʟᴇꜱ ᴏɴʟʏ ᴢɪᴘ Fᴏʀᴍᴀᴛ ᴏɴʟʏ - Exᴛʀᴀᴄᴛ ZIP ғɪʟᴇꜱ ᴏɴʟʏ"
-    txt += "ꜱᴇɴᴅ ᴘʜᴏᴛᴏ ᴛᴏ ꜱᴇᴛ ᴛʜᴜᴍʙɴᴀɪʟ ᴀᴜᴛᴏᴍᴀᴛɪᴄ🌟\n"
-    txt += "/view ᴛᴏ ꜱᴇᴇ ʏᴏᴜʀ ᴛʜᴜᴍʙɴᴀɪʟ 👀\n"
-    txt += "/del ᴛᴏ ᴅᴇʟᴇᴛᴇ ʏᴏᴜʀ ᴛʜᴜᴍʙɴᴀɪʟ❌"
+    txt += "Rᴇɴᴀᴍᴇ [𝟸GB] - Rᴇɴᴀᴍᴇ ғɪʟᴇꜱ\n\n"
+    txt += "Mᴇᴛᴀᴅᴀᴛᴀ - Mᴏᴅɪғʏ ᴍᴇᴛᴀᴅᴀᴛᴀ\n\nFᴏʀᴍᴀᴛ: ᴄʜᴀɴɢᴇᴍᴇᴛᴀᴅᴀᴛᴀ ᴠɪᴅᴇᴏ_ᴛɪᴛʟᴇ | ᴀᴜᴅɪᴏ_ᴛɪᴛʟᴇ | ꜱᴜʙᴛɪᴛʟᴇ_ᴛɪᴛʟᴇ\n\n"
+    txt += "Cʜᴀɴɢᴇɪɴᴅᴇx - Rᴇᴀʀʀᴀɴɢᴇ ᴛʜᴇ ɪɴᴅᴇx\n\nFᴏʀᴍᴀᴛ:1)ᴀ-𝟷 ғᴏʀ ʀᴇᴍᴏᴠᴇ ᴀᴜᴅɪᴏ\n2)ᴀ-𝟸-𝟷-𝟹-𝟺 ғᴏʀ ꜱᴡᴀᴘ ᴀᴜᴅɪᴏ\n\n"
+    txt += "Gᴇɴᴇʀᴀᴛᴇ Sᴀᴍᴘʟᴇ Vɪᴅᴇᴏ - Cʀᴇᴀᴛᴇ ꜱᴀᴍᴘʟᴇ ᴠɪᴅᴇᴏꜱ (𝟹𝟶ꜱ, 𝟼𝟶ꜱ, 𝟿𝟶ꜱ, 𝟷𝟸𝟶ꜱ, 𝟷𝟻𝟶ꜱ)\n\n"
+    txt += "Sᴄʀᴇᴇɴꜱʜᴏᴛꜱ - Tᴀᴋᴇ ꜱᴄʀᴇᴇɴꜱʜᴏᴛꜱ (ᴇxᴀᴍᴘʟᴇ: /ꜱᴄʀᴇᴇɴꜱʜᴏᴛꜱ 𝟷𝟶)\n\n"
+    txt += "Uɴᴢɪᴘ ᴛʜᴇ Fɪʟᴇꜱ ᴏɴʟʏ ᴢɪᴘ Fᴏʀᴍᴀᴛ ᴏɴʟʏ - Exᴛʀᴀᴄᴛ ZIP ғɪʟᴇꜱ ᴏɴʟʏ\n\n"
+    txt += "ꜱᴇɴᴅ ᴘʜᴏᴛᴏ ᴛᴏ ꜱᴇᴛ ᴛʜᴜᴍʙɴᴀɪʟ ᴀᴜᴛᴏᴍᴀᴛɪᴄ🌟\n\n"
+    txt += "/view ᴛᴏ ꜱᴇᴇ ʏᴏᴜʀ ᴛʜᴜᴍʙɴᴀɪʟ 👀\n\n"
+    txt += "/del ᴛᴏ ᴅᴇʟᴇᴛᴇ ʏᴏᴜʀ ᴛʜᴜᴍʙɴᴀɪʟ❌\n\n"
     txt += "Jᴏɪɴ : @Sunrises24BotUpdates"
     button= [[        
         InlineKeyboardButton("Cʟᴏꜱᴇ ❌", callback_data="del")   
@@ -120,7 +121,9 @@ async def help(bot, msg):
 async def about(bot, msg):
     me=await bot.get_me()
     Dᴇᴠᴇʟᴏᴘᴇʀ =f"<a href=https://t.me/Sunrises_24>SUNRISES™🧑🏻‍💻</a>"     
-    txt=f"<b>Mʏ Nᴀᴍᴇ: {me.mention}\nUᴘᴅᴀᴛᴇs 📢: <a href=https://t.me/Sunrises24botupdates>SUNRISES™™</a></b>"                 
+    txt=f"<b>Uᴘᴅᴀᴛᴇs 📢: <a href=https://t.me/Sunrises24botupdates>SUNRISES™</a></b>"
+    txt=f"<b>Sᴜᴘᴘᴏʀᴛ ✨: <a href=https://t.me/Sunrises24botSupport>SUNRISES⚡™</a></b>"
+    txt="<b>✯ Bᴜɪʟᴅ Sᴛᴀᴛᴜs 📊 : ᴠ2.4 [Sᴛᴀʙʟᴇ]</b>" 
     button= [[        
         InlineKeyboardButton("Cʟᴏꜱᴇ ❌", callback_data="del")       
     ]]  
