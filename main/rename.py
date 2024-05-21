@@ -425,7 +425,7 @@ async def unzip(bot, msg):
     os.remove(input_path)
     shutil.rmtree(extract_path)
 
- @Client.on_message(filters.command("unzip"))
+@Client.on_message(filters.command("unzip"))
 async def unzip_private(client, message):
   buttons = [[
     InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
