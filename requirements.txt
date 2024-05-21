@@ -4,4 +4,5 @@ ffmpeg-python
 rarfile
 ffmpeg
 requests
+aiohttp
 
