@@ -6,5 +6,6 @@ ffmpeg
 requests
 pymediainfo
 pydub
-libmediainfo
+libmediainfo-dev
+mediainfo
 
