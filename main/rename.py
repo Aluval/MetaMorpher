@@ -15,6 +15,15 @@ import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP
 
+FORCE_SUB_MESSAGE = "You must join the group to use this command. Please click on the link to join: [Join Channel](https://t.me/Sunrises24BotUpdates)"
+
+async def check_membership(bot, msg):
+    try:
+        chat_member = await bot.get_chat_member(msg.chat.id, msg.from_user.id)
+        return chat_member.status in ("administrator", "member")
+    except Exception as e:
+        print(f"Error checking membership: {e}")
+        return False
   
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Rename Command
