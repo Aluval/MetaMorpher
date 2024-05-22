@@ -19,7 +19,7 @@ CHANNEL = "-1002090000426"  # Replace with your first channel ID
 UPDATES = "Sunrises24botUpdates"  # Replace with your second channel username
 FORCE_SUB_MESSAGE = "You must join both channels to use this command. Please join them and try again."
 
-async def check_membership(bot, msg):
+async def check_membership3(bot, msg):
     try:
         user = msg.from_user
         channel1_member = await bot.get_chat_member(int(CHANNEL), user.id)
