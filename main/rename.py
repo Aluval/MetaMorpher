@@ -448,6 +448,7 @@ async def unzip_private(client, message):
   reply_markup = InlineKeyboardMarkup(buttons)
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)    
 
+
 def add_photo_attachment(input_path, attachment_path, output_path):
     command = [
         'ffmpeg',
@@ -486,13 +487,10 @@ async def attach_photo(bot, msg):
         await sts.edit(f"Error downloading media: {e}")
         return
 
-    # Check for the photo in the message correctly
-    if msg.photo:
-        photo = msg.photo
-        attachment_path = os.path.join(DOWNLOAD_LOCATION, "attachment.jpg")
-        await bot.download_media(photo, attachment_path)
-    else:
-        await sts.edit("Please send a photo to be attached as `attachment.jpg`.")
+    # Check if there is a previously set photo
+    attachment_path = os.path.join(DOWNLOAD_LOCATION, "attachment.jpg")
+    if not os.path.exists(attachment_path):
+        await sts.edit("Please send a photo to be attached using the `setphoto` command.")
         os.remove(downloaded)
         return
 
@@ -526,7 +524,8 @@ async def set_photo(bot, msg):
     attachment_path = os.path.join(DOWNLOAD_LOCATION, "attachment.jpg")
     await bot.download_media(photo, attachment_path)
     await msg.reply_text("Photo saved successfully as `attachment.jpg`.")
-  
+
+
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
     app.run()
