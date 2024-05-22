@@ -3,7 +3,7 @@ import asyncio, time
 from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from pyrogram.errors import UserNotParticipant, UserBannedInChannel
-from config import FSUB_CHANNEL
+from config import FSUB_CHANNEL, SUNRISES_PIC
 
 START_TEXT = """
 Hᴇʟʟᴏ Mᴀᴡᴀ ❤️ ɪ ᴀᴍ Sɪᴍᴘʟᴇ Rᴇɴᴀᴍᴇ 𝟸𝟺 Bᴏᴛ⚡\n\n Tʜɪꜱ ʙᴏᴛ ɪꜱ ᴍᴀᴅᴇ ʙʏ <b><a href=https://t.me/Sunrises24botupdates>SUNRISES ™💥</a></b>
@@ -12,11 +12,6 @@ Hᴇʟʟᴏ Mᴀᴡᴀ ❤️ ɪ ᴀᴍ Sɪᴍᴘʟᴇ Rᴇɴᴀᴍᴇ 𝟸𝟺 
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
  
-# Constants
-FSUB_CHANNEL = "Your_Channel_Username"  # Replace with your channel username
-
-SUNRISES_PIC= "https://graph.org/file/5966e801852b2bba18afb.jpg"  # Replace with your Telegraph link
-
 # Global variable to track whether the user has joined the channel
 joined_channel = {}
 
