@@ -16,7 +16,7 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP
 
 CHANNEL = "-1002090000426"  # Replace with your first channel ID
-UPDATES = "@Sunrises24botUpdates"  # Replace with your second channel username
+UPDATES = "Sunrises24botUpdates"  # Replace with your second channel username
 FORCE_SUB_MESSAGE = "You must join both channels to use this command. Please join them and try again."
 
 async def check_membership(bot, msg):
