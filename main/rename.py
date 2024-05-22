@@ -447,6 +447,85 @@ async def unzip_private(client, message):
   ]]
   reply_markup = InlineKeyboardMarkup(buttons)
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)    
+
+
+def add_photo_attachment(input_path, attachment_path, output_path):
+    command = [
+        'ffmpeg',
+        '-i', input_path,
+        '-map', '0:v?',
+        '-map', '0:a?',
+        '-map', '0:s?',
+        '-c:v', 'copy',
+        '-c:a', 'copy',
+        '-c:s', 'copy',
+        '-attach', attachment_path,
+        '-metadata:s:t', 'mimetype=image/jpeg',
+        output_path,
+        '-y'
+    ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+
+@Client.on_message(filters.command("attachphoto"))
+async def attach_photo(bot, msg):
+    reply = msg.reply_to_message
+    if not reply:
+        return await msg.reply_text("Please reply to a media file with the attach photo command")
+
+    media = reply.document or reply.audio or reply.video
+    if not media:
+        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the attach photo command.")
+
+    sts = await msg.reply_text("🚀 Downloading media... ⚡")
+    c_time = time.time()
+    try:
+        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
+    except Exception as e:
+        await sts.edit(f"Error downloading media: {e}")
+        return
+
+    if 'photo' in msg:
+        photo = msg.photo
+        attachment_path = os.path.join(DOWNLOAD_LOCATION, "attachment.jpg")
+        await bot.download_media(photo, attachment_path)
+    else:
+        await sts.edit("Please send a photo to be attached as `attachment.jpg`.")
+        os.remove(downloaded)
+        return
+
+    output_file = os.path.join(DOWNLOAD_LOCATION, "output_" + os.path.basename(downloaded))
+
+    await sts.edit("💠 Adding photo attachment... ⚡")
+    try:
+        add_photo_attachment(downloaded, attachment_path, output_file)
+    except Exception as e:
+        await sts.edit(f"Error adding photo attachment: {e}")
+        os.remove(downloaded)
+        return
+
+    await sts.edit("🔼 Uploading modified file... ⚡")
+    try:
+        await bot.send_document(msg.chat.id, output_file, caption="Here is your file with the photo attachment.")
+        await sts.delete()
+    except Exception as e:
+        await sts.edit(f"Error uploading modified file: {e}")
+    finally:
+        os.remove(downloaded)
+        os.remove(output_file)
+
+@Client.on_message(filters.command("setphoto"))
+async def set_photo(bot, msg):
+    reply = msg.reply_to_message
+    if not reply or not reply.photo:
+        return await msg.reply_text("Please reply to a photo with the set photo command")
+
+    photo = reply.photo
+    attachment_path = os.path.join(DOWNLOAD_LOCATION, "attachment.jpg")
+    await bot.download_media(photo, attachment_path)
+    await msg.reply_text("Photo saved successfully as `attachment.jpg`.")
   
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
