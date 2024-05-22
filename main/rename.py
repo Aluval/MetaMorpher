@@ -15,23 +15,6 @@ import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP
 
-CHANNEL = "-1002090000426"  # Replace with your first channel ID
-UPDATES = "Sunrises24botUpdates"  # Replace with your second channel username
-FORCE_SUB_MESSAGE = "You must join both channels to use this command. Please join them and try again."
-
-async def check_membership3(bot, msg):
-    try:
-        user = msg.from_user
-        channel1_member = await bot.get_chat_member(int(CHANNEL), user.id)
-        channel2_member = await bot.get_chat_member(UPDATES, user.id)
-        if channel1_member.status in ("administrator", "member") and channel2_member.status in ("administrator", "member"):
-            return True
-        else:
-            await msg.reply_text(FORCE_SUB_MESSAGE)
-            return False
-    except Exception as e:
-        print(f"Error checking membership: {e}")
-        return False
   
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Rename Command
@@ -486,7 +469,7 @@ def add_photo_attachment(input_path, attachment_path, output_path):
     if process.returncode != 0:
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
 
-@Client.on_message(filters.command("attachphoto"))
+@Client.on_message(filters.command("attachphoto") & filters.chat(GROUP))
 async def attach_photo(bot, msg):
     reply = msg.reply_to_message
     if not reply:
@@ -531,7 +514,15 @@ async def attach_photo(bot, msg):
         os.remove(downloaded)
         os.remove(output_file)
 
-@Client.on_message(filters.command("setphoto"))
+@Client.on_message(filters.command("attachphoto"))
+async def attachphoto_private(client, message):
+  buttons = [[
+    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
+  ]]
+  reply_markup = InlineKeyboardMarkup(buttons)
+  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)    
+    
+@Client.on_message(filters.command("setphoto") & filters.chat(GROUP))
 async def set_photo(bot, msg):
     reply = msg.reply_to_message
     if not reply or not reply.photo:
@@ -542,7 +533,14 @@ async def set_photo(bot, msg):
     await bot.download_media(photo, attachment_path)
     await msg.reply_text("Photo saved successfully as `attachment.jpg`.")
 
-
+@Client.on_message(filters.command("setphoto"))
+async def setphoto_private(client, message):
+  buttons = [[
+    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
+  ]]
+  reply_markup = InlineKeyboardMarkup(buttons)
+  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)    
+    
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
     app.run()
