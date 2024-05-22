@@ -11,7 +11,17 @@ Hᴇʟʟᴏ Mᴀᴡᴀ ❤️ ɪ ᴀᴍ Sɪᴍᴘʟᴇ Rᴇɴᴀᴍᴇ 𝟸𝟺 
 """
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
-#START HANDLER 
+ 
+# Constants
+FSUB_CHANNEL = "Your_Channel_Username"  # Replace with your channel username
+
+SUNRISES_PIC= "https://graph.org/file/5966e801852b2bba18afb.jpg"  # Replace with your Telegraph link
+
+# Global variable to track whether the user has joined the channel
+joined_channel = {}
+
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+#START HANDLER
 @Client.on_message(filters.command("start") & filters.private)
 async def start(bot, msg: Message):       
     if FSUB_CHANNEL:
@@ -19,32 +29,55 @@ async def start(bot, msg: Message):
             # Check if the user is banned
             user = await bot.get_chat_member(FSUB_CHANNEL, msg.chat.id)
             if user.status == "kicked":
-                await msg.reply_text("Sᴏʀʀʏ, Yᴏᴜ ᴀʀᴇ **B ᴀ ɴ ɴ ᴇ ᴅ**")
+                await msg.reply_text("Sorry, you are **banned**.")
                 return
         except UserNotParticipant:
             # If the user is not a participant, prompt them to join
             await msg.reply_text(
-                text="**❤️ Pʟᴇᴀꜱᴇ Jᴏɪɴ Mʏ Uᴘᴅᴀᴛᴇ Cʜᴀɴɴᴇʟ Bᴇғᴏʀᴇ Uꜱɪɴɢ Mᴇ ❤️**",
+                text="**Please join my updates channel before using me.**",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton(text="➕ Jᴏɪɴ Mʏ Uᴘᴅᴀᴛᴇꜱ Cʜᴀɴɴᴇʟ ➕", url=f"https://t.me/{FSUB_CHANNEL}")]
+                    [InlineKeyboardButton(text="Join Updates Channel", url=f"https://t.me/{FSUB_CHANNEL}")]
                 ])
             )
+            # Set the user's joined status to False
+            joined_channel[msg.chat.id] = False
             return
         else:
-            # If the user is not banned and is a participant, send the start message
+            # If the user is not banned and is a participant, send the start message with photo
             start_text = START_TEXT.format(msg.from_user.first_name) if hasattr(msg, "message_id") else START_TEXT
-            await msg.reply_text(
-                text=start_text,
+            await bot.send_photo(
+                chat_id=msg.chat.id,
+                photo=SUNRISES_PIC,
+                caption=start_text,
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Dᴇᴠᴇʟᴏᴘᴇʀ ❤️", url="https://t.me/Sunrises_24"),
-                     InlineKeyboardButton("Uᴘᴅᴀᴛᴇs 📢", url="https://t.me/Sunrises24botupdates")],                                  
-                    [InlineKeyboardButton("Hᴇʟᴘ 🌟", callback_data="help"),
-                     InlineKeyboardButton("Aʙᴏᴜᴛ 🧑🏻‍💻", callback_data="about")],                   
-                    [InlineKeyboardButton("Sᴜᴘᴘᴏʀᴛ ❤️‍🔥", url="https://t.me/Sunrises24botSupport")]]          
-                 ),
-                 reply_to_message_id=getattr(msg, "message_id", None)
+                    [InlineKeyboardButton("Developer ❤️", url="https://t.me/Sunrises_24"),
+                     InlineKeyboardButton("Updates 📢", url="https://t.me/Sunrises24botupdates")],                                  
+                    [InlineKeyboardButton("Help 🌟", callback_data="help"),
+                     InlineKeyboardButton("About 🧑🏻‍💻", callback_data="about")],                   
+                    [InlineKeyboardButton("Support ❤️‍🔥", url="https://t.me/Sunrises24botSupport")]]          
+                ),
+                reply_to_message_id=getattr(msg, "message_id", None)
             )
+            # Set the user's joined status to True
+            joined_channel[msg.chat.id] = True
             return            
+
+# Add other command handlers here...
+
+# Check membership for other command handlers
+@Client.on_message(filters.private & ~filters.command("start"))
+async def check_membership2(bot, msg: Message):
+    # If the user hasn't joined the channel, prompt them to join
+    if msg.chat.id in joined_channel and not joined_channel[msg.chat.id]:
+        await msg.reply_text(
+            text="**Please join my updates channel before using me.**",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton(text="Join Updates Channel", url=f"https://t.me/{FSUB_CHANNEL}")]
+            ])
+        )
+        return
+    # If the user has joined the channel, continue with the command execution
+    await bot.continue_propagation(msg)            
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 #FUNCTION ABOUT HANDLER
