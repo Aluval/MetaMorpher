@@ -469,7 +469,7 @@ def add_photo_attachment(input_path, attachment_path, output_path):
     if process.returncode != 0:
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
 
-@Client.on_message(filters.command("attachphoto"))
+@Client.on_message(filters.command("attachphoto")
 async def attach_photo(bot, msg):
     reply = msg.reply_to_message
     if not reply:
@@ -487,7 +487,7 @@ async def attach_photo(bot, msg):
         await sts.edit(f"Error downloading media: {e}")
         return
 
-    if 'photo' in msg:
+    if msg.photo:
         photo = msg.photo
         attachment_path = os.path.join(DOWNLOAD_LOCATION, "attachment.jpg")
         await bot.download_media(photo, attachment_path)
@@ -516,7 +516,7 @@ async def attach_photo(bot, msg):
         os.remove(downloaded)
         os.remove(output_file)
 
-@Client.on_message(filters.command("setphoto"))
+@Client.on_message(filters.command("setphoto")
 async def set_photo(bot, msg):
     reply = msg.reply_to_message
     if not reply or not reply.photo:
@@ -526,7 +526,7 @@ async def set_photo(bot, msg):
     attachment_path = os.path.join(DOWNLOAD_LOCATION, "attachment.jpg")
     await bot.download_media(photo, attachment_path)
     await msg.reply_text("Photo saved successfully as `attachment.jpg`.")
-  
+
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
     app.run()
