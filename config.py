@@ -15,4 +15,5 @@ CAPTION = os.environ.get("CAPTION", "")
 DOWNLOAD_LOCATION = "./DOWNLOADS"
 group = environ.get('GROUP', '-1002128043143')
 GROUP = int(group) if group and id_pattern.search(group) else None
+SUNRISES_PIC= "https://graph.org/file/5966e801852b2bba18afb.jpg"  # Replace with your Telegraph link
 
