@@ -516,7 +516,7 @@ async def attach_photo(bot, msg):
         os.remove(downloaded)
         os.remove(output_file)
 
-@Client.on_message(filters.command("setphoto")
+@Client.on_message(filters.command("setphoto"))
 async def set_photo(bot, msg):
     reply = msg.reply_to_message
     if not reply or not reply.photo:
