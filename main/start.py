@@ -3,7 +3,7 @@ import asyncio, time
 from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from pyrogram.errors import UserNotParticipant, UserBannedInChannel
-from config import FSUB_CHANNEL, SUNRISES_PIC
+from config import FSUB_UPDATES, FSUB_GROUP, SUNRISES_PIC
 
 START_TEXT = """
 Hᴇʟʟᴏ Mᴀᴡᴀ ❤️ ɪ ᴀᴍ Sɪᴍᴘʟᴇ Rᴇɴᴀᴍᴇ 𝟸𝟺 Bᴏᴛ⚡\n\n Tʜɪꜱ ʙᴏᴛ ɪꜱ ᴍᴀᴅᴇ ʙʏ <b><a href=https://t.me/Sunrises24botupdates>SUNRISES ™💥</a></b>
@@ -17,28 +17,36 @@ joined_channel = {}
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 #START HANDLER
+from pyrogram import Client, filters
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.errors import UserNotParticipant
+
+# Global variables to track whether the user has joined each channel
+joined_channel_1 = {}
+joined_channel_2 = {}
+
 @Client.on_message(filters.command("start") & filters.private)
 async def start(bot, msg: Message):       
-    if FSUB_CHANNEL:
+    if FSUB_UPDATES:
         try:
-            # Check if the user is banned
-            user = await bot.get_chat_member(FSUB_CHANNEL, msg.chat.id)
+            # Check if the user is banned from channel 1
+            user = await bot.get_chat_member(FSUB_UPDATES, msg.chat.id)
             if user.status == "kicked":
                 await msg.reply_text("Sorry, you are **banned**.")
                 return
         except UserNotParticipant:
-            # If the user is not a participant, prompt them to join
+            # If the user is not a participant of channel 1, prompt them to join
             await msg.reply_text(
-                text="**Please join my updates channel before using me.**",
+                text="**Please join my first updates channel before using me.**",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton(text="Join Updates Channel", url=f"https://t.me/{FSUB_CHANNEL}")]
+                    [InlineKeyboardButton(text="Join Updates Channel", url=f"https://t.me/{FSUB_UPDATES}")]
                 ])
             )
-            # Set the user's joined status to False
-            joined_channel[msg.chat.id] = False
+            # Set the user's joined status for channel 1 to False
+            joined_channel_1[msg.chat.id] = False
             return
         else:
-            # If the user is not banned and is a participant, send the start message with photo
+            # If the user is not banned and is a participant of channel 1, send the start message with photo
             start_text = START_TEXT.format(msg.from_user.first_name) if hasattr(msg, "message_id") else START_TEXT
             await bot.send_photo(
                 chat_id=msg.chat.id,
@@ -53,27 +61,79 @@ async def start(bot, msg: Message):
                 ),
                 reply_to_message_id=getattr(msg, "message_id", None)
             )
-            # Set the user's joined status to True
-            joined_channel[msg.chat.id] = True
+            # Set the user's joined status for channel 1 to True
+            joined_channel_1[msg.chat.id] = True
             return            
 
-# Add other command handlers here...
+    if FSUB_GROUP:
+        try:
+            # Check if the user is banned from channel 2
+            user = await bot.get_chat_member(FSUB_CHANNEL_2, msg.chat.id)
+            if user.status == "kicked":
+                await msg.reply_text("Sorry, you are **banned**.")
+                return
+        except UserNotParticipant:
+            # If the user is not a participant of channel 2, prompt them to join
+            await msg.reply_text(
+                text="**Please join my Group before using me.**",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton(text="JOIN GROUP", url=f"https://t.me/{FSUB_GROUP}")]
+                ])
+            )
+            # Set the user's joined status for channel 2 to False
+            joined_channel_2[msg.chat.id] = False
+            return
+        else:
+            # If the user is not banned and is a participant of channel 2, send the start message with photo
+            start_text = START_TEXT.format(msg.from_user.first_name) if hasattr(msg, "message_id") else START_TEXT
+            await bot.send_photo(
+                chat_id=msg.chat.id,
+                photo=SUNRISES_PIC,
+                caption=start_text,
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Developer ❤️", url="https://t.me/Sunrises_24"),
+                     InlineKeyboardButton("Updates 📢", url="https://t.me/Sunrises24botupdates")],                                  
+                    [InlineKeyboardButton("Help 🌟", callback_data="help"),
+                     InlineKeyboardButton("About 🧑🏻‍💻", callback_data="about")],                   
+                    [InlineKeyboardButton("Support ❤️‍🔥", url="https://t.me/Sunrises24botSupport")]]          
+                ),
+                reply_to_message_id=getattr(msg, "message_id", None)
+            )
+            # Set the user's joined status for channel 2 to True
+            joined_channel_2[msg.chat.id] = True
+            return            
 
-# Check membership for other command handlers
+# Check membership for other command handlers for channel 1
 @Client.on_message(filters.private & ~filters.command("start"))
-async def check_membership2(bot, msg: Message):
-    # If the user hasn't joined the channel, prompt them to join
-    if msg.chat.id in joined_channel and not joined_channel[msg.chat.id]:
+async def check_membership_1(bot, msg: Message):
+    # If the user hasn't joined channel 1, prompt them to join
+    if msg.chat.id in joined_channel_1 and not joined_channel_1[msg.chat.id]:
         await msg.reply_text(
-            text="**Please join my updates channel before using me.**",
+            text="**Please join my first updates channel before using me.**",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton(text="Join Updates Channel", url=f"https://t.me/{FSUB_CHANNEL}")]
+                [InlineKeyboardButton(text="Join Updates Channel", url=f"https://t.me/{FSUB_UPDATES}")]
             ])
         )
         return
-    # If the user has joined the channel, continue with the command execution
-    await bot.continue_propagation(msg)            
+    # If the user has joined channel 1, continue with the command execution
+    await bot.continue_propagation(msg)
 
+# Check membership for other command handlers for channel 2
+@Client.on_message(filters.private & ~filters.command("start"))
+async def check_membership_2(bot, msg: Message):
+    # If the user hasn't joined channel 2, prompt them to join
+    if msg.chat.id in joined_channel_2 and not joined_channel_2[msg.chat.id]:
+        await msg.reply_text(
+            text="**Please join my Group before using me.**",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton(text="JOIN GROUP", url=f"https://t.me/{FSUB_GROUP}")]
+            ])
+        )
+        return
+    # If the user has joined channel 2, continue with the command execution
+    await bot.continue_propagation(msg)
+
+           
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 #FUNCTION ABOUT HANDLER
 @Client.on_message(filters.command("about"))
