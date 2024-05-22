@@ -15,12 +15,20 @@ import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP
 
-FORCE_SUB_MESSAGE = "You must join the group to use this command. Please click on the link to join: [Join Channel](https://t.me/Sunrises24BotUpdates)"
+CHANNEL = "-1002090000426"  # Replace with your first channel ID
+UPDATES = "@Sunrises24botUpdates"  # Replace with your second channel username
+FORCE_SUB_MESSAGE = "You must join both channels to use this command. Please join them and try again."
 
 async def check_membership(bot, msg):
     try:
-        chat_member = await bot.get_chat_member(msg.chat.id, msg.from_user.id)
-        return chat_member.status in ("administrator", "member")
+        user = msg.from_user
+        channel1_member = await bot.get_chat_member(int(CHANNEL), user.id)
+        channel2_member = await bot.get_chat_member(UPDATES, user.id)
+        if channel1_member.status in ("administrator", "member") and channel2_member.status in ("administrator", "member"):
+            return True
+        else:
+            await msg.reply_text(FORCE_SUB_MESSAGE)
+            return False
     except Exception as e:
         print(f"Error checking membership: {e}")
         return False
