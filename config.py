@@ -2,6 +2,7 @@
 import re
 from os import environ
 import os
+from pyrogram import Client
 id_pattern = re.compile(r'^.\d+$')
 
 
