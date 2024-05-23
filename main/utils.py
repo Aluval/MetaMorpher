@@ -7,6 +7,7 @@ import time
 
 PROGRESS_BAR = "\n\n📁 : {b} | {c}\n🚀 : {a}%\n⚡ : {d}/s\n⏱️ : {f}"
 
+
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 async def progress_message(current, total, ud_type, message, start):
     now = time.time()
@@ -41,7 +42,6 @@ async def progress_message(current, total, ud_type, message, start):
         except Exception as e:
             print(f"Error updating progress message: {e}")
 
-
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 def humanbytes(size):
     units = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB"]
@@ -51,7 +51,7 @@ def humanbytes(size):
         i += 1
         size /= 1024.0
     return "%.2f %s" % (size, units[i])
-    
+
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 def TimeFormatter(milliseconds: int) -> str:
     seconds, milliseconds = divmod(milliseconds, 1000)
@@ -66,6 +66,3 @@ def TimeFormatter(milliseconds: int) -> str:
           ((str(milliseconds) + "ms, ") if milliseconds else "")
     
     return tmp[:-2]  # Removing the last comma and space
-
-
-
