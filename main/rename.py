@@ -183,7 +183,7 @@ def change_video_metadata(input_path, video_title, audio_title, subtitle_title, 
     stdout, stderr = process.communicate()
     if process.returncode != 0:
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
-
+"""
 @Client.on_message(filters.command("changemetadata") & filters.chat(GROUP))
 async def change_metadata(bot, msg):
     reply = msg.reply_to_message
@@ -228,8 +228,72 @@ async def change_metadata(bot, msg):
         await sts.edit(f"Error uploading modified file: {e}")
     finally:
         os.remove(downloaded)
-        os.remove(output_file)
+        os.remove(output_file)"""
 
+
+import os
+import time
+import subprocess
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+DOWNLOAD_LOCATION = "./downloads"
+FILE_SIZE_LIMIT = 2 * 1024 * 1024 * 1024  # 2 GB
+
+@Client.on_message(filters.command("changemetadata") & filters.chat(GROUP))
+async def change_metadata(bot, msg):
+    reply = msg.reply_to_message
+    if not reply:
+        return await msg.reply_text("Please reply to a media file with the metadata command\nFormat: `changemetadata video_title | audio_title | subtitle_title`")
+
+    if len(msg.command) < 2:
+        return await msg.reply_text("Please provide the new titles\nFormat: `changemetadata video_title | audio_title | subtitle_title`")
+
+    titles = " ".join(msg.command[1:]).strip().split('|')
+    if len(titles) != 3:
+        return await msg.reply_text("Please provide all three titles separated by '|'\nFormat: `changemetadata video_title | audio_title | subtitle_title`")
+
+    video_title, audio_title, subtitle_title = [title.strip() for title in titles]
+    media = reply.document or reply.audio or reply.video
+    if not media:
+        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the metadata command.")
+
+    sts = await msg.reply_text("🚀 Downloading media... ⚡")
+    c_time = time.time()
+    try:
+        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
+    except Exception as e:
+        await sts.edit(f"Error downloading media: {e}")
+        return
+
+    output_file = os.path.join(DOWNLOAD_LOCATION, "output_" + os.path.basename(downloaded))
+
+    await sts.edit("💠 Changing metadata... ⚡")
+    try:
+        change_video_metadata(downloaded, video_title, audio_title, subtitle_title, output_file)
+    except Exception as e:
+        await sts.edit(f"Error changing metadata: {e}")
+        os.remove(downloaded)
+        return
+
+    filesize = os.path.getsize(output_file)
+    filesize_human = humanbytes(filesize)
+    cap = f"{os.path.basename(output_file)}\n\n🌟Size: {filesize_human}"
+
+    await sts.edit("🔼 Uploading modified file... ⚡")
+    c_time = time.time()
+
+    client_to_use = string_session_client if filesize > FILE_SIZE_LIMIT else bot
+    try:
+        async with client_to_use:
+            await upload_document(client_to_use, msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("🔼 Upload Started... ⚡️", sts, c_time))
+        await sts.delete()
+    except Exception as e:
+        await sts.edit(f"Error uploading modified file: {e}")
+    finally:
+        os.remove(downloaded)
+        os.remove(output_file)
+     
 @Client.on_message(filters.command("changemetadata"))
 async def metadata_private(client, message):
   buttons = [[
@@ -633,24 +697,6 @@ async def changeindex_private(client, message):
   reply_markup = InlineKeyboardMarkup(buttons)
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
     
-async def download_media(reply, progress, progress_args):
-    for attempt in range(5):
-        try:
-            return await reply.download(progress=progress, progress_args=progress_args)
-        except RPCError as e:
-            print(f"RPCError: {e}. Retrying in {2 ** attempt} seconds...")
-            await asyncio.sleep(2 ** attempt)
-    raise Exception("Failed to download media after multiple attempts")
-
-async def upload_document(client, chat_id, document, caption, progress, progress_args):
-    for attempt in range(5):
-        try:
-            return await client.send_document(chat_id, document=document, caption=caption, progress=progress, progress_args=progress_args)
-        except RPCError as e:
-            print(f"RPCError: {e}. Retrying in {2 ** attempt} seconds...")
-            await asyncio.sleep(2 ** attempt)
-    raise Exception("Failed to upload document after multiple attempts")
-
 
 @Client.on_message(filters.command("attachphoto") & filters.chat(GROUP))
 async def attach_photo(bot, msg):
