@@ -1,6 +1,5 @@
 from pyrogram.types import *
 import math
-import os
 import time
 
 
@@ -14,12 +13,12 @@ async def progress_message(current, total, ud_type, message, start):
     if int(diff) % 1 == 0 or current == total:
         percentage = current * 100 / total
         speed = current / diff
-        elapsed_time = round(diff) * 1000
-        time_to_completion = round((total - current) / speed) * 1000
+        elapsed_time = diff * 1000
+        time_to_completion = ((total - current) / speed) * 1000
         estimated_total_time = elapsed_time + time_to_completion
         
-        elapsed_time = TimeFormatter(milliseconds=elapsed_time)
-        estimated_total_time = TimeFormatter(milliseconds=estimated_total_time)
+        elapsed_time = TimeFormatter(milliseconds=int(elapsed_time))
+        estimated_total_time = TimeFormatter(milliseconds=int(estimated_total_time))
         
         progress = "\n{0}{1}".format(
             ''.join(["⬢" for _ in range(math.floor(percentage / 5))]),
@@ -39,7 +38,7 @@ async def progress_message(current, total, ud_type, message, start):
             await message.edit(text="{}\n{}".format(ud_type, tmp), reply_markup=InlineKeyboardMarkup(chance))
         except Exception as e:
             print(f"Error updating progress message: {e}")
-            
+
 # Helper functions
 def humanbytes(size):
     units = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB"]
