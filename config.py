@@ -27,5 +27,5 @@ STRING_SESSION = os.environ.get("STRING_SESSION", "BQCk-AgAXjv-rvP8Q3ZK7uVQ4bc6m
 
 
 # Initialize the string session client
-string_session_client = Client("my_session", api_id="10811400", api_hash="191bf5ae7a6c39771e7b13cf4ffd1279", session_string=Config.STRING_SESSION)
+string_session_client = Client("my_session", api_id="10811400", api_hash="191bf5ae7a6c39771e7b13cf4ffd1279", session_string=STRING_SESSION)
 
