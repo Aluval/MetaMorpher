@@ -3,7 +3,7 @@ from pyrogram.types import *
 import math
 import os
 import time
-from pyrogram.errors import FloodWait, RPCError
+
 
 PROGRESS_BAR = "\n\n📁 : {b} | {c}\n🚀 : {a}%\n⚡ : {d}/s\n⏱️ : {f}"
 
@@ -65,21 +65,3 @@ def TimeFormatter(milliseconds: int) -> str:
     
     return tmp[:-2]  # Removing the last comma and space
 
-async def download_media(reply, progress, progress_args):
-    for attempt in range(5):
-        try:
-            return await reply.download(progress=progress, progress_args=progress_args)
-        except RPCError as e:
-            print(f"RPCError: {e}. Retrying in {2 ** attempt} seconds...")
-            await asyncio.sleep(2 ** attempt)
-    raise Exception("Failed to download media after multiple attempts")
-
-async def upload_document(client, chat_id, document, caption, progress, progress_args):
-    for attempt in range(5):
-        try:
-            return await client.send_document(chat_id, document=document, caption=caption, progress=progress, progress_args=progress_args)
-        except RPCError as e:
-            print(f"RPCError: {e}. Retrying in {2 ** attempt} seconds...")
-            await asyncio.sleep(2 ** attempt)
-    raise Exception("Failed to upload document after multiple attempts")
-    
