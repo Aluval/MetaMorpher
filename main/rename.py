@@ -14,10 +14,13 @@ from main.utils import progress_message, humanbytes
 import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP
+from pyrogram.errors import FloodWait, RPCError
+from pyrogram.session import Session
+
 
 
 # Constants
-FILE_SIZE_LIMIT = 2000 * 1024 * 1024  # 2000 MB in bytes
+FILE_SIZE_LIMIT = 2097152000  # 2GB
 
 # Config class to hold your configurations
 class Config:
@@ -680,7 +683,77 @@ async def attach_photo1(bot, msg):
         os.remove(downloaded)
         os.remove(output_file)
         await sts.delete()
-        
+
+    
+async def download_media(reply, progress, progress_args):
+    for attempt in range(5):
+        try:
+            return await reply.download(progress=progress, progress_args=progress_args)
+        except RPCError as e:
+            print(f"RPCError: {e}. Retrying in {2 ** attempt} seconds...")
+            await asyncio.sleep(2 ** attempt)
+    raise Exception("Failed to download media after multiple attempts")
+
+async def upload_document(client, chat_id, document, caption, progress, progress_args):
+    for attempt in range(5):
+        try:
+            return await client.send_document(chat_id, document=document, caption=caption, progress=progress, progress_args=progress_args)
+        except RPCError as e:
+            print(f"RPCError: {e}. Retrying in {2 ** attempt} seconds...")
+            await asyncio.sleep(2 ** attempt)
+    raise Exception("Failed to upload document after multiple attempts")
+
+@Client.on_message(filters.command("attachphoto") & filters.chat(GROUP))
+async def attach_photo(bot, msg):
+    reply = msg.reply_to_message
+    if not reply:
+        return await msg.reply_text("Please reply to a media file with the attach photo command")
+
+    media = reply.document or reply.audio or reply.video
+    if not media:
+        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the attach photo command.")
+
+    sts = await msg.reply_text("🚀 Downloading media... ⚡")
+    c_time = time.time()
+    try:
+        downloaded = await download_media(reply, progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
+    except Exception as e:
+        await sts.edit(f"Error downloading media: {e}")
+        return
+
+    attachment_path = os.path.join(DOWNLOAD_LOCATION, "attachment.jpg")
+    if not os.path.exists(attachment_path):
+        await sts.edit("Please send a photo to be attached using the `setphoto` command.")
+        os.remove(downloaded)
+        return
+
+    output_file = os.path.join(DOWNLOAD_LOCATION, "output_" + os.path.basename(downloaded))
+
+    await sts.edit("💠 Adding photo attachment... ⚡")
+    try:
+        add_photo_attachment(downloaded, attachment_path, output_file)
+    except Exception as e:
+        await sts.edit(f"Error adding photo attachment: {e}")
+        os.remove(downloaded)
+        return
+
+    await sts.edit("💠 Uploading modified file... ⚡")
+    c_time = time.time()
+    filesize = os.path.getsize(output_file)
+    filesize_human = humanbytes(filesize)
+    cap = f"{os.path.basename(output_file)}\n\n🌟Size: {filesize_human}"
+
+    client_to_use = string_session_client if filesize > FILE_SIZE_LIMIT else bot
+    try:
+        async with client_to_use:
+            await upload_document(client_to_use, msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡️", sts, c_time))
+    except Exception as e:
+        await sts.edit(f"Error uploading modified file: {e}")
+    finally:
+        os.remove(downloaded)
+        os.remove(output_file)
+        await sts.delete()
+
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
     app.run()
