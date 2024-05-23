@@ -3,7 +3,7 @@ from pyrogram.types import *
 import math
 import os
 import time
-
+from pyrogram.errors import FloodWait, RPCError
 
 PROGRESS_BAR = "\n\n📁 : {b} | {c}\n🚀 : {a}%\n⚡ : {d}/s\n⏱️ : {f}"
 
