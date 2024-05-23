@@ -93,7 +93,8 @@ async def rename_private(client, message):
   ]]
   reply_markup = InlineKeyboardMarkup(buttons)
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
-    
+
+"""
 # Change Index Command
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
@@ -153,7 +154,7 @@ async def change_index(bot, msg):
 
     os.remove(downloaded)
     os.remove(output_file)
-    await sts.delete()
+    await sts.delete()"""
 
 @Client.on_message(filters.command("changeindex"))
 async def changeindex_private(client, message):
@@ -559,8 +560,8 @@ async def setphoto_private(client, message):
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)    
 
 
-@Client.on_message(filters.command("changeindex1"))
-async def change_index1(bot, msg):
+@Client.on_message(filters.command("changeindex"))
+async def change_index(bot, msg):
     reply = msg.reply_to_message
     if not reply:
         return await msg.reply_text("Please reply to a media file with the index command\nFormat: a-3-1-2 (Audio)")
@@ -578,7 +579,11 @@ async def change_index1(bot, msg):
 
     sts = await msg.reply_text("🚀Downloading media...⚡")
     c_time = time.time()
-    downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+    try:
+        downloaded = await download_media(reply, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+    except Exception as e:
+        await sts.edit(f"Error downloading media: {e}")
+        return
 
     output_file = os.path.join(DOWNLOAD_LOCATION, "output_" + os.path.basename(downloaded))
     index_params = index_cmd.split('-')
@@ -611,24 +616,16 @@ async def change_index1(bot, msg):
     await sts.edit("💠Uploading...⚡")
     c_time = time.time()
 
-    # Use string session if file size exceeds the limit
-    if filesize > FILE_SIZE_LIMIT:
-        client_to_use = string_session_client
-    else:
-        client_to_use = bot
-
+    client_to_use = string_session_client if filesize > FILE_SIZE_LIMIT else bot
     try:
         async with client_to_use:
-            await client_to_use.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+            await upload_document(client_to_use, msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡️", sts, c_time))
     except Exception as e:
-        return await sts.edit(f"Error {e}")
-
-    os.remove(downloaded)
-    os.remove(output_file)
-    await sts.delete()
-
-
-
+        await sts.edit(f"Error uploading modified file: {e}")
+    finally:
+        os.remove(downloaded)
+        os.remove(output_file)
+        await sts.delete()
    
 async def download_media(reply, progress, progress_args):
     for attempt in range(5):
