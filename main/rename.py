@@ -19,7 +19,7 @@ from pyrogram.session import Session
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Rename Command
-@Client.on_message(filters.command("rename") & filters.chat(GROUP))
+"""@Client.on_message(filters.command("rename") & filters.chat(GROUP))
 async def rename_file(bot, msg):
     reply = msg.reply_to_message
     if len(msg.command) < 2 or not reply:
@@ -68,7 +68,64 @@ async def rename_file(bot, msg):
         os.remove(downloaded)
     except:
         pass
+    await sts.delete()"""
+
+
+@Client.on_message(filters.command("rename") & filters.chat(GROUP))
+async def rename_file(bot, msg):
+    reply = msg.reply_to_message
+    if len(msg.command) < 2 or not reply:
+        return await msg.reply_text("Please Reply To A File, Video, or Audio With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+
+    media = reply.document or reply.audio or reply.video
+    if not media:
+        return await msg.reply_text("Please Reply To A File, Video, or Audio With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+
+    og_media = getattr(reply, reply.media.value)
+    new_name = msg.text.split(" ", 1)[1]
+    sts = await msg.reply_text("🚀Downloading.....⚡")
+    c_time = time.time()
+    downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+    filesize = humanbytes(og_media.file_size)
+    
+    if CAPTION:
+        try:
+            cap = CAPTION.format(file_name=new_name, file_size=filesize)
+        except Exception as e:
+            return await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
+    else:
+        cap = f"{new_name}\n\n🌟size : {filesize}"
+
+    # Thumbnail handling
+    dir = os.listdir(DOWNLOAD_LOCATION)
+    if len(dir) == 0:
+        file_thumb = await bot.download_media(og_media.thumbs[0].file_id)
+        og_thumbnail = file_thumb
+    else:
+        try:
+            og_thumbnail = f"{DOWNLOAD_LOCATION}/thumbnail.jpg"
+        except Exception as e:
+            print(e)
+            og_thumbnail = None
+
+    await sts.edit("💠Uploading...⚡")
+    c_time = time.time()
+    client_to_use = string_session_client if og_media.file_size > FILE_SIZE_LIMIT else bot
+
+    try:
+        async with client_to_use:
+            await upload_document(client_to_use, msg.chat.id, document=downloaded, thumb=og_thumbnail, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+    except Exception as e:
+        return await sts.edit(f"Error {e}")
+
+    try:
+        if file_thumb:
+            os.remove(file_thumb)
+        os.remove(downloaded)
+    except:
+        pass
     await sts.delete()
+
 
 @Client.on_message(filters.command("rename"))
 async def rename_private(client, message):
@@ -216,15 +273,6 @@ async def change_metadata(bot, msg):
         os.remove(downloaded)
         os.remove(output_file)"""
 
-
-import os
-import time
-import subprocess
-from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
-DOWNLOAD_LOCATION = "./downloads"
-FILE_SIZE_LIMIT = 2 * 1024 * 1024 * 1024  # 2 GB
 
 @Client.on_message(filters.command("changemetadata") & filters.chat(GROUP))
 async def change_metadata(bot, msg):
