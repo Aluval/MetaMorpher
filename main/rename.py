@@ -555,7 +555,8 @@ async def setphoto_private(client, message):
   reply_markup = InlineKeyboardMarkup(buttons)
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)    
 
-@Client.on_message(filters.command("changeindex1") & filters.chat(GROUP))
+
+@Client.on_message(filters.command("changeindex1"))
 async def change_index1(bot, msg):
     reply = msg.reply_to_message
     if not reply:
@@ -622,8 +623,6 @@ async def change_index1(bot, msg):
     os.remove(downloaded)
     os.remove(output_file)
     await sts.delete()
-
-
 
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
