@@ -15,8 +15,6 @@ import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP
 
-
-
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Rename Command
 @Client.on_message(filters.command("rename") & filters.chat(GROUP))
