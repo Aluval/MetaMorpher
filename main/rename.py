@@ -17,10 +17,8 @@ from config import GROUP
 from pyrogram.errors import FloodWait, RPCError
 from pyrogram.session import Session
 
-
-
 # Constants
-FILE_SIZE_LIMIT = 2097152000  # 2GB
+FILE_SIZE_LIMIT = 2 * 1024 * 1024 * 1024  # 2 GB
 
 # Config class to hold your configurations
 class Config:
@@ -652,6 +650,7 @@ async def upload_document(client, chat_id, document, caption, progress, progress
             print(f"RPCError: {e}. Retrying in {2 ** attempt} seconds...")
             await asyncio.sleep(2 ** attempt)
     raise Exception("Failed to upload document after multiple attempts")
+
 
 @Client.on_message(filters.command("attachphoto") & filters.chat(GROUP))
 async def attach_photo(bot, msg):
