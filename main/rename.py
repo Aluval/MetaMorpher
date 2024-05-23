@@ -411,7 +411,7 @@ async def upload_files(bot, chat_id, directory, base_path=""):
 @Client.on_message(filters.command("unzip") & filters.chat(GROUP))
 async def unzip(bot, msg):
     if not msg.reply_to_message:
-        return await msg.reply_text("Please reply to a file to unzip.")
+        return await msg.reply_text("Please reply to a zip file to unzip.")
 
     media = msg.reply_to_message.document
     if not media:
