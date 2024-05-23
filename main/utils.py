@@ -7,8 +7,7 @@ from pyrogram.errors import FloodWait, RPCError
 
 PROGRESS_BAR = "\n\n📁 : {b} | {c}\n🚀 : {a}%\n⚡ : {d}/s\n⏱️ : {f}"
 
-
-#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+# Progress message
 async def progress_message(current, total, ud_type, message, start):
     now = time.time()
     diff = now - start
@@ -28,7 +27,7 @@ async def progress_message(current, total, ud_type, message, start):
             ''.join(["⬡" for _ in range(20 - math.floor(percentage / 5))])
         )
         
-        tmp = progress + PROGRESS_BAR.format(
+        tmp = progress + "\nProgress: {a}%\nDownloaded: {b} of {c}\nSpeed: {d}/s\nETA: {f}".format(
             a=round(percentage, 2),
             b=humanbytes(current),
             c=humanbytes(total),
@@ -41,8 +40,8 @@ async def progress_message(current, total, ud_type, message, start):
             await message.edit(text="{}\n{}".format(ud_type, tmp), reply_markup=InlineKeyboardMarkup(chance))
         except Exception as e:
             print(f"Error updating progress message: {e}")
-
-#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+            
+# Helper functions
 def humanbytes(size):
     units = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB"]
     size = float(size)
@@ -52,7 +51,6 @@ def humanbytes(size):
         size /= 1024.0
     return "%.2f %s" % (size, units[i])
 
-#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 def TimeFormatter(milliseconds: int) -> str:
     seconds, milliseconds = divmod(milliseconds, 1000)
     minutes, seconds = divmod(seconds, 60)
