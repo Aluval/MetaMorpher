@@ -154,7 +154,7 @@ async def change_index(bot, msg):
 
     os.remove(downloaded)
     os.remove(output_file)
-    await sts.delete()"""
+    await sts.delete()
 
 @Client.on_message(filters.command("changeindex"))
 async def changeindex_private(client, message):
@@ -162,7 +162,7 @@ async def changeindex_private(client, message):
     InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
   ]]
   reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
+  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)""" 
     
 def change_video_metadata(input_path, video_title, audio_title, subtitle_title, output_path):
     command = [
@@ -530,7 +530,7 @@ async def attach_photo(bot, msg):
         await sts.edit(f"Error uploading modified file: {e}")
     finally:
         os.remove(downloaded)
-        os.remove(output_file) """
+        os.remove(output_file)
 
 @Client.on_message(filters.command("attachphoto"))
 async def attachphoto_private(client, message):
@@ -538,7 +538,7 @@ async def attachphoto_private(client, message):
     InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
   ]]
   reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)    
+  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup) """  
     
 @Client.on_message(filters.command("setphoto") & filters.chat(GROUP))
 async def set_photo(bot, msg):
@@ -560,7 +560,7 @@ async def setphoto_private(client, message):
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)    
 
 
-@Client.on_message(filters.command("changeindex"))
+@Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
     reply = msg.reply_to_message
     if not reply:
@@ -626,7 +626,15 @@ async def change_index(bot, msg):
         os.remove(downloaded)
         os.remove(output_file)
         await sts.delete()
-   
+
+@Client.on_message(filters.command("changeindex"))
+async def changeindex_private(client, message):
+  buttons = [[
+    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
+  ]]
+  reply_markup = InlineKeyboardMarkup(buttons)
+  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
+    
 async def download_media(reply, progress, progress_args):
     for attempt in range(5):
         try:
@@ -695,7 +703,15 @@ async def attach_photo(bot, msg):
         os.remove(downloaded)
         os.remove(output_file)
         await sts.delete()
-
+        
+@Client.on_message(filters.command("attachphoto"))
+async def attachphoto_private(client, message):
+  buttons = [[
+    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
+  ]]
+  reply_markup = InlineKeyboardMarkup(buttons)
+  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)    
+    
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
     app.run()
