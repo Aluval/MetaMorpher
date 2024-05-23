@@ -17,16 +17,6 @@ from config import GROUP
 
 
 
-FILE_SIZE_LIMIT = 2000 * 1024 * 1024  # 2000 MB in bytes
-
-# Config class to hold your configurations
-class Config:
-    STRING_SESSION = "BQCk-AgAXjv-rvP8Q3ZK7uVQ4bc6maTPaqtZ6iFqJDxWELtFu74RHoIvXfn6dLPZ9b1u9fWlV4ZqFJmWKm4jXrbw_LzfAeuYLbiFgdAcZ-mKa22oeHOZuN2iFFYzKCeDBOA4ZgJX74pQo8EliICqLxXI7Jo3gOPElzU3O11CS4kxFMGylSW_vSW9v6lTimUGXz4aW6Te-VkWLUmzQrvOiWaObizOe_y1dK3CXwNfCp0mzh1cDbTmGpAiHG5ShRC4Du2sAPudcnobX9hrPRKp5Ly0M0AOVnpJtKfh1zyOzDWjwoY9qA97hoyd1ITfNg8ZBHHe3a_2gKh2Lj85OWNANgL8doeABAAAAAGBoJ6aAA"
-
-# Initialize the string session client
-string_session_client = Client("my_session", string_api_id="10811400", string_api_hash="191bf5ae7a6c39771e7b13cf4ffd1279", session_string=Config.STRING_SESSION)
-
-  
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Rename Command
 @Client.on_message(filters.command("rename") & filters.chat(GROUP))
@@ -551,81 +541,6 @@ async def setphoto_private(client, message):
   ]]
   reply_markup = InlineKeyboardMarkup(buttons)
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)    
-
-
-
-# Helper function to convert bytes to a human-readable format
-def humanbytes(size):
-    return f"{size / (1024 * 1024):.2f} MB"
-
-
-@Client.on_message(filters.command("changeindex2"))
-async def change_index(bot, msg):
-    reply = msg.reply_to_message
-    if not reply:
-        return await msg.reply_text("Please reply to a media file with the index command\nFormat: a-3-1-2 (Audio)")
-
-    if len(msg.command) < 2:
-        return await msg.reply_text("Please provide the index command\nFormat: a-3-1-2 (Audio)")
-
-    index_cmd = msg.command[1].strip().lower()
-    if not index_cmd.startswith("a-"):
-        return await msg.reply_text("Invalid format. Use a-3-1-2 for audio.")
-
-    media = reply.document or reply.audio or reply.video
-    if not media:
-        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the index command.")
-
-    sts = await msg.reply_text("🚀Downloading media...⚡")
-    c_time = time.time()
-    downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
-
-    output_file = os.path.join(DOWNLOAD_LOCATION, "output_" + os.path.basename(downloaded))
-    index_params = index_cmd.split('-')
-    stream_type = index_params[0]
-    indexes = [int(i) - 1 for i in index_params[1:]]
-
-    ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']  # Always map video stream
-
-    for idx in indexes:
-        ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
-
-    # Copy all subtitle streams if they exist
-    ffmpeg_cmd.extend(['-map', '0:s?'])
-
-    ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
-
-    await sts.edit("💠Changing indexing...⚡")
-    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-
-    if process.returncode != 0:
-        await sts.edit(f"❗FFmpeg error: {stderr.decode('utf-8')}")
-        os.remove(downloaded)
-        return
-
-    filesize = os.path.getsize(output_file)
-    filesize_human = humanbytes(filesize)
-    cap = f"{os.path.basename(output_file)}\n\n🌟Size: {filesize_human}"
-
-    await sts.edit("💠Uploading...⚡")
-    c_time = time.time()
-
-    # Use string session if file size exceeds the limit
-    if filesize > FILE_SIZE_LIMIT:
-        client_to_use = string_session_client
-    else:
-        client_to_use = bot
-
-    try:
-        async with client_to_use:
-            await client_to_use.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
-    except Exception as e:
-        return await sts.edit(f"Error {e}")
-
-    os.remove(downloaded)
-    os.remove(output_file)
-    await sts.delete()
 
 
 if __name__ == '__main__':
