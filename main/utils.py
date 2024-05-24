@@ -21,14 +21,15 @@ async def progress_message(current, total, ud_type, message, start):
         elapsed_time = TimeFormatter(milliseconds=elapsed_time)
         estimated_total_time = TimeFormatter(milliseconds=estimated_total_time)
         progress = "\n{0}{1}".format(
-            ''.join(["♡" for i in range(math.floor(percentage / 5))]),
-            ''.join(["❤" for i in range(20 - math.floor(percentage / 5))]))
-        tmp = f"✦ {ud_type}\n\n{progress} {percentage:.2f}%\n\n{humanbytes(current)} of {humanbytes(total)}\n\n✦ Speed: {humanbytes(speed*10)}/s\n\n✦ ETA: {elapsed_time}"
+            ''.join(["⚡" for i in range(math.floor(percentage / 5))]),
+            ''.join(["⛈️" for i in range(20 - math.floor(percentage / 5))]))
+        tmp = f"✦ {ud_type}\n\n{progress} {percentage:.2f}%\n\n{humanbytes(current)} of {humanbytes(total)}\n\n✦ Speed: {humanbytes(speed*10)}/s\n\n✦ ETA: {elapsed_time}"                              
         try:
             await message.edit(text=tmp)
-        except:
-            pass
-
+            await asyncio.sleep(5)  # Wait for 5 seconds before updating again
+        except Exception as e:
+            print(f"Error updating progress: {e}")
+            
 # ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 def humanbytes(size):
     units = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB"]
