@@ -97,13 +97,6 @@ async def handle_private_message(bot, msg: Message):
     if FSUB_GROUP and not await check_membership(bot, msg, FSUB_GROUP, joined_channel_2, "Please join my Group before using me.", f"https://t.me/{FSUB_GROUP}"):
         return
     
-    # Handle other private messages here
-    await handle_user_command(bot, msg)
-
-async def handle_user_command(bot, msg: Message):
-    # Handle other commands here
-    await msg.reply_text("This is where your command handling logic goes.")
-
 
                           
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
