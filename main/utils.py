@@ -7,7 +7,7 @@ PROGRESS_BAR = """<b>\n
 ┣⪼ ⏳️ Dᴏɴᴇ : {0}%
 ┣⪼ 🚀 Sᴩᴇᴇᴅ: {3}/s
 ┣⪼ ⏰️ Eᴛᴀ: {4}
-╰❰@SUNRISES24BOTUPDATES❱━➣ </b>"""
+╰❰<a href="https://t.me/SUNRISES24BOTUPDATES">𝗦𝗨𝗡𝗥𝗜𝗦𝗘𝗦 𝟮𝟰 𝗕𝗢𝗧 ⚡</a>❱━➣ </b>"""
 
 async def progress_message(current, total, ud_type, message, start):
     now = time.time()
