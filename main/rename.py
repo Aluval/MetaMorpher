@@ -13,11 +13,19 @@ from config import DOWNLOAD_LOCATION, CAPTION
 from main.utils import progress_message, humanbytes
 import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from config import GROUP
+from config import GROUP, ADMIN
+
+
+def ADMIN(client, message):
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    member = client.get_chat_member(chat_id, user_id)
+    return member.status in ["administrator", "creator"]
+
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Rename Command
-@Client.on_message(filters.command("rename") & filters.chat(GROUP))
+@Client.on_message(filters.command("rename") & filters.chat(GROUP)  & filters.create(ADMIN))
 async def rename_file(bot, msg):
     reply = msg.reply_to_message
     if len(msg.command) < 2 or not reply:
