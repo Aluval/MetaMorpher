@@ -19,3 +19,10 @@ group = environ.get('GROUP', '-1002128043143')
 GROUP = int(group) if group and id_pattern.search(group) else None
 SUNRISES_PIC= "https://graph.org/file/5966e801852b2bba18afb.jpg"  # Replace with your Telegraph link
 
+PROGRESS_BAR = """<b>\n
+╭━━━━❰ᴘʀᴏɢʀᴇss ʙᴀʀ❱━➣
+┣⪼ 🗃️ Sɪᴢᴇ: {1} | {2}
+┣⪼ ⏳️ Dᴏɴᴇ : {0}%
+┣⪼ 🚀 Sᴩᴇᴇᴅ: {3}/s
+┣⪼ ⏰️ Eᴛᴀ: {4}
+╰━━━❰@SUNRISES24BOTUPDATES❱━━━➣ </b>"""
