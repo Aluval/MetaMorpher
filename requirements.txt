@@ -1,4 +1,4 @@
-pyrogram
+pyrogram==2.0.80
 Tgcrypto
 ffmpeg-python
 rarfile
