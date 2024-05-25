@@ -15,11 +15,11 @@ import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP
 
-ADMIN = 6469754522
+
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Rename Command
-@Client.on_message(filters.command("rename") & filters.chat(GROUP) & filters.user(ADMIN))
+@Client.on_message(filters.command("rename") & filters.chat(GROUP))
 async def rename_file(bot, msg):
     reply = msg.reply_to_message
     if len(msg.command) < 2 or not reply:
@@ -81,7 +81,7 @@ async def rename_private(client, message):
 
 
 # Change Index Command
-@Client.on_message(filters.command("changeindex") & filters.chat(GROUP) & filters.user(ADMIN))
+@Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
     reply = msg.reply_to_message
     if not reply:
@@ -171,7 +171,7 @@ def change_video_metadata(input_path, video_title, audio_title, subtitle_title, 
     if process.returncode != 0:
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
 
-@Client.on_message(filters.command("changemetadata") & filters.chat(GROUP) & filters.user(ADMIN))
+@Client.on_message(filters.command("changemetadata") & filters.chat(GROUP))
 async def change_metadata(bot, msg):
     reply = msg.reply_to_message
     if not reply:
@@ -243,7 +243,7 @@ def generate_sample_video(input_path, duration, output_path):
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
 
 # Sample Video Handler
-@Client.on_message(filters.command(["samplevideo150", "samplevideo120", "samplevideo90", "samplevideo60", "samplevideo30"]) & filters.chat(GROUP) & filters.user(ADMIN))
+@Client.on_message(filters.command(["samplevideo150", "samplevideo120", "samplevideo90", "samplevideo60", "samplevideo30"]) & filters.chat(GROUP))
 async def sample_video(bot, msg):
     durations = {
         "samplevideo150": 150,
@@ -300,7 +300,7 @@ async def samplevideo_private(client, message):
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
     
 # Screenshots by Number Handler
-@Client.on_message(filters.command("screenshots") & filters.chat(GROUP) & filters.user(ADMIN))
+@Client.on_message(filters.command("screenshots") & filters.chat(GROUP))
 async def screenshots(bot, msg):
     if len(msg.command) != 2:
         return await msg.reply_text("Please provide the number of screenshots to generate.")
@@ -410,7 +410,7 @@ async def upload_files(bot, chat_id, directory, base_path=""):
             await upload_files(bot, chat_id, item_path, base_path=os.path.join(base_path, item))
 
 # Unzip file command handler
-@Client.on_message(filters.command("unzip") & filters.chat(GROUP) & filters.user(ADMIN))
+@Client.on_message(filters.command("unzip") & filters.chat(GROUP))
 async def unzip(bot, msg):
     if not msg.reply_to_message:
         return await msg.reply_text("Please reply to a zip file to unzip.")
@@ -473,7 +473,7 @@ def add_photo_attachment(input_path, attachment_path, output_path):
     if process.returncode != 0:
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
 
-@Client.on_message(filters.command("attachphoto") & filters.chat(GROUP) & filters.user(ADMIN))
+@Client.on_message(filters.command("attachphoto") & filters.chat(GROUP))
 async def attach_photo(bot, msg):
     reply = msg.reply_to_message
     if not reply:
