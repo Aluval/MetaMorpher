@@ -19,8 +19,9 @@ group = environ.get('GROUP', '-1002128043143')
 GROUP = int(group) if group and id_pattern.search(group) else None
 SUNRISES_PIC= "https://graph.org/file/5966e801852b2bba18afb.jpg"  # Replace with your Telegraph link
 AUTH_USERS = int(os.environ.get("AUTH_USERS", '6469754522'))
-HEROKU_API = int(os.environ.get("HEROKU_API", 'HRKU-59f8d7f7-6149-44a4-81c9-6ca84dcaede4'))
-HEROKU_APP_NAME = int(os.environ.get("HEROKU_APP_NAME", 'rename24bot'))
+HEROKU_API = os.environ.get("HEROKU_API", 'HRKU-59f8d7f7-6149-44a4-81c9-6ca84dcaede4')
+HEROKU_APP_NAME = os.environ.get("HEROKU_APP_NAME", 'rename24bot')
+
 
 
 
