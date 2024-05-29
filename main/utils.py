@@ -1,8 +1,7 @@
 import math, time
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 import heroku3
-from decouple import config
-from config HEROKU_API, HEROKU_APP_NAME
+
 
 PROGRESS_BAR = """<b>\n
 ╭━━━━❰ᴘʀᴏɢʀᴇss ʙᴀʀ❱━➣
@@ -119,8 +118,8 @@ async def progress_pyrogram(current, total, ud_type, message, start):
 
 # Define heroku_restart function
 async def heroku_restart():
-    HEROKU_API = ""
-    HEROKU_APP_NAME = ""
+    HEROKU_API = "HRKU-59f8d7f7-6149-44a4-81c9-6ca84dcaede4"
+    HEROKU_APP_NAME = "rename24bot"
     x = None
     if not HEROKU_API or not HEROKU_APP_NAME:
         x = None
