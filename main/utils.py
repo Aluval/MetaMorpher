@@ -119,8 +119,8 @@ async def progress_pyrogram(current, total, ud_type, message, start):
 
 # Define heroku_restart function
 async def heroku_restart():
-    HEROKU_API = config("HEROKU_API", default=None)
-    HEROKU_APP_NAME = config("HEROKU_APP_NAME", default=None)
+    HEROKU_API = ""
+    HEROKU_APP_NAME = ""
     x = None
     if not HEROKU_API or not HEROKU_APP_NAME:
         x = None
@@ -134,4 +134,3 @@ async def heroku_restart():
             print(e)
             x = False
     return x
-
