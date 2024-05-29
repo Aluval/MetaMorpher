@@ -51,7 +51,3 @@ class Bot(Client):
 
 bot = Bot()
 bot.run()
-
-
-bot = Bot()
-bot.run()
