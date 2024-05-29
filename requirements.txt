@@ -4,5 +4,7 @@ ffmpeg-python
 rarfile
 ffmpeg
 requests
+python-decouple
+heroku3
 
 
