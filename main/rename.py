@@ -16,6 +16,24 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP, AUTH_USERS
 from main.utils import heroku_restart
 
+import asyncio
+
+@Client.on_message(filters.command("restart") & filters.chat(GROUP))
+async def restart_app(bot, msg):
+    if not f'{msg.from_user.id}' == f'{int(AUTH_USERS)}':
+        return await msg.reply_text("Only authorized user can restart!")
+
+    result = await heroku_restart()
+    if result is None:
+        return await msg.reply_text("You have not filled `HEROKU_API` and `HEROKU_APP_NAME` vars.")
+    elif result is False:
+        return await msg.reply_text("An error occurred!")
+    elif result is True:
+        await msg.reply_text("Restarting app, wait for a minute.")
+        await asyncio.sleep(60)  # Delay for a minute
+        await msg.delete()
+     
+"""
  # Define restart_app command
 @Client.on_message(filters.command("restart") & filters.chat(GROUP))
 async def restart_app(bot, msg):
@@ -28,7 +46,7 @@ async def restart_app(bot, msg):
     elif result is False:
         return await msg.reply_text("An error occurred!")
     elif result is True:
-        return await msg.reply_text("Restarting app, wait for a minute.")
+        return await msg.reply_text("Restarting app, wait for a minute.")"""
         
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
