@@ -155,7 +155,7 @@ async def rename_private(client, message):
   reply_markup = InlineKeyboardMarkup(buttons)
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
 
-
+"""
 # Change Index Command
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
@@ -215,7 +215,7 @@ async def change_index(bot, msg):
 
     os.remove(downloaded)
     os.remove(output_file)
-    await sts.delete()
+    await sts.delete()"""
 
 @Client.on_message(filters.command("changeindex"))
 async def changeindex_private(client, message):
