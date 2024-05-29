@@ -50,7 +50,7 @@ async def change_index(bot, msg):
 
     sts = await msg.reply_text("🚀Downloading media...⚡")
     c_time = time.time()
-    downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+    downloaded = await reply.download(progress=progress_pyrogram, progress_args=("🚀Download Started...⚡️", sts, c_time))
 
     output_file = os.path.join(DOWNLOAD_LOCATION, "output_" + os.path.basename(downloaded))
     index_params = index_cmd.split('-')
