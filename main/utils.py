@@ -75,3 +75,39 @@ def convert(seconds):
 
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+async def progress_pyrogram(current, total, ud_type, message, start):
+    now = time.time()
+    diff = now - start
+
+    if int(diff) % 10 == 0 or current == total:
+        percentage = current * 100 / total
+        speed = current / diff
+        elapsed_time = round(diff) * 1000
+        time_to_completion = round((total - current) / speed) * 1000
+        estimated_total_time = elapsed_time + time_to_completion
+
+        elapsed_time = time.strftime("%H:%M:%S", time.gmtime(elapsed_time / 1000))
+        estimated_total_time = time.strftime("%H:%M:%S", time.gmtime(estimated_total_time / 1000))
+
+        progress = "\n{0}{1}".format(
+            ''.join(["⬢" for _ in range(math.floor(percentage / 5))]),
+            ''.join(["⬡" for _ in range(20 - math.floor(percentage / 5))])
+        )
+
+        tmp = progress + "\nPercentage: {0:.2f}%\n".format(
+            round(percentage, 2)
+        ) + "Speed: {0:.2f} MB/s\n".format(
+            speed / 1024 / 1024
+        ) + "ETA: {0}\n".format(
+            estimated_total_time
+        ) + "Elapsed: {0}".format(
+            elapsed_time
+        )
+
+        try:
+            await message.edit(text="{}\n{}".format(ud_type, tmp))
+        except BadRequest as e:
+            if "MESSAGE_ID_INVALID" in str(e):
+                print(f"Error updating progress message: {e}")
+            else:
+                raise e
