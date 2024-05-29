@@ -15,8 +15,9 @@ import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP, AUTH_USERS
 from main.utils import heroku_restart
+import asyncio
 
- # Define restart_app command
+# Define restart_app command
 @Client.on_message(filters.command("restart") & filters.chat(GROUP))
 async def restart_app(bot, msg):
     if not f'{msg.from_user.id}' == f'{int(AUTH_USERS)}':
@@ -28,8 +29,12 @@ async def restart_app(bot, msg):
     elif result is False:
         return await msg.reply_text("An error occurred!")
     elif result is True:
-        return await msg.reply_text("Restarting app, wait for a minute.")
-        
+        await msg.reply_text("Restarting app, wait for a minute.")
+
+    # Restarting process completed successfully
+    await asyncio.sleep(60)  # Wait for a minute
+    return await msg.reply_text("Restarted bot Successfully✅.")
+ 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Rename Command
 @Client.on_message(filters.command("rename") & filters.chat(GROUP))
