@@ -14,6 +14,7 @@ from main.utils import progress_message, humanbytes
 import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP, AUTH_USERS
+from main.utils import heroku_restart
 
  # Define restart_app command
 @Client.on_message(filters.command("restart") & filters.chat(GROUP))
