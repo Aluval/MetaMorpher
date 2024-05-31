@@ -18,7 +18,20 @@ from main.utils import heroku_restart
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 
+# Command to set thumbnail for link
+@Client.on_message(filters.command("setthumbnailforlink") & filters.chat(GROUP))
+async def set_thumbnail_for_link(bot, msg: Message):
+    reply = msg.reply_to_message
+    if not reply or not reply.document:
+        await msg.reply_text("Please reply to a document to set it as the thumbnail for links.")
+        return
+    
+    # Download and save the thumbnail
+    thumbnail_path = os.path.join(DOWNLOAD_LOCATION, "thumbnailforlink.jpg")
+    await bot.download_media(message=reply, file_name=thumbnail_path)
+    await msg.reply_text("Thumbnail set successfully for rename links.")
 
+# Command to rename and handle links
 @Client.on_message(filters.command("renamelink") & filters.chat(GROUP))
 async def rename_link(bot, msg: Message):
     reply = msg.reply_to_message
@@ -61,7 +74,7 @@ async def rename_link(bot, msg: Message):
         if not dir and og_media.thumbs:
             file_thumb = await bot.download_media(og_media.thumbs[0].file_id)
         
-        og_thumbnail = f"{DOWNLOAD_LOCATION}/thumbnail.jpg" if file_thumb else None
+        og_thumbnail = f"{DOWNLOAD_LOCATION}/thumbnailforlink.jpg" if file_thumb else None
 
         await sts.edit("💠 Uploading...")
         c_time = time.time()
@@ -133,8 +146,7 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str):
         print(f"Error deleting file: {e}")
     await sts.delete()
 
-        
-
+       
 
  
  # Define restart_app command
