@@ -5,5 +5,5 @@ rarfile
 ffmpeg
 requests
 heroku3
-
+aiohttp
 
