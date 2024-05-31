@@ -18,30 +18,13 @@ from main.utils import heroku_restart
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 
-# Command to set thumbnail for link
-@Client.on_message(filters.command("setthumbnailforlink") & filters.chat(GROUP))
-async def set_thumbnail_for_link(bot, msg: Message):
-    reply = msg.reply_to_message
-    if not reply or (not reply.document and not reply.photo):
-        await msg.reply_text("Please reply to a document or photo to set it as the thumbnail for links.")
-        return
-    
-    # Download and save the thumbnail
-    if reply.document:
-        thumbnail_path = os.path.join(DOWNLOAD_LOCATION, "thumbnailforlink.jpg")
-        await bot.download_media(message=reply, file_name=thumbnail_path)
-    elif reply.photo:
-        thumbnail_path = os.path.join(DOWNLOAD_LOCATION, "thumbnailforlink.jpg")
-        await bot.download_media(message=reply, file_name=thumbnail_path)
-    await msg.reply_text("Thumbnail set successfully for links.")
 
-# Command to rename and handle links
 @Client.on_message(filters.command("renamelink") & filters.chat(GROUP))
 async def rename_link(bot, msg: Message):
     reply = msg.reply_to_message
     if len(msg.command) < 2 or not reply:
         return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
-    
+
     new_name = msg.text.split(" ", 1)[1]
 
     media = reply.document or reply.audio or reply.video
@@ -53,7 +36,7 @@ async def rename_link(bot, msg: Message):
     else:
         if not media:
             return await msg.reply_text("Please Reply To A Valid File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
-        
+
         og_media = getattr(reply, reply.media.value)
         sts = await msg.reply_text("🚀 Downloading...")
         c_time = time.time()
@@ -77,8 +60,8 @@ async def rename_link(bot, msg: Message):
         file_thumb = None
         if not dir and og_media.thumbs:
             file_thumb = await bot.download_media(og_media.thumbs[0].file_id)
-        
-        og_thumbnail = f"{DOWNLOAD_LOCATION}/thumbnailforlink.jpg" if file_thumb else None
+
+        og_thumbnail = f"{DOWNLOAD_LOCATION}/thumbnail.jpg" if file_thumb else None
 
         await sts.edit("💠 Uploading...")
         c_time = time.time()
@@ -149,8 +132,6 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str):
     except Exception as e:
         print(f"Error deleting file: {e}")
     await sts.delete()
-
-       
 
  
  # Define restart_app command
