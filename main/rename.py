@@ -22,14 +22,18 @@ from pyrogram.errors import RPCError, FloodWait
 @Client.on_message(filters.command("setthumbnailforlink") & filters.chat(GROUP))
 async def set_thumbnail_for_link(bot, msg: Message):
     reply = msg.reply_to_message
-    if not reply or not reply.document:
-        await msg.reply_text("Please reply to a document to set it as the thumbnail for links.")
+    if not reply or (not reply.document and not reply.photo):
+        await msg.reply_text("Please reply to a document or photo to set it as the thumbnail for links.")
         return
     
     # Download and save the thumbnail
-    thumbnail_path = os.path.join(DOWNLOAD_LOCATION, "thumbnailforlink.jpg")
-    await bot.download_media(message=reply, file_name=thumbnail_path)
-    await msg.reply_text("Thumbnail set successfully for rename links.")
+    if reply.document:
+        thumbnail_path = os.path.join(DOWNLOAD_LOCATION, "thumbnailforlink.jpg")
+        await bot.download_media(message=reply, file_name=thumbnail_path)
+    elif reply.photo:
+        thumbnail_path = os.path.join(DOWNLOAD_LOCATION, "thumbnailforlink.jpg")
+        await bot.download_media(message=reply, file_name=thumbnail_path)
+    await msg.reply_text("Thumbnail set successfully for links.")
 
 # Command to rename and handle links
 @Client.on_message(filters.command("renamelink") & filters.chat(GROUP))
