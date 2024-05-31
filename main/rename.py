@@ -1,27 +1,3 @@
-import os
-import time
-import shutil
-import zipfile
-import tarfile
-import requests
-from pyrogram.types import Message
-from pyrogram.types import Document, Video
-from pyrogram import Client, filters
-from pyrogram.enums import MessageMediaType
-from pyrogram.errors import MessageNotModified
-from config import DOWNLOAD_LOCATION, CAPTION
-from main.utils import progress_message, humanbytes
-import subprocess
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from config import GROUP, AUTH_USERS
-from main.utils import heroku_restart
-
-
-
-import aiohttp
-
-# Ensure GROUP, CAPTION, DOWNLOAD_LOCATION, and progress_message are defined elsewhere in your code
-
 @Client.on_message(filters.command("renamelink") & filters.chat(GROUP))
 async def rename_link(bot, msg: Message):
     reply = msg.reply_to_message
@@ -39,12 +15,12 @@ async def rename_link(bot, msg: Message):
     else:
         if not media:
             return await msg.reply_text("Please Reply To A Valid File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
-        
+
         og_media = getattr(reply, reply.media.value)
         sts = await msg.reply_text("🚀Downloading.....⚡")
         c_time = time.time()
         downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
-        filesize = human(og_media.file_size)
+        filesize = humanbytes(og_media.file_size)
 
         if CAPTION:
             try:
@@ -85,22 +61,32 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str):
     sts = await msg.reply_text("🚀Downloading from link.....⚡")
     c_time = time.time()
 
-    async with aiohttp.ClientSession() as session:
-        async with session.get(link) as resp:
-            if resp.status == 200:
-                with open(new_name, 'wb') as f:
-                    f.write(await resp.read())
-            else:
-                return await sts.edit(f"Failed to download file from link. Status code: {resp.status}")
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(link) as resp:
+                if resp.status == 200:
+                    with open(new_name, 'wb') as f:
+                        f.write(await resp.read())
+                else:
+                    await sts.edit(f"Failed to download file from link. Status code: {resp.status}")
+                    return
+    except Exception as e:
+        await sts.edit(f"Error during download: {e}")
+        return
+
+    if not os.path.exists(new_name):
+        await sts.edit("File not found after download. Please check the link and try again.")
+        return
 
     filesize = os.path.getsize(new_name)
-    filesize = human(filesize)
+    filesize = humanbytes(filesize)
 
     if CAPTION:
         try:
             cap = CAPTION.format(file_name=new_name, file_size=filesize)
         except Exception as e:
-            return await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
+            await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
+            return
     else:
         cap = f"{new_name}\n\n🌟size : {filesize}"
 
@@ -109,25 +95,37 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str):
     try:
         await bot.send_document(msg.chat.id, document=new_name, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
     except Exception as e:
-        return await sts.edit(f"Error {e}")
+        await sts.edit(f"Error {e}")
+        return
 
     try:
         os.remove(new_name)
-    except:
-        pass
-    await sts.delete()
+    except Exception as e:
+        print(f"Error deleting file: {e}")
+    await sts.delete()import os
+import time
+import shutil
+import zipfile
+import tarfile
+import requests
+from pyrogram.types import Message
+from pyrogram.types import Document, Video
+from pyrogram import Client, filters
+from pyrogram.enums import MessageMediaType
+from pyrogram.errors import MessageNotModified
+from config import DOWNLOAD_LOCATION, CAPTION
+from main.utils import progress_message, humanbytes
+import subprocess
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from config import GROUP, AUTH_USERS
+from main.utils import heroku_restart
 
-def human(size):
-    # Function to convert bytes to human-readable format
-    if not size:
-        return ""
-    power = 2**10
-    n = 0
-    power_labels = {0: '', 1: 'Ki', 2: 'Mi', 3: 'Gi', 4: 'Ti'}
-    while size > power:
-        size /= power
-        n += 1
-    return f"{size:.2f} {power_labels[n]}B"
+
+
+import aiohttp
+
+# Ensure GROUP, CAPTION, DOWNLOAD_LOCATION, and progress_message are defined elsewhere in your code
+
  
  # Define restart_app command
 @Client.on_message(filters.command("restart") & filters.chat(GROUP))
