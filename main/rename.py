@@ -53,14 +53,19 @@ async def rename_link(bot, msg: Message):
             cap = f"{new_name}\n\n🌟size : {filesize}"
 
         # Thumbnail handling
-        file_thumb = None
-        if reply.document and reply.document.thumbs:
-            file_thumb = await bot.download_media(reply.document.thumbs[0].file_id)
-        elif reply.audio and reply.audio.thumbs:
-            file_thumb = await bot.download_media(reply.audio.thumbs[0].file_id)
-        elif reply.video and reply.video.thumbs:
-            file_thumb = await bot.download_media(reply.video.thumbs[0].file_id)
+        #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 
+        dir = os.listdir(DOWNLOAD_LOCATION)
+        if len(dir) == 0:
+            file_thumb = await bot.download_media(og_media.thumbs[0].file_id)
+            og_thumbnail = file_thumb
+        else:
+            try:
+                og_thumbnail = f"{DOWNLOAD_LOCATION}/thumbnail.jpg"
+            except Exception as e:
+                print(e)        
+                og_thumbnail = None
+            
         await sts.edit("💠Uploading...⚡")
         c_time = time.time()
         try:
