@@ -15,15 +15,10 @@ import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP, AUTH_USERS
 from main.utils import heroku_restart
-
-
-
 import aiohttp
 
-# Ensure GROUP, CAPTION, DOWNLOAD_LOCATION, and progress_message are defined elsewhere in your code
 
-
-
+# Rename and Download/Upload with Progress
 @Client.on_message(filters.command("renamelink") & filters.chat(GROUP))
 async def rename_link(bot, msg: Message):
     reply = msg.reply_to_message
@@ -31,7 +26,6 @@ async def rename_link(bot, msg: Message):
         return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
     
     new_name = msg.text.split(" ", 1)[1]
-
     media = reply.document or reply.audio or reply.video
     if not media and not reply.text:
         return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
@@ -57,16 +51,8 @@ async def rename_link(bot, msg: Message):
             cap = f"{new_name}\n\n🌟size : {filesize}"
 
         # Thumbnail handling
-        dir = os.listdir(DOWNLOAD_LOCATION)
-        if len(dir) == 0:
-            file_thumb = await bot.download_media(og_media.thumbs[0].file_id)
-            og_thumbnail = file_thumb
-        else:
-            try:
-                og_thumbnail = f"{DOWNLOAD_LOCATION}/thumbnail.jpg"
-            except Exception as e:
-                print(e)
-                og_thumbnail = None
+        thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail.jpg"
+        og_thumbnail = thumbnail_path if os.path.exists(thumbnail_path) else None
 
         await sts.edit("💠Uploading...⚡")
         c_time = time.time()
@@ -76,12 +62,58 @@ async def rename_link(bot, msg: Message):
             return await sts.edit(f"Error {e}")
 
         try:
-            if file_thumb:
-                os.remove(file_thumb)
             os.remove(downloaded)
         except:
             pass
         await sts.delete()
+
+async def handle_link_download(bot, msg: Message, link: str, new_name: str):
+    sts = await msg.reply_text("🚀Downloading from link.....⚡")
+    c_time = time.time()
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(link) as resp:
+                if resp.status == 200:
+                    with open(new_name, 'wb') as f:
+                        f.write(await resp.read())
+                else:
+                    await sts.edit(f"Failed to download file from link. Status code: {resp.status}")
+                    return
+    except Exception as e:
+        await sts.edit(f"Error during download: {e}")
+        return
+
+    if not os.path.exists(new_name):
+        await sts.edit("File not found after download. Please check the link and try again.")
+        return
+
+    filesize = os.path.getsize(new_name)
+    filesize = humanbytes(filesize)
+
+    if CAPTION:
+        try:
+            cap = CAPTION.format(file_name=new_name, file_size=filesize)
+        except Exception as e:
+            await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
+            return
+    else:
+        cap = f"{new_name}\n\n🌟size : {filesize}"
+
+    await sts.edit("💠Uploading...⚡")
+    c_time = time.time()
+    try:
+        await bot.send_document(msg.chat.id, document=new_name, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+    except Exception as e:
+        await sts.edit(f"Error {e}")
+        return
+
+    try:
+        os.remove(new_name)
+    except Exception as e:
+        print(f"Error deleting file: {e}")
+    await sts.delete()
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 
 async def handle_link_download(bot, msg: Message, link: str, new_name: str):
     sts = await msg.reply_text("🚀Downloading from link.....⚡")
