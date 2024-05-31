@@ -2,6 +2,7 @@
 from pyrogram import Client, filters 
 from config import DOWNLOAD_LOCATION
 import os
+from config import GROUP
 
 dir = os.listdir(DOWNLOAD_LOCATION)
 
