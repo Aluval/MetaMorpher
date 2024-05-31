@@ -17,18 +17,21 @@ from config import GROUP, AUTH_USERS
 from main.utils import heroku_restart
 import aiohttp
 
+
+
+
+
 @Client.on_message(filters.command("renamelink") & filters.chat(GROUP))
 async def rename_link(bot, msg: Message):
     reply = msg.reply_to_message
     if len(msg.command) < 2 or not reply:
         return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
-    
-    new_name = msg.text.split(" ", 1)[1]
 
+    new_name = msg.text.split(" ", 1)[1]
     media = reply.document or reply.audio or reply.video
     if not media and not reply.text:
         return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
-
+    
     if reply.text and ("seedr" in reply.text or "workers" in reply.text):
         await handle_link_download(bot, msg, reply.text, new_name)
     else:
@@ -50,21 +53,18 @@ async def rename_link(bot, msg: Message):
             cap = f"{new_name}\n\n🌟size : {filesize}"
 
         # Thumbnail handling
-        dir = os.listdir(DOWNLOAD_LOCATION)
-        if len(dir) == 0:
-            file_thumb = await bot.download_media(og_media.thumbs[0].file_id)
-            og_thumbnail = file_thumb
-        else:
-            try:
-                og_thumbnail = f"{DOWNLOAD_LOCATION}/thumbnail.jpg"
-            except Exception as e:
-                print(e)
-                og_thumbnail = None
+        file_thumb = None
+        if reply.document and reply.document.thumbs:
+            file_thumb = await bot.download_media(reply.document.thumbs[0].file_id)
+        elif reply.audio and reply.audio.thumbs:
+            file_thumb = await bot.download_media(reply.audio.thumbs[0].file_id)
+        elif reply.video and reply.video.thumbs:
+            file_thumb = await bot.download_media(reply.video.thumbs[0].file_id)
 
         await sts.edit("💠Uploading...⚡")
         c_time = time.time()
         try:
-            await bot.send_document(msg.chat.id, document=downloaded, thumb=og_thumbnail, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+            await bot.send_document(msg.chat.id, document=downloaded, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
         except Exception as e:
             return await sts.edit(f"Error {e}")
 
@@ -122,7 +122,6 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str):
     except Exception as e:
         print(f"Error deleting file: {e}")
     await sts.delete()
-
 
 
  
