@@ -17,6 +17,118 @@ from config import GROUP, AUTH_USERS
 from main.utils import heroku_restart
 
 
+
+import aiohttp
+
+# Ensure GROUP, CAPTION, DOWNLOAD_LOCATION, and progress_message are defined elsewhere in your code
+
+@Client.on_message(filters.command("renamelink") & filters.chat(GROUP))
+async def rename_link(bot, msg: Message):
+    reply = msg.reply_to_message
+    if len(msg.command) < 2 or not reply:
+        return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+    
+    new_name = msg.text.split(" ", 1)[1]
+
+    media = reply.document or reply.audio or reply.video
+    if not media and not reply.text:
+        return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+
+    if reply.text and ("seedr" in reply.text or "workers" in reply.text):
+        await handle_link_download(bot, msg, reply.text, new_name)
+    else:
+        if not media:
+            return await msg.reply_text("Please Reply To A Valid File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+        
+        og_media = getattr(reply, reply.media.value)
+        sts = await msg.reply_text("🚀Downloading.....⚡")
+        c_time = time.time()
+        downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+        filesize = human(og_media.file_size)
+
+        if CAPTION:
+            try:
+                cap = CAPTION.format(file_name=new_name, file_size=filesize)
+            except Exception as e:
+                return await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
+        else:
+            cap = f"{new_name}\n\n🌟size : {filesize}"
+
+        # Thumbnail handling
+        dir = os.listdir(DOWNLOAD_LOCATION)
+        if len(dir) == 0:
+            file_thumb = await bot.download_media(og_media.thumbs[0].file_id)
+            og_thumbnail = file_thumb
+        else:
+            try:
+                og_thumbnail = f"{DOWNLOAD_LOCATION}/thumbnail.jpg"
+            except Exception as e:
+                print(e)
+                og_thumbnail = None
+
+        await sts.edit("💠Uploading...⚡")
+        c_time = time.time()
+        try:
+            await bot.send_document(msg.chat.id, document=downloaded, thumb=og_thumbnail, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+        except Exception as e:
+            return await sts.edit(f"Error {e}")
+
+        try:
+            if file_thumb:
+                os.remove(file_thumb)
+            os.remove(downloaded)
+        except:
+            pass
+        await sts.delete()
+
+async def handle_link_download(bot, msg: Message, link: str, new_name: str):
+    sts = await msg.reply_text("🚀Downloading from link.....⚡")
+    c_time = time.time()
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(link) as resp:
+            if resp.status == 200:
+                with open(new_name, 'wb') as f:
+                    f.write(await resp.read())
+            else:
+                return await sts.edit(f"Failed to download file from link. Status code: {resp.status}")
+
+    filesize = os.path.getsize(new_name)
+    filesize = human(filesize)
+
+    if CAPTION:
+        try:
+            cap = CAPTION.format(file_name=new_name, file_size=filesize)
+        except Exception as e:
+            return await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
+    else:
+        cap = f"{new_name}\n\n🌟size : {filesize}"
+
+    await sts.edit("💠Uploading...⚡")
+    c_time = time.time()
+    try:
+        await bot.send_document(msg.chat.id, document=new_name, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+    except Exception as e:
+        return await sts.edit(f"Error {e}")
+
+    try:
+        os.remove(new_name)
+    except:
+        pass
+    await sts.delete()
+
+def human(size):
+    # Function to convert bytes to human-readable format
+    if not size:
+        return ""
+    power = 2**10
+    n = 0
+    power_labels = {0: '', 1: 'Ki', 2: 'Mi', 3: 'Gi', 4: 'Ti'}
+    while size > power:
+        size /= power
+        n += 1
+    return f"{size:.2f} {power_labels[n]}B"
+ 
  # Define restart_app command
 @Client.on_message(filters.command("restart") & filters.chat(GROUP))
 async def restart_app(bot, msg):
