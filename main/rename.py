@@ -19,23 +19,23 @@ import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 
 
-@Client.on_message(filters.command("renamelink") & filters.chat(GROUP))
-async def rename_link(bot, msg: Message):
+@Client.on_message(filters.command("linktofile") & filters.chat(GROUP))
+async def linktofile(bot, msg: Message):
     reply = msg.reply_to_message
     if len(msg.command) < 2 or not reply:
-        return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+        return await msg.reply_text("Please Reply To A Valid Link (Workers,Seed) With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
     
     new_name = msg.text.split(" ", 1)[1]
 
     media = reply.document or reply.audio or reply.video
     if not media and not reply.text:
-        return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+        return await msg.reply_text("Please Reply To A Valid Link (Workers,Seed) With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
 
     if reply.text and ("seedr" in reply.text or "workers" in reply.text):
         await handle_link_download(bot, msg, reply.text, new_name)
     else:
         if not media:
-            return await msg.reply_text("Please Reply To A Valid File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+            return await msg.reply_text("Please Reply To A Valid Link (Workers,Seed) With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
         
         og_media = getattr(reply, reply.media.value)
         sts = await msg.reply_text("🚀 Downloading...")
@@ -133,7 +133,14 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str):
         print(f"Error deleting file: {e}")
     await sts.delete()
 
-        
+@Client.on_message(filters.command("linktofile"))
+async def linktofile_private(client, message):
+  buttons = [[
+    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
+  ]]
+  reply_markup = InlineKeyboardMarkup(buttons)
+  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
+    
 
 
  
