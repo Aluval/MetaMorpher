@@ -16,10 +16,20 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP, AUTH_USERS
 from main.utils import heroku_restart
 import aiohttp
+import asyncio
 
+DOWNLOAD_TIMEOUT = 1200  # 20 minutes
+UPLOAD_TIMEOUT = 1200  # 20 minutes
+RETRY_LIMIT = 3  # Number of retry attempts
 
+async def progress_msg(current, total, message, status_message, start_time):
+    await status_message.edit(f"{message} {current * 100 / total:.1f}% done.")
 
-
+def human(size):
+    for unit in ['', 'K', 'M', 'G', 'T', 'P']:
+        if size < 1024.0:
+            return f"{size:.2f}{unit}B"
+        size /= 1024.0
 
 @Client.on_message(filters.command("renamelink") & filters.chat(GROUP))
 async def rename_link(bot, msg: Message):
@@ -31,7 +41,7 @@ async def rename_link(bot, msg: Message):
     media = reply.document or reply.audio or reply.video
     if not media and not reply.text:
         return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
-    
+
     if reply.text and ("seedr" in reply.text or "workers" in reply.text):
         await handle_link_download(bot, msg, reply.text, new_name)
     else:
@@ -41,8 +51,11 @@ async def rename_link(bot, msg: Message):
         og_media = getattr(reply, reply.media.value)
         sts = await msg.reply_text("🚀Downloading.....⚡")
         c_time = time.time()
-        downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
-        filesize = humanbytes(og_media.file_size)
+        downloaded = await retry_download(bot, reply, new_name, sts, c_time)
+        if not downloaded:
+            return await sts.edit("Download failed after multiple attempts.")
+
+        filesize = human(og_media.file_size)
 
         if CAPTION:
             try:
@@ -53,57 +66,57 @@ async def rename_link(bot, msg: Message):
             cap = f"{new_name}\n\n🌟size : {filesize}"
 
         # Thumbnail handling
-        #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
-
-        dir = os.listdir(DOWNLOAD_LOCATION)
-        if len(dir) == 0:
-            file_thumb = await bot.download_media(og_media.thumbs[0].file_id)
-            og_thumbnail = file_thumb
+        file_thumb = None
+        thumbnail_downloaded = False
+        if og_media.thumbs:
+            file_thumb = await retry_download_thumbnail(bot, og_media.thumbs[0].file_id)
+            thumbnail_downloaded = True
         else:
-            try:
-                og_thumbnail = f"{DOWNLOAD_LOCATION}/thumbnail.jpg"
-            except Exception as e:
-                print(e)        
-                og_thumbnail = None
-            
+            thumbnail_path = os.path.join(DOWNLOAD_LOCATION, "thumbnail.jpg")
+            if os.path.exists(thumbnail_path):
+                file_thumb = thumbnail_path
+
         await sts.edit("💠Uploading...⚡")
         c_time = time.time()
-        try:
-            await bot.send_document(msg.chat.id, document=downloaded, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
-        except Exception as e:
-            return await sts.edit(f"Error {e}")
+        success = await retry_upload(bot, msg.chat.id, downloaded, file_thumb, cap, sts, c_time)
+        if not success:
+            return await sts.edit("Upload failed after multiple attempts.")
 
         try:
-            if file_thumb:
+            if thumbnail_downloaded and file_thumb and os.path.exists(file_thumb):
                 os.remove(file_thumb)
             os.remove(downloaded)
-        except:
-            pass
+        except Exception as e:
+            print(f"Error cleaning up files: {e}")
         await sts.delete()
 
 async def handle_link_download(bot, msg: Message, link: str, new_name: str):
     sts = await msg.reply_text("🚀Downloading from link.....⚡")
     c_time = time.time()
 
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(link) as resp:
-                if resp.status == 200:
-                    with open(new_name, 'wb') as f:
-                        f.write(await resp.read())
-                else:
-                    await sts.edit(f"Failed to download file from link. Status code: {resp.status}")
-                    return
-    except Exception as e:
-        await sts.edit(f"Error during download: {e}")
-        return
+    for attempt in range(RETRY_LIMIT):
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=DOWNLOAD_TIMEOUT)) as session:
+                async with session.get(link) as resp:
+                    if resp.status == 200:
+                        with open(new_name, 'wb') as f:
+                            f.write(await resp.read())
+                        break
+                    else:
+                        await sts.edit(f"Failed to download file from link. Status code: {resp.status}")
+                        return
+        except Exception as e:
+            if attempt + 1 == RETRY_LIMIT:
+                await sts.edit(f"Error during download: {e}")
+                return
+            await asyncio.sleep(5)  # Wait before retrying
 
     if not os.path.exists(new_name):
         await sts.edit("File not found after download. Please check the link and try again.")
         return
 
     filesize = os.path.getsize(new_name)
-    filesize = humanbytes(filesize)
+    filesize = human(filesize)
 
     if CAPTION:
         try:
@@ -116,17 +129,48 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str):
 
     await sts.edit("💠Uploading...⚡")
     c_time = time.time()
-    try:
-        await bot.send_document(msg.chat.id, document=new_name, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
-    except Exception as e:
-        await sts.edit(f"Error {e}")
-        return
+    success = await retry_upload(bot, msg.chat.id, new_name, None, cap, sts, c_time)
+    if not success:
+        await sts.edit("Upload failed after multiple attempts.")
 
     try:
         os.remove(new_name)
     except Exception as e:
         print(f"Error deleting file: {e}")
     await sts.delete()
+
+async def retry_download(bot, reply, new_name, sts, c_time):
+    for attempt in range(RETRY_LIMIT):
+        try:
+            return await reply.download(file_name=new_name, progress=progress_msg, progress_args=("🚀Download Started...⚡️", sts, c_time))
+        except Exception as e:
+            if attempt + 1 == RETRY_LIMIT:
+                print(f"Error downloading file: {e}")
+                return None
+            await asyncio.sleep(5)  # Wait before retrying
+
+async def retry_download_thumbnail(bot, thumb_id):
+    for attempt in range(RETRY_LIMIT):
+        try:
+            file_thumb = await bot.download_media(thumb_id)
+            if os.path.exists(file_thumb):  # Ensure the file was actually downloaded
+                return file_thumb
+        except Exception as e:
+            if attempt + 1 == RETRY_LIMIT:
+                print(f"Error downloading thumbnail: {e}")
+                return None
+            await asyncio.sleep(5)  # Wait before retrying
+
+async def retry_upload(bot, chat_id, file_path, thumb, caption, sts, c_time):
+    for attempt in range(RETRY_LIMIT):
+        try:
+            await bot.send_document(chat_id, document=file_path, thumb=thumb, caption=caption, progress=progress_msg, progress_args=("💠Upload Started.....", sts, c_time))
+            return True
+        except Exception as e:
+            if attempt + 1 == RETRY_LIMIT:
+                print(f"Error uploading file: {e}")
+                return False
+            await asyncio.sleep(5)  # Wait before retrying
 
 
  
