@@ -16,27 +16,29 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP, AUTH_USERS
 from main.utils import heroku_restart
 import aiohttp
+import os
+import time
+import aiohttp
 from pyrogram.errors import RPCError, FloodWait
-
 
 @Client.on_message(filters.command("linktofile") & filters.chat(GROUP))
 async def linktofile(bot, msg: Message):
     reply = msg.reply_to_message
     if len(msg.command) < 2 or not reply:
-        return await msg.reply_text("Please Reply To A Valid Link [Workers,Seedr] With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
-    
+        return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+
     new_name = msg.text.split(" ", 1)[1]
 
     media = reply.document or reply.audio or reply.video
     if not media and not reply.text:
-        return await msg.reply_text("Please Reply To A Valid Link [Workers,Seedr] With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+        return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
 
     if reply.text and ("seedr" in reply.text or "workers" in reply.text):
         await handle_link_download(bot, msg, reply.text, new_name)
     else:
         if not media:
-            return await msg.reply_text("Please Reply To A Valid Link [Workers,Seedr] With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
-        
+            return await msg.reply_text("Please Reply To A Valid File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+
         og_media = getattr(reply, reply.media.value)
         sts = await msg.reply_text("🚀 Downloading...")
         c_time = time.time()
@@ -56,31 +58,37 @@ async def linktofile(bot, msg: Message):
             cap = f"{new_name}\n\n🌟 Size: {filesize}"
 
         # Thumbnail handling
-        dir = os.listdir(DOWNLOAD_LOCATION)
         file_thumb = None
-        if not dir and og_media.thumbs:
-            file_thumb = await bot.download_media(og_media.thumbs[0].file_id)
-        
-        og_thumbnail = f"{DOWNLOAD_LOCATION}/thumbnail.jpg" if file_thumb else None
+        if og_media.thumbs:
+            try:
+                file_thumb = await bot.download_media(og_media.thumbs[0].file_id, file_name=f"{DOWNLOAD_LOCATION}/{new_name}_thumb.jpg")
+            except Exception as e:
+                print(f"Error downloading thumbnail: {e}")
+                file_thumb = None
 
         await sts.edit("💠 Uploading...")
         c_time = time.time()
         try:
-            await bot.send_document(msg.chat.id, document=downloaded, thumb=og_thumbnail, caption=cap, progress=progress_message, progress_args=("💠 Upload Started...", sts, c_time))
+            await bot.send_document(
+                msg.chat.id, 
+                document=downloaded, 
+                thumb=file_thumb, 
+                caption=cap, 
+                progress=progress_message, 
+                progress_args=("💠 Upload Started...", sts, c_time)
+            )
         except RPCError as e:
-            return await sts.edit(f"Upload failed: {e}")
-        except FloodWait as e:
-            await sts.edit(f"Flood wait: {e.x} seconds")
-            time.sleep(e.x)
-            return await sts.edit(f"Retrying upload...")
-
-        try:
-            if file_thumb:
-                os.remove(file_thumb)
-            os.remove(downloaded)
-        except:
-            pass
-        await sts.delete()
+            await sts.edit(f"Upload failed: {e}")
+        except TimeoutError as e:
+            await sts.edit(f"Upload timed out: {e}")
+        finally:
+            try:
+                if file_thumb:
+                    os.remove(file_thumb)
+                os.remove(downloaded)
+            except Exception as e:
+                print(f"Error deleting files: {e}")
+            await sts.delete()
 
 async def handle_link_download(bot, msg: Message, link: str, new_name: str):
     sts = await msg.reply_text("🚀 Downloading from link...")
@@ -121,18 +129,15 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str):
         await bot.send_document(msg.chat.id, document=new_name, caption=cap, progress=progress_message, progress_args=("💠 Upload Started...", sts, c_time))
     except RPCError as e:
         await sts.edit(f"Upload failed: {e}")
-        return
-    except FloodWait as e:
-        await sts.edit(f"Flood wait: {e.x} seconds")
-        time.sleep(e.x)
-        return await sts.edit(f"Retrying upload...")
-
-    try:
-        os.remove(new_name)
-    except Exception as e:
-        print(f"Error deleting file: {e}")
-    await sts.delete()
-
+    except TimeoutError as e:
+        await sts.edit(f"Upload timed out: {e}")
+    finally:
+        try:
+            os.remove(new_name)
+        except Exception as e:
+            print(f"Error deleting file: {e}")
+        await sts.delete()
+            
 
 @Client.on_message(filters.command("linktofile"))
 async def linktofile_private(client, message):
