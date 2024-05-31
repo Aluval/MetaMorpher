@@ -147,27 +147,26 @@ async def restart_app(bot, msg):
 async def rename_file(bot, msg):
     reply = msg.reply_to_message
     if len(msg.command) < 2 or not reply:
-        return await msg.reply_text("Please Reply To A File, Video, or Audio With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+       return await msg.reply_text("Please Reply To An File or video or audio With filename + .extension eg:-(`.mkv` or `.mp4` or `.zip`)")
     media = reply.document or reply.audio or reply.video
     if not media:
-        return await msg.reply_text("Please Reply To A File, Video, or Audio With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
-    
+       await msg.reply_text("Please Reply To An File or video or audio With filename + .extension eg:-(`.mkv` or `.mp4` or `.zip`)")
     og_media = getattr(reply, reply.media.value)
     new_name = msg.text.split(" ", 1)[1]
     sts = await msg.reply_text("🚀Downloading.....⚡")
     c_time = time.time()
-    downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
-    filesize = humanbytes(og_media.file_size)
-    
+    downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time)) 
+    filesize = humanbytes(og_media.file_size)                
     if CAPTION:
         try:
             cap = CAPTION.format(file_name=new_name, file_size=filesize)
-        except Exception as e:
-            return await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
+        except Exception as e:            
+            return await sts.edit(text=f"Your caption Error unexpected keyword ●> ({e})")           
     else:
         cap = f"{new_name}\n\n🌟size : {filesize}"
 
-    # Thumbnail handling
+    #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+
     dir = os.listdir(DOWNLOAD_LOCATION)
     if len(dir) == 0:
         file_thumb = await bot.download_media(og_media.thumbs[0].file_id)
@@ -176,24 +175,22 @@ async def rename_file(bot, msg):
         try:
             og_thumbnail = f"{DOWNLOAD_LOCATION}/thumbnail.jpg"
         except Exception as e:
-            print(e)
+            print(e)        
             og_thumbnail = None
-
+        
     await sts.edit("💠Uploading...⚡")
     c_time = time.time()
     try:
-        await bot.send_document(msg.chat.id, document=downloaded, thumb=og_thumbnail, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
-    except Exception as e:
-        return await sts.edit(f"Error {e}")
-    
+        await bot.send_document(msg.chat.id, document=downloaded, thumb=og_thumbnail, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))        
+    except Exception as e:  
+        return await sts.edit(f"Error {e}")                       
     try:
         if file_thumb:
             os.remove(file_thumb)
-        os.remove(downloaded)
+        os.remove(downloaded)      
     except:
         pass
     await sts.delete()
-
 
 @Client.on_message(filters.command("rename"))
 async def rename_private(client, message):
