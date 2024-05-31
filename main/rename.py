@@ -1,3 +1,29 @@
+import os
+import time
+import shutil
+import zipfile
+import tarfile
+import requests
+from pyrogram.types import Message
+from pyrogram.types import Document, Video
+from pyrogram import Client, filters
+from pyrogram.enums import MessageMediaType
+from pyrogram.errors import MessageNotModified
+from config import DOWNLOAD_LOCATION, CAPTION
+from main.utils import progress_message, humanbytes
+import subprocess
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from config import GROUP, AUTH_USERS
+from main.utils import heroku_restart
+
+
+
+import aiohttp
+
+# Ensure GROUP, CAPTION, DOWNLOAD_LOCATION, and progress_message are defined elsewhere in your code
+
+
+
 @Client.on_message(filters.command("renamelink") & filters.chat(GROUP))
 async def rename_link(bot, msg: Message):
     reply = msg.reply_to_message
@@ -102,29 +128,7 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str):
         os.remove(new_name)
     except Exception as e:
         print(f"Error deleting file: {e}")
-    await sts.delete()import os
-import time
-import shutil
-import zipfile
-import tarfile
-import requests
-from pyrogram.types import Message
-from pyrogram.types import Document, Video
-from pyrogram import Client, filters
-from pyrogram.enums import MessageMediaType
-from pyrogram.errors import MessageNotModified
-from config import DOWNLOAD_LOCATION, CAPTION
-from main.utils import progress_message, humanbytes
-import subprocess
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from config import GROUP, AUTH_USERS
-from main.utils import heroku_restart
-
-
-
-import aiohttp
-
-# Ensure GROUP, CAPTION, DOWNLOAD_LOCATION, and progress_message are defined elsewhere in your code
+    await sts.delete()
 
  
  # Define restart_app command
