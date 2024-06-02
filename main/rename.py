@@ -33,7 +33,7 @@ async def linktofile(bot, msg: Message):
     if not media and not reply.text:
         return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
 
-    if reply.text and ("seedr" in reply.text or "workers" in reply.text):
+    if reply.text and ("seedr" in reply.text or "workers" in reply.text or "herokuapp" in reply.text):
         await handle_link_download(bot, msg, reply.text, new_name)
     else:
         if not media:
