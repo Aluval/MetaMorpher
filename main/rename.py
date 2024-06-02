@@ -20,7 +20,7 @@ import os
 import time
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
-
+"""
 @Client.on_message(filters.command("linktofile") & filters.chat(GROUP))
 async def linktofile(bot, msg: Message):
     reply = msg.reply_to_message
@@ -62,6 +62,76 @@ async def linktofile(bot, msg: Message):
         if og_media.thumbs:
             try:
                 file_thumb = await bot.download_media(og_media.thumbs[0].file_id, file_name=f"{DOWNLOAD_LOCATION}/{new_name}_thumb.jpg")
+            except Exception as e:
+                print(f"Error downloading thumbnail: {e}")
+                file_thumb = None
+
+        await sts.edit("💠 Uploading...")
+        c_time = time.time()
+        try:
+            await bot.send_document(
+                msg.chat.id, 
+                document=downloaded, 
+                thumb=file_thumb, 
+                caption=cap, 
+                progress=progress_message, 
+                progress_args=("💠 Upload Started...", sts, c_time)
+            )
+        except RPCError as e:
+            await sts.edit(f"Upload failed: {e}")
+        except TimeoutError as e:
+            await sts.edit(f"Upload timed out: {e}")
+        finally:
+            try:
+                if file_thumb:
+                    os.remove(file_thumb)
+                os.remove(downloaded)
+            except Exception as e:
+                print(f"Error deleting files: {e}")
+            await sts.delete()"""
+
+@Client.on_message(filters.command("linktofile") & filters.chat(GROUP))
+async def linktofile(bot, msg: Message):
+    reply = msg.reply_to_message
+    if len(msg.command) < 2 or not reply:
+        return await msg.reply_text("Please reply to a file, video, audio, or link with filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+
+    new_name = msg.text.split(" ", 1)[1]
+
+    media = reply.document or reply.audio or reply.video
+    if not media and not reply.text:
+        return await msg.reply_text("Please reply to a valid file, video, audio, or link with filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+
+    if reply.text and ("seedr" in reply.text or "workers" in reply.text):
+        await handle_link_download(bot, msg, reply.text, new_name)
+    else:
+        if not media:
+            return await msg.reply_text("Please reply to a valid file, video, audio, or link with filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+
+        og_media = getattr(reply, reply.media.value)
+        sts = await msg.reply_text("🚀 Downloading...")
+        c_time = time.time()
+        try:
+            downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀 Download Started...", sts, c_time))
+        except RPCError as e:
+            return await sts.edit(f"Download failed: {e}")
+
+        filesize = humanbytes(og_media.file_size)
+
+        if CAPTION:
+            try:
+                cap = CAPTION.format(file_name=new_name, file_size=filesize)
+            except Exception as e:
+                return await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
+        else:
+            cap = f"{new_name}\n\n🌟 Size: {filesize}"
+
+        # Thumbnail handling
+        file_thumb = None
+        if og_media.thumbs:
+            thumb = og_media.thumbs[0]
+            try:
+                file_thumb = await bot.download_media(thumb.file_id, file_name=f"{DOWNLOAD_LOCATION}/{new_name}_thumb.jpg")
             except Exception as e:
                 print(f"Error downloading thumbnail: {e}")
                 file_thumb = None
