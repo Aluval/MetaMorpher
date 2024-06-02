@@ -155,61 +155,15 @@ async def linktofile(bot, msg: Message):
             await sts.delete()
 
 
-async def handle_link_download(bot, msg: Message, link: str, new_name: str):
-    sts = await msg.reply_text("🚀 Downloading from link...")
-    c_time = time.time()
 
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(link) as resp:
-                if resp.status == 200:
-                    with open(new_name, 'wb') as f:
-                        f.write(await resp.read())
-                else:
-                    await sts.edit(f"Failed to download file from link. Status code: {resp.status}")
-                    return
-    except Exception as e:
-        await sts.edit(f"Error during download: {e}")
-        return
-
-    if not os.path.exists(new_name):
-        await sts.edit("File not found after download. Please check the link and try again.")
-        return
-
-    filesize = os.path.getsize(new_name)
-    filesize = humanbytes(filesize)
-
-    if CAPTION:
-        try:
-            cap = CAPTION.format(file_name=new_name, file_size=filesize)
-        except Exception as e:
-            await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
-            return
-    else:
-        cap = f"{new_name}\n\n🌟 Size: {filesize}"
-
-    await sts.edit("💠 Uploading...")
-    c_time = time.time()
-    try:
-        await bot.send_document(msg.chat.id, document=new_name, caption=cap, progress=progress_message, progress_args=("💠 Upload Started...", sts, c_time))
-    except RPCError as e:
-        await sts.edit(f"Upload failed: {e}")
-    except TimeoutError as e:
-        await sts.edit(f"Upload timed out: {e}")
-    finally:
-        try:
-            os.remove(new_name)
-        except Exception as e:
-            print(f"Error deleting file: {e}")
-        await sts.delete()
-        
+       
 @Client.on_message(filters.command("setthumbnail") & filters.chat(GROUP))
 async def set_thumbnail(bot, msg):
     reply = msg.reply_to_message
     if not reply or not reply.photo:
         return await msg.reply_text("Please reply to a photo with the setthumbnail command")
 
-    photo = reply.photo[-1]  # Get the largest available photo
+    photo = reply.photo[-1].file_id  # Get the file ID of the largest available photo
     thumbnail_path = os.path.join(DOWNLOAD_LOCATION, "linkthumbnail.jpg")
     await bot.download_media(photo, thumbnail_path)
     await msg.reply_text("Thumbnail saved successfully.")
