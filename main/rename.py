@@ -95,96 +95,121 @@ async def linktofile(bot, msg: Message):
 async def linktofile(bot, msg: Message):
     reply = msg.reply_to_message
     if len(msg.command) < 2 or not reply:
-        return await msg.reply_text("Please reply to a file, video, audio, or link with filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+        return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
 
     new_name = msg.text.split(" ", 1)[1]
 
     media = reply.document or reply.audio or reply.video
     if not media and not reply.text:
-        return await msg.reply_text("Please reply to a valid file, video, audio, or link with filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+        return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
 
     if reply.text and ("seedr" in reply.text or "workers" in reply.text):
         await handle_link_download(bot, msg, reply.text, new_name)
     else:
         if not media:
-            return await msg.reply_text("Please reply to a valid file, video, audio, or link with filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+            return await msg.reply_text("Please Reply To A Valid File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
 
         og_media = getattr(reply, reply.media.value)
+        sts = await msg.reply_text("🚀 Downloading...")
+        c_time = time.time()
+        try:
+            downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀 Download Started...", sts, c_time))
+        except RPCError as e:
+            return await sts.edit(f"Download failed: {e}")
 
-        # Create inline keyboard buttons
-        button = [
-            [InlineKeyboardButton("📁 Document", callback_data="upload_document")]
-        ]
-        if reply.video or reply.document:
-            button.append([InlineKeyboardButton("🎥 Video", callback_data="upload_video")])
+        filesize = humanbytes(og_media.file_size)
 
-        await msg.reply_text("Choose how to upload the file:", reply_markup=InlineKeyboardMarkup(button))
-
-        @Client.on_callback_query(filters.regex(r"upload_(document|video)"))
-        async def on_callback_query(bot, callback_query: CallbackQuery):
-            await callback_query.answer()
-            upload_type = callback_query.data.split('_')[1]
-
-            sts = await callback_query.message.edit_text("🚀 Downloading...")
-            c_time = time.time()
+        if CAPTION:
             try:
-                downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀 Download Started...", sts, c_time))
-            except RPCError as e:
-                return await sts.edit(f"Download failed: {e}")
+                cap = CAPTION.format(file_name=new_name, file_size=filesize)
+            except Exception as e:
+                return await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
+        else:
+            cap = f"{new_name}\n\n🌟 Size: {filesize}"
 
-            filesize = humanbytes(og_media.file_size)
-
-            if CAPTION:
-                try:
-                    cap = CAPTION.format(file_name=new_name, file_size=filesize)
-                except Exception as e:
-                    return await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
-            else:
-                cap = f"{new_name}\n\n🌟 Size: {filesize}"
-
-            # Thumbnail handling
-            file_thumb = None
-            if og_media.thumbs:
-                thumb = og_media.thumbs[0]
-                try:
-                    file_thumb = await bot.download_media(thumb.file_id, file_name=f"{DOWNLOAD_LOCATION}/{new_name}_thumb.jpg")
-                except Exception as e:
-                    print(f"Error downloading thumbnail: {e}")
-                    file_thumb = None
-
-            await sts.edit("💠 Uploading...")
-            c_time = time.time()
+        # Thumbnail handling in the main code
+        file_thumb = None
+        if og_media.thumbs:
             try:
-                if upload_type == "video":
-                    await bot.send_video(
-                        callback_query.message.chat.id, 
-                        video=downloaded, 
-                        thumb=file_thumb, 
-                        caption=cap, 
-                        progress=progress_message, 
-                        progress_args=("💠 Upload Started...", sts, c_time)
-                    )
+                file_thumb = f"{DOWNLOAD_LOCATION}/{new_name}_thumb.jpg"
+                await bot.download_media(og_media.thumbs[0].file_id, file_thumb)
+            except Exception as e:
+                print(f"Error downloading thumbnail: {e}")
+                file_thumb = None
+
+        await sts.edit("💠 Uploading...")
+        c_time = time.time()
+        try:
+            await bot.send_document(
+                msg.chat.id, 
+                document=downloaded, 
+                thumb=file_thumb, 
+                caption=cap, 
+                progress=progress_message, 
+                progress_args=("💠 Upload Started...", sts, c_time)
+            )
+        except RPCError as e:
+            await sts.edit(f"Upload failed: {e}")
+        except TimeoutError as e:
+            await sts.edit(f"Upload timed out: {e}")
+        finally:
+            try:
+                if file_thumb:
+                    os.remove(file_thumb)
+                os.remove(downloaded)
+            except Exception as e:
+                print(f"Error deleting files: {e}")
+            await sts.delete()
+
+
+async def handle_link_download(bot, msg: Message, link: str, new_name: str):
+    sts = await msg.reply_text("🚀 Downloading from link...")
+    c_time = time.time()
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(link) as resp:
+                if resp.status == 200:
+                    with open(new_name, 'wb') as f:
+                        f.write(await resp.read())
                 else:
-                    await bot.send_document(
-                        callback_query.message.chat.id, 
-                        document=downloaded, 
-                        thumb=file_thumb, 
-                        caption=cap, 
-                        progress=progress_message, 
-                        progress_args=("💠 Upload Started...", sts, c_time)
-                    )
-            except RPCError as e:
-                await sts.edit(f"Upload failed: {e}")
-            except TimeoutError as e:
-                await sts.edit(f"Upload timed out: {e}")
-            finally:
-                try:
-                    if file_thumb:
-                        os.remove(file_thumb)
-                    os.remove(downloaded)
-                except Exception as e:
-                    print(f"Error deleting files: {e}")
-                await sts.delete()
+                    await sts.edit(f"Failed to download file from link. Status code: {resp.status}")
+                    return
+    except Exception as e:
+        await sts.edit(f"Error during download: {e}")
+        return
+
+    if not os.path.exists(new_name):
+        await sts.edit("File not found after download. Please check the link and try again.")
+        return
+
+    filesize = os.path.getsize(new_name)
+    filesize = humanbytes(filesize)
+
+    if CAPTION:
+        try:
+            cap = CAPTION.format(file_name=new_name, file_size=filesize)
+        except Exception as e:
+            await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
+            return
+    else:
+        cap = f"{new_name}\n\n🌟 Size: {filesize}"
+
+    await sts.edit("💠 Uploading...")
+    c_time = time.time()
+    try:
+        await bot.send_document(msg.chat.id, document=new_name, caption=cap, progress=progress_message, progress_args=("💠 Upload Started...", sts, c_time))
+    except RPCError as e:
+        await sts.edit(f"Upload failed: {e}")
+    except TimeoutError as e:
+        await sts.edit(f"Upload timed out: {e}")
+    finally:
+        try:
+            os.remove(new_name)
+        except Exception as e:
+            print(f"Error deleting file: {e}")
+        await sts.delete()
+
 
 async def handle_link_download(bot, msg: Message, link: str, new_name: str):
     sts = await msg.reply_text("🚀 Downloading from link...")
