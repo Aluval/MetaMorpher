@@ -11,6 +11,8 @@ PROGRESS_BAR = """<b>\n
 ┣⪼ ⏰️ Eᴛᴀ: {4}
 ╰━❰@ABOUTSUNRISES24❱━➣ </b>"""
 
+
+
 async def progress_message(current, total, ud_type, message, start):
     now = time.time()
     diff = now - start
@@ -35,14 +37,17 @@ async def progress_message(current, total, ud_type, message, start):
             humanbytes(speed),            
             estimated_total_time if estimated_total_time != '' else "0 s"
         )
+        if len(tmp) > 1024:  # Split message if it exceeds Telegram limit
+            tmp = tmp[:1020] + "..."
+
         try:
             await message.edit(
                 text=f"{ud_type}\n\n{tmp}",               
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✖️ 𝙲𝙰𝙽𝙲𝙴𝙻 ✖️", callback_data="close")]])                                               
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✖️ CANCEL ✖️", callback_data="close")]])                                               
             )
         except:
             pass
-
+            
 def humanbytes(size):    
     if not size:
         return ""
@@ -52,20 +57,21 @@ def humanbytes(size):
     while size > power:
         size /= power
         n += 1
-    return str(round(size, 2)) + " " + Dic_powerN[n] + 'ʙ'
-
+    return str(round(size, 2)) + " " + Dic_powerN[n] + 'B'
 
 def TimeFormatter(milliseconds: int) -> str:
-    seconds, milliseconds = divmod(int(milliseconds), 1000)
+    seconds, milliseconds = divmod(milliseconds, 1000)
     minutes, seconds = divmod(seconds, 60)
     hours, minutes = divmod(minutes, 60)
     days, hours = divmod(hours, 24)
-    tmp = ((str(days) + "ᴅ, ") if days else "") + \
-        ((str(hours) + "ʜ, ") if hours else "") + \
-        ((str(minutes) + "ᴍ, ") if minutes else "") + \
-        ((str(seconds) + "ꜱ, ") if seconds else "") + \
-        ((str(milliseconds) + "ᴍꜱ, ") if milliseconds else "")
-    return tmp[:-2] 
+    tmp = ((str(days) + "d, ") if days else "") + \
+          ((str(hours) + "h, ") if hours else "") + \
+          ((str(minutes) + "m, ") if minutes else "") + \
+          ((str(seconds) + "s, ") if seconds else "") + \
+          ((str(milliseconds) + "ms, ") if milliseconds else "")
+    return tmp[:-2]
+
+
 
 def convert(seconds):
     seconds = seconds % (24 * 3600)
@@ -75,44 +81,6 @@ def convert(seconds):
     seconds %= 60      
     return "%d:%02d:%02d" % (hour, minutes, seconds)
 
-
-#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
-async def progress_pyrogram(current, total, ud_type, message, start):
-    now = time.time()
-    diff = now - start
-
-    if int(diff) % 10 == 0 or current == total:
-        percentage = current * 100 / total
-        speed = current / diff
-        elapsed_time = round(diff) * 1000
-        time_to_completion = round((total - current) / speed) * 1000
-        estimated_total_time = elapsed_time + time_to_completion
-
-        elapsed_time = time.strftime("%H:%M:%S", time.gmtime(elapsed_time / 1000))
-        estimated_total_time = time.strftime("%H:%M:%S", time.gmtime(estimated_total_time / 1000))
-
-        progress = "\n{0}{1}".format(
-            ''.join(["⬢" for _ in range(math.floor(percentage / 5))]),
-            ''.join(["⬡" for _ in range(20 - math.floor(percentage / 5))])
-        )
-
-        tmp = progress + "\nPercentage: {0:.2f}%\n".format(
-            round(percentage, 2)
-        ) + "Speed: {0:.2f} MB/s\n".format(
-            speed / 1024 / 1024
-        ) + "ETA: {0}\n".format(
-            estimated_total_time
-        ) + "Elapsed: {0}".format(
-            elapsed_time
-        )
-
-        try:
-            await message.edit(text="{}\n{}".format(ud_type, tmp))
-        except BadRequest as e:
-            if "MESSAGE_ID_INVALID" in str(e):
-                print(f"Error updating progress message: {e}")
-            else:
-                raise e
 
 
 
