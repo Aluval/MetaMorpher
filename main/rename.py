@@ -21,6 +21,89 @@ import time
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 
+
+@Client.on_message(filters.command("changeindexlink") & filters.chat(GROUP))
+async def change_indexlink(bot, msg):
+    reply = msg.reply_to_message
+    if not reply:
+        return await msg.reply_text("Please reply to a media file or a link with the index command\nFormat: `a-3-1-2` (Audio)")
+
+    if len(msg.command) < 2:
+        return await msg.reply_text("Please provide the index command\nFormat: `a-3-1-2` (Audio)")
+
+    index_cmd = msg.command[1].strip().lower()
+    if not index_cmd.startswith("a-"):
+        return await msg.reply_text("Invalid format. Use `a-3-1-2` for audio.")
+
+    media = reply.document or reply.audio or reply.video
+    link = reply.text if reply.text and ("http" in reply.text or "https" in reply.text) else None
+    if not media and not link:
+        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) or a link with the index command.")
+
+    if link:
+        sts = await msg.reply_text("🚀 Downloading from link...⚡")
+        c_time = time.time()
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(link) as resp:
+                    if resp.status == 200:
+                        new_name = os.path.join(DOWNLOAD_LOCATION, "downloaded_file")
+                        with open(new_name, 'wb') as f:
+                            f.write(await resp.read())
+                    else:
+                        return await sts.edit(f"Failed to download file from link. Status code: {resp.status}")
+        except Exception as e:
+            return await sts.edit(f"Error during download: {e}")
+
+        if not os.path.exists(new_name):
+            return await sts.edit("File not found after download. Please check the link and try again.")
+
+        downloaded = new_name
+    else:
+        sts = await msg.reply_text("🚀Downloading media...⚡")
+        c_time = time.time()
+        downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+
+    output_file = os.path.join(DOWNLOAD_LOCATION, "output_" + os.path.basename(downloaded))
+    index_params = index_cmd.split('-')
+    stream_type = index_params[0]
+    indexes = [int(i) - 1 for i in index_params[1:]]
+
+    ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']  # Always map video stream
+
+    for idx in indexes:
+        ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
+
+    # Copy all subtitle streams if they exist
+    ffmpeg_cmd.extend(['-map', '0:s?'])
+
+    ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
+
+    await sts.edit("💠Changing indexing...⚡")
+    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+
+    if process.returncode != 0:
+        await sts.edit(f"❗FFmpeg error: {stderr.decode('utf-8')}")
+        os.remove(downloaded)
+        return
+
+    filesize = os.path.getsize(output_file)
+    filesize_human = humanbytes(filesize)
+    cap = f"{os.path.basename(output_file)}\n\n🌟Size: {filesize_human}"
+
+    await sts.edit("💠Uploading...⚡")
+    c_time = time.time()
+    try:
+        await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
+    except Exception as e:
+        return await sts.edit(f"Error {e}")
+
+    os.remove(downloaded)
+    os.remove(output_file)
+    await sts.delete()
+
+
 @Client.on_message(filters.command("linktofile") & filters.chat(GROUP))
 async def linktofile(bot, msg: Message):
     reply = msg.reply_to_message
@@ -139,54 +222,6 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str):
             print(f"Error deleting file: {e}")
         await sts.delete()
 
-
-async def handle_link_download(bot, msg: Message, link: str, new_name: str):
-    sts = await msg.reply_text("🚀 Downloading from link...")
-    c_time = time.time()
-
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(link) as resp:
-                if resp.status == 200:
-                    with open(new_name, 'wb') as f:
-                        f.write(await resp.read())
-                else:
-                    await sts.edit(f"Failed to download file from link. Status code: {resp.status}")
-                    return
-    except Exception as e:
-        await sts.edit(f"Error during download: {e}")
-        return
-
-    if not os.path.exists(new_name):
-        await sts.edit("File not found after download. Please check the link and try again.")
-        return
-
-    filesize = os.path.getsize(new_name)
-    filesize = humanbytes(filesize)
-
-    if CAPTION:
-        try:
-            cap = CAPTION.format(file_name=new_name, file_size=filesize)
-        except Exception as e:
-            await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
-            return
-    else:
-        cap = f"{new_name}\n\n🌟 Size: {filesize}"
-
-    await sts.edit("💠 Uploading...")
-    c_time = time.time()
-    try:
-        await bot.send_document(msg.chat.id, document=new_name, caption=cap, progress=progress_message, progress_args=("💠 Upload Started...", sts, c_time))
-    except RPCError as e:
-        await sts.edit(f"Upload failed: {e}")
-    except TimeoutError as e:
-        await sts.edit(f"Upload timed out: {e}")
-    finally:
-        try:
-            os.remove(new_name)
-        except Exception as e:
-            print(f"Error deleting file: {e}")
-        await sts.delete()
             
 
 @Client.on_message(filters.command("linktofile"))
