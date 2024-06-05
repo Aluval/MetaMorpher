@@ -21,7 +21,59 @@ import time
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 
+@Client.on_message(filters.command("removetags") & filters.chat(GROUP))
+async def remove_tags(bot, msg):
+    reply = msg.reply_to_message
+    if not reply:
+        return await msg.reply_text("Please reply to a media file with the removetags command")
 
+    media = reply.document or reply.audio or reply.video
+    if not media:
+        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the removetags command.")
+
+    sts = await msg.reply_text("🚀 Downloading media... ⚡")
+    c_time = time.time()
+    try:
+        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
+    except Exception as e:
+        await sts.edit(f"Error downloading media: {e}")
+        return
+
+    cleaned_file = os.path.join(DOWNLOAD_LOCATION, "cleaned_" + os.path.basename(downloaded))
+
+    await sts.edit("💠 Removing all tags... ⚡")
+    try:
+        remove_all_tags(downloaded, cleaned_file)
+    except Exception as e:
+        await sts.edit(f"Error removing all tags: {e}")
+        os.remove(downloaded)
+        return
+
+    await sts.edit("🔼 Uploading cleaned file... ⚡")
+    try:
+        await bot.send_document(msg.chat.id, cleaned_file, caption="Here is your file with all tags removed.")
+        await sts.delete()
+    except Exception as e:
+        await sts.edit(f"Error uploading cleaned file: {e}")
+    finally:
+        os.remove(downloaded)
+        os.remove(cleaned_file)
+
+def remove_all_tags(input_path, output_path):
+    command = [
+        'ffmpeg',
+        '-i', input_path,
+        '-map', '0',
+        '-map_metadata', '-1',  # This removes all metadata
+        '-c', 'copy',
+        output_path,
+        '-y'
+    ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+        
 @Client.on_message(filters.command("linktofile") & filters.chat(GROUP))
 async def linktofile(bot, msg: Message):
     reply = msg.reply_to_message
