@@ -15,11 +15,70 @@ import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP, AUTH_USERS
 from main.utils import heroku_restart
+from main import watermark.ass
 import aiohttp
-import os
-import time
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
+
+
+def add_watermark(input_path, output_path, watermark_path):
+    command = [
+        'ffmpeg',
+        '-i', input_path,
+        '-vf', f"subtitles={watermark_path}",
+        '-c:v', 'copy',
+        '-c:a', 'copy',
+        output_path,
+        '-y'
+    ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+
+@Client.on_message(filters.command("addwatermark") & filters.chat(GROUP))
+async def add_watermark_command(bot, msg):
+    reply = msg.reply_to_message
+    if not reply:
+        return await msg.reply_text("Please reply to a media file with the watermark command.")
+
+    media = reply.document or reply.audio or reply.video
+    if not media:
+        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the watermark command.")
+
+    sts = await msg.reply_text("🚀 Downloading media... ⚡")
+    c_time = time.time()
+    try:
+        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
+    except Exception as e:
+        await sts.edit(f"Error downloading media: {e}")
+        return
+
+    watermark_path = "./watermark.ass"
+    if not os.path.exists(watermark_path):
+        await sts.edit("Watermark subtitle file not found.")
+        return
+
+    output_file = os.path.join(DOWNLOAD_LOCATION, "output_" + os.path.basename(downloaded))
+
+    await sts.edit("💠 Adding watermark... ⚡")
+    try:
+        add_watermark(downloaded, output_file, watermark_path)
+    except Exception as e:
+        await sts.edit(f"Error adding watermark: {e}")
+        os.remove(downloaded)
+        return
+
+    await sts.edit("🔼 Uploading modified file... ⚡")
+    try:
+        await bot.send_document(msg.chat.id, output_file, caption="Here is your file with the watermark added.")
+        await sts.delete()
+    except Exception as e:
+        await sts.edit(f"Error uploading modified file: {e}")
+    finally:
+        os.remove(downloaded)
+        os.remove(output_file)
+
 
 @Client.on_message(filters.command("removetags") & filters.chat(GROUP))
 async def remove_tags(bot, msg):
