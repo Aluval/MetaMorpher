@@ -20,13 +20,6 @@ import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 
 
-import os
-import time
-import subprocess
-from pyrogram import Client, filters
-
-DOWNLOAD_LOCATION = "./downloads"
-
 def generate_subtitle(watermark_text, subtitle_path):
     subtitle_content = f"""
 [Script Info]
@@ -50,11 +43,11 @@ Dialogue: 0,0:00:05.00,1:00:00.00,Default,,0,0,0,,{{\\pos(960,50)}}{watermark_te
     with open(subtitle_path, 'w') as file:
         file.write(subtitle_content)
 
-def add_watermark(input_path, output_path, watermark_path):
+def add_watermark(input_path, output_path, subtitle_path):
     command = [
         'ffmpeg',
         '-i', input_path,
-        '-vf', f"subtitles={watermark.ass}",
+        '-vf', f"subtitles={subtitle_path}",
         '-c:v', 'copy',
         '-c:a', 'copy',
         output_path,
@@ -111,6 +104,7 @@ async def add_watermark_command(bot, msg):
         os.remove(media_path)
         os.remove(subtitle_path)
         os.remove(output_file)
+
 
 
 @Client.on_message(filters.command("removetags") & filters.chat(GROUP))
