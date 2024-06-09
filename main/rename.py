@@ -45,7 +45,7 @@ Style: Default,Arial,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-Dialogue: 0,0:00:05.00,1:00:00.00,Default,,0,0,0,,{{\\pos(960,50)}}{watermark_txt}
+Dialogue: 0,0:00:05.00,1:00:00.00,Default,,0,0,0,,{{\\pos(960,50)}}{watermark_text}
 """
     with open(subtitle_path, 'w') as file:
         file.write(subtitle_content)
@@ -54,7 +54,7 @@ def add_watermark(input_path, output_path, watermark_path):
     command = [
         'ffmpeg',
         '-i', input_path,
-        '-vf', f"subtitles={watermark_txt}",
+        '-vf', f"subtitles={watermark.ass}",
         '-c:v', 'copy',
         '-c:a', 'copy',
         output_path,
