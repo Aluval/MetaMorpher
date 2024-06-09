@@ -15,7 +15,6 @@ import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import GROUP, AUTH_USERS
 from main.utils import heroku_restart
-from main import watermark.ass
 import aiohttp
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
@@ -54,7 +53,7 @@ async def add_watermark_command(bot, msg):
         await sts.edit(f"Error downloading media: {e}")
         return
 
-    watermark_path = "./watermark.ass"
+    watermark_path = "AdvanceRename24Bot/main/watermark.ass"
     if not os.path.exists(watermark_path):
         await sts.edit("Watermark subtitle file not found.")
         return
