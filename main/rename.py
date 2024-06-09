@@ -19,6 +19,12 @@ import aiohttp
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 
+import os
+import time
+import subprocess
+from pyrogram import Client, filters
+
+DOWNLOAD_LOCATION = "./downloads"
 
 def generate_subtitle(watermark_text, subtitle_path):
     subtitle_content = f"""
@@ -43,13 +49,13 @@ Dialogue: 0,0:00:05.00,1:00:00.00,Default,,0,0,0,,{{\\pos(960,50)}}{watermark_te
     with open(subtitle_path, 'w') as file:
         file.write(subtitle_content)
 
-def add_watermark(input_path, output_path, subtitle_path):
+def add_watermark(input_path, output_path, subtitle_path, video_codec='libx264'):
     command = [
         'ffmpeg',
         '-i', input_path,
         '-vf', f"subtitles={subtitle_path}",
-        '-c:v', 'copy',
-        '-c:a', 'copy',
+        '-c:v', video_codec,  # Re-encode the video using the selected codec
+        '-c:a', 'copy',       # Copy the audio stream without re-encoding
         output_path,
         '-y'
     ]
@@ -87,7 +93,14 @@ async def add_watermark_command(bot, msg):
 
     await sts.edit("💠 Adding watermark... ⚡")
     try:
-        add_watermark(media_path, output_file, subtitle_path)
+        # Determine the codec from the command arguments if provided
+        codec = 'libx264'  # Default codec
+        if len(msg.command) > 2:
+            codec_input = msg.command[2].lower()
+            if codec_input in ['libx264', 'libx265']:
+                codec = codec_input
+
+        add_watermark(media_path, output_file, subtitle_path, video_codec=codec)
     except Exception as e:
         await sts.edit(f"Error adding watermark: {e}")
         os.remove(media_path)
@@ -104,6 +117,7 @@ async def add_watermark_command(bot, msg):
         os.remove(media_path)
         os.remove(subtitle_path)
         os.remove(output_file)
+
 
 
 
