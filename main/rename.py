@@ -291,7 +291,7 @@ async def save_thumbnail(bot, msg):
 
     # Download the thumbnail
     try:
-        await bot.download_media(message=reply, file_name=thumb_path)
+        await bot.download_media(message=reply.photo[-1], file_name=thumb_path)
         await msg.reply_text("Thumbnail saved successfully!")
     except Exception as e:
         await msg.reply_text(f"Failed to save the thumbnail: {e}")
@@ -359,12 +359,6 @@ async def change_index(bot, msg):
         os.remove(downloaded)
         return
 
-    # Thumbnail handling
-    if os.path.exists(thumb_path):
-        file_thumb = thumb_path
-    else:
-        file_thumb = None
-
     filesize = os.path.getsize(output_file)
     filesize_human = humanbytes(filesize)
     cap = f"{output_filename}\n\n🌟Size: {filesize_human}"
@@ -375,8 +369,8 @@ async def change_index(bot, msg):
         await bot.send_document(
             msg.chat.id, 
             document=output_file, 
-            thumb=file_thumb, 
             caption=cap, 
+            thumb=thumb_path,  # Attach the thumbnail here
             progress=progress_message, 
             progress_args=("Uploading", sts, c_time)
         )
