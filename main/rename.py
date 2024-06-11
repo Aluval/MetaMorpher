@@ -449,7 +449,7 @@ async def change_metadata(bot, msg):
     file_thumb = None
     if media.thumbs:
         try:
-            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=f"{DOWNLOAD_LOCATION}/{output_filename}_thumb.jpg")
+            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=f"{DOWNLOAD_LOCATION}/thumbnail.jpg")
         except Exception as e:
             print(f"Error downloading thumbnail: {e}")
             file_thumb = None
