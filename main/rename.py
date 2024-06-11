@@ -277,7 +277,8 @@ async def rename_private(client, message):
   ]]
   reply_markup = InlineKeyboardMarkup(buttons)
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)
-    
+
+""""
 # Change Index Command
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
@@ -378,7 +379,118 @@ async def change_index(bot, msg):
             os.remove(downloaded)
             os.remove(output_file)
         except Exception as e:
-            print(f"Error deleting files: {e}")
+            print(f"Error deleting files: {e}")"""
+
+
+@Client.on_message(filters.command("changeindex") & filters.chat("GROUP"))
+async def change_index(bot, msg):
+    reply = msg.reply_to_message
+    if not reply:
+        return await msg.reply_text("Please reply to a media file with the index command\nFormat: `/changeindex a-3 -n filename.mkv` (Audio)")
+
+    if len(msg.command) < 3:
+        return await msg.reply_text("Please provide the index command with a filename\nFormat: `/changeindex a-3 -n filename.mkv` (Audio)")
+
+    index_cmd = None
+    output_filename = None
+
+    for i in range(1, len(msg.command)):
+        if msg.command[i] == "-n":
+            output_filename = " ".join(msg.command[i + 1:])  # Join all the parts after the flag
+            break
+
+    index_cmd = " ".join(msg.command[1:i])  # Get the index command before the flag
+
+    if not output_filename:
+        return await msg.reply_text("Please provide a filename using the `-n` flag.")
+
+    if not index_cmd or not index_cmd.startswith("a-"):
+        return await msg.reply_text("Invalid format. Use `/changeindex a-3 -n filename.mkv` for audio.")
+
+    media = reply.document or reply.audio or reply.video
+    if not media:
+        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the index command.")
+
+    sts = await msg.reply_text("🚀Downloading media...⚡")
+    c_time = time.time()
+    try:
+        downloaded = await reply.download(progress=progress_message, progress_args=("Downloading", sts, c_time))
+    except Exception as e:
+        await sts.edit(f"Error downloading media: {e}")
+        return
+
+    output_file = os.path.join(DOWNLOAD_LOCATION, output_filename)
+
+    index_params = index_cmd.split('-')
+    stream_type = index_params[0]
+    indexes = [int(i) - 1 for i in index_params[1:]]
+
+    ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']  # Always map video stream
+
+    for idx in indexes:
+        ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
+
+    # Copy all subtitle streams if they exist
+    ffmpeg_cmd.extend(['-map', '0:s?'])
+
+    ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
+
+    await sts.edit("💠Changing indexing...⚡")
+    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+
+    if process.returncode != 0:
+        await sts.edit(f"❗FFmpeg error: {stderr.decode('utf-8')}")
+        os.remove(downloaded)
+        return
+
+    # Thumbnail handling
+    file_thumb = None
+    if media.thumbs:
+        try:
+            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=f"{DOWNLOAD_LOCATION}/thumbnail.jpg")
+            print("Thumbnail downloaded successfully:", file_thumb)  # Debug print
+        except Exception as e:
+            print(f"Error downloading thumbnail: {e}")
+            file_thumb = None
+
+    filesize = os.path.getsize(output_file)
+    filesize_human = humanbytes(filesize)
+    cap = f"{output_filename}\n\n🌟Size: {filesize_human}"
+
+    # Thumbnail handling added
+    dir = os.listdir(DOWNLOAD_LOCATION)
+    if len(dir) == 0:
+        og_thumbnail = file_thumb
+    else:
+        try:
+            og_thumbnail = f"{DOWNLOAD_LOCATION}/thumbnail.jpg"
+        except Exception as e:
+            print(e)
+            og_thumbnail = None
+
+    await sts.edit("💠Uploading...⚡")
+    c_time = time.time()
+    try:
+        await bot.send_document(
+            msg.chat.id, 
+            document=downloaded, 
+            thumb=og_thumbnail, 
+            caption=cap, 
+            progress=progress_message, 
+            progress_args=("💠Upload Started.....", sts, c_time)
+        )
+    except Exception as e:
+        return await sts.edit(f"Error {e}")
+
+    try:
+        if file_thumb:
+            os.remove(file_thumb)
+        os.remove(downloaded)
+    except:
+        pass
+
+    await sts.delete()
 
 @Client.on_message(filters.command("changeindex"))
 async def changeindex_private(client, message):
