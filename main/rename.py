@@ -284,15 +284,17 @@ async def rename_private(client, message):
 # Change Index Command
 
 
+thumb_path = "thumb.jpg"  # Path to save the thumbnail
+
 @Client.on_message(filters.command("thumbnail") & filters.chat(GROUP))
 async def save_thumbnail(bot, msg):
     reply = msg.reply_to_message
-    if not reply or not reply.photo:
+    if not reply or not getattr(reply, "photo", None):
         return await msg.reply_text("Please reply to a photo message to save as a thumbnail.")
 
     # Download the thumbnail
     try:
-        await bot.download_media(message=reply.photo[-1], file_name=thumb_path)
+        await bot.download_media(message=reply, file_name=thumb_path)
         await msg.reply_text("Thumbnail saved successfully!")
     except Exception as e:
         await msg.reply_text(f"Failed to save the thumbnail: {e}")
