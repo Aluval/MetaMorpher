@@ -302,7 +302,11 @@ async def change_index(bot, msg):
 
     sts = await msg.reply_text("🚀Downloading media...⚡")
     c_time = time.time()
-    downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+    try:
+        downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+    except Exception as e:
+        await sts.edit(f"Error downloading media: {e}")
+        return
 
     if output_filename is None:
         output_filename = "output_" + os.path.basename(downloaded)
@@ -331,27 +335,43 @@ async def change_index(bot, msg):
         os.remove(downloaded)
         return
 
+    # Thumbnail handling
+    file_thumb = None
+    if media.thumbs:
+        try:
+            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=f"{DOWNLOAD_LOCATION}/{output_filename}_thumb.jpg")
+        except Exception as e:
+            print(f"Error downloading thumbnail: {e}")
+            file_thumb = None
+
     filesize = os.path.getsize(output_file)
     filesize_human = humanbytes(filesize)
     cap = f"{output_filename}\n\n🌟Size: {filesize_human}"
 
-    # Extract thumbnail if exists
-    file_thumb = None
-    if media.thumbs:
-        file_thumb = await bot.download_media(media.thumbs[0].file_id)
-    
     await sts.edit("💠Uploading...⚡")
     c_time = time.time()
     try:
-        await bot.send_document(msg.chat.id, document=output_file, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
-    except Exception as e:
-        return await sts.edit(f"Error {e}")
-
-    os.remove(downloaded)
-    os.remove(output_file)
-    if file_thumb:
-        os.remove(file_thumb)
-    await sts.delete()
+        await bot.send_document(
+            msg.chat.id, 
+            document=output_file, 
+            thumb=file_thumb, 
+            caption=cap, 
+            progress=progress_message, 
+            progress_args=("💠 Upload Started...", sts, c_time)
+        )
+        await sts.delete()
+    except RPCError as e:
+        await sts.edit(f"Upload failed: {e}")
+    except TimeoutError as e:
+        await sts.edit(f"Upload timed out: {e}")
+    finally:
+        try:
+            if file_thumb:
+                os.remove(file_thumb)
+            os.remove(downloaded)
+            os.remove(output_file)
+        except Exception as e:
+            print(f"Error deleting files: {e}")
 
 
 @Client.on_message(filters.command("changeindex"))
@@ -425,22 +445,43 @@ async def change_metadata(bot, msg):
         os.remove(downloaded)
         return
 
-    # Extract thumbnail if exists
+    # Thumbnail handling
     file_thumb = None
     if media.thumbs:
-        file_thumb = await bot.download_media(media.thumbs[0].file_id)
+        try:
+            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=f"{DOWNLOAD_LOCATION}/{output_filename}_thumb.jpg")
+        except Exception as e:
+            print(f"Error downloading thumbnail: {e}")
+            file_thumb = None
 
-    await sts.edit("🔼 Uploading modified file... ⚡")
+    filesize = os.path.getsize(output_file)
+    filesize_human = humanbytes(filesize)
+    cap = f"{output_filename}\n\n🌟Size: {filesize_human}"
+
+    await sts.edit("💠 Uploading... ⚡")
+    c_time = time.time()
     try:
-        await bot.send_document(msg.chat.id, output_file, thumb=file_thumb, caption="Here is your file with updated metadata.")
+        await bot.send_document(
+            msg.chat.id, 
+            document=output_file, 
+            thumb=file_thumb, 
+            caption=cap, 
+            progress=progress_message, 
+            progress_args=("💠 Upload Started...", sts, c_time)
+        )
         await sts.delete()
-    except Exception as e:
-        await sts.edit(f"Error uploading modified file: {e}")
+    except RPCError as e:
+        await sts.edit(f"Upload failed: {e}")
+    except TimeoutError as e:
+        await sts.edit(f"Upload timed out: {e}")
     finally:
-        os.remove(downloaded)
-        os.remove(output_file)
-        if file_thumb:
-            os.remove(file_thumb)
+        try:
+            if file_thumb:
+                os.remove(file_thumb)
+            os.remove(downloaded)
+            os.remove(output_file)
+        except Exception as e:
+            print(f"Error deleting files: {e}")
 
      
 @Client.on_message(filters.command("changemetadata"))
