@@ -19,7 +19,8 @@ import aiohttp
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 
-thumbnail_path = "thumbnail.jpg"  # Path to save the thumbnail
+thumb_path = "thumb.jpg"  # Path to save the thumbnail
+
 
 
 @Client.on_message(filters.command("removetags") & filters.chat(GROUP))
@@ -281,6 +282,7 @@ async def rename_private(client, message):
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)
     
 # Change Index Command
+
 @Client.on_message(filters.command("thumbnail") & filters.chat(GROUP))
 async def save_thumbnail(bot, msg):
     reply = msg.reply_to_message
@@ -289,7 +291,7 @@ async def save_thumbnail(bot, msg):
 
     # Download the thumbnail
     try:
-        await bot.download_media(message=reply, file_name=thumbnail_path)
+        await bot.download_media(message=reply, file_name=thumb_path)
         await msg.reply_text("Thumbnail saved successfully!")
     except Exception as e:
         await msg.reply_text(f"Failed to save the thumbnail: {e}")
@@ -358,7 +360,10 @@ async def change_index(bot, msg):
         return
 
     # Thumbnail handling
-    file_thumb = thumbnail_path
+    if os.path.exists(thumb_path):
+        file_thumb = thumb_path
+    else:
+        file_thumb = None
 
     filesize = os.path.getsize(output_file)
     filesize_human = humanbytes(filesize)
@@ -386,6 +391,9 @@ async def change_index(bot, msg):
             os.remove(output_file)
         except Exception as e:
             print(f"Error deleting files: {e}")
+
+
+
 
 @Client.on_message(filters.command("changeindex"))
 async def changeindex_private(client, message):
