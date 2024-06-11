@@ -290,7 +290,7 @@ async def change_index(bot, msg):
     if len(msg.command) < 2:
         return await msg.reply_text("Please provide the index command\nFormat: `a-3-1-2 | filename.mkv` (Audio)")
 
-    command_parts = msg.command[1].strip().lower().split("|")
+    command_parts = msg.command[1].strip().split("|")
     index_cmd = command_parts[0].strip()
     output_filename = command_parts[1].strip() if len(command_parts) > 1 else None
 
@@ -304,7 +304,7 @@ async def change_index(bot, msg):
     sts = await msg.reply_text("🚀Downloading media...⚡")
     c_time = time.time()
     try:
-        downloaded = await reply.download(progress=progress_message, progress_args=("🚀Download Started...⚡️", sts, c_time))
+        downloaded = await reply.download(progress=progress_message, progress_args=(sts, c_time))
     except Exception as e:
         await sts.edit(f"Error downloading media: {e}")
         return
@@ -313,7 +313,7 @@ async def change_index(bot, msg):
         output_filename = f"output_{int(time.time())}.mkv"  # Unique filename based on timestamp
 
     output_file = os.path.join(DOWNLOAD_LOCATION, output_filename)
-    
+
     index_params = index_cmd.split('-')
     stream_type = index_params[0]
     indexes = [int(i) - 1 for i in index_params[1:]]
@@ -346,8 +346,6 @@ async def change_index(bot, msg):
         except Exception as e:
             print(f"Error downloading thumbnail: {e}")
             file_thumb = None
-    else:
-        print("No thumbnail available.")
 
     filesize = os.path.getsize(output_file)
     filesize_human = humanbytes(filesize)
@@ -362,7 +360,7 @@ async def change_index(bot, msg):
             thumb=file_thumb, 
             caption=cap, 
             progress=progress_message, 
-            progress_args=("💠 Upload Started...", sts, c_time)
+            progress_args=(sts, c_time)
         )
         await sts.delete()
     except RPCError as e:
