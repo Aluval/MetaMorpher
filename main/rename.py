@@ -285,17 +285,18 @@ async def change_index(bot, msg):
     if not reply:
         return await msg.reply_text("Please reply to a media file with the index command\nFormat: `/changeindex a-3 -n filename.mkv` (Audio)")
 
-    if len(msg.command) < 2:
+    if len(msg.command) < 3:
         return await msg.reply_text("Please provide the index command with a filename\nFormat: `/changeindex a-3 -n filename.mkv` (Audio)")
 
     index_cmd = None
     output_filename = None
 
-    for part in msg.command[1:]:
-        if part.startswith("-n"):
-            output_filename = part[2:].strip()
-        else:
-            index_cmd = part.strip().lower()
+    for i in range(1, len(msg.command)):
+        if msg.command[i] == "-n":
+            output_filename = " ".join(msg.command[i + 1:])  # Join all the parts after the flag
+            break
+
+    index_cmd = " ".join(msg.command[1:i])  # Get the index command before the flag
 
     if not output_filename:
         return await msg.reply_text("Please provide a filename using the `-n` flag.")
