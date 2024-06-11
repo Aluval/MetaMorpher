@@ -289,7 +289,7 @@ async def save_thumbnail(bot, msg):
 
     # Download the thumbnail
     try:
-        await bot.download_media(message=reply.photo[-1], file_name=thumbnail_path)
+        await bot.download_media(message=reply, file_name=thumbnail_path)
         await msg.reply_text("Thumbnail saved successfully!")
     except Exception as e:
         await msg.reply_text(f"Failed to save the thumbnail: {e}")
