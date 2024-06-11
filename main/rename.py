@@ -19,7 +19,7 @@ import aiohttp
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 
-thumb_path = "thumb.jpg"  # Path to save the thumbnail
+thumb_path = os.path.join(DOWNLOAD_LOCATION, "thumb.jpg")  # Path to save the thumbnail
 
 
 
@@ -284,7 +284,6 @@ async def rename_private(client, message):
 # Change Index Command
 
 
-thumb_path = "thumb.jpg"  # Path to save the thumbnail
 
 @Client.on_message(filters.command("thumbnail") & filters.chat(GROUP))
 async def save_thumbnail(bot, msg):
@@ -294,7 +293,7 @@ async def save_thumbnail(bot, msg):
 
     # Download the thumbnail
     try:
-        await bot.download_media(message=reply, file_name=thumb_path)
+        await bot.download_media(message=reply.photo[-1], file_name=thumb_path)
         await msg.reply_text("Thumbnail saved successfully!")
     except Exception as e:
         await msg.reply_text(f"Failed to save the thumbnail: {e}")
@@ -388,6 +387,7 @@ async def change_index(bot, msg):
             os.remove(output_file)
         except Exception as e:
             print(f"Error deleting files: {e}")
+
 
 
 
