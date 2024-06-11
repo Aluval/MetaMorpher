@@ -283,6 +283,7 @@ async def rename_private(client, message):
     
 # Change Index Command
 
+
 @Client.on_message(filters.command("thumbnail") & filters.chat(GROUP))
 async def save_thumbnail(bot, msg):
     reply = msg.reply_to_message
