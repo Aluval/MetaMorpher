@@ -283,17 +283,17 @@ async def rename_private(client, message):
 async def change_index(bot, msg):
     reply = msg.reply_to_message
     if not reply:
-        return await msg.reply_text("Please reply to a media file with the index command\nFormat: `a-3-1-2 | filename.mkv` (Audio)")
+        return await msg.reply_text("Please reply to a media file with the index command\nFormat: `/changeindex a-3-1-2 | filename.mkv` (Audio)")
 
     if len(msg.command) < 2:
-        return await msg.reply_text("Please provide the index command\nFormat: `a-3-1-2 | filename.mkv` (Audio)")
+        return await msg.reply_text("Please provide the index command\nFormat: `/changeindex a-3-1-2 | filename.mkv` (Audio)")
 
-    command_parts = msg.command[1].strip().lower().split("|")
-    index_cmd = command_parts[0].strip()
-    output_filename = command_parts[1].strip() if len(command_parts) > 1 else None
+    command_parts = msg.command[1].strip().split("|")
+    index_cmd = command_parts[0].strip().lower()
+    output_filename = command_parts[1].strip() if len(command_parts) > 1 else "output.mkv"
 
     if not index_cmd.startswith("a-"):
-        return await msg.reply_text("Invalid format. Use `a-3-1-2 | filename.mkv` for audio.")
+        return await msg.reply_text("Invalid format. Use `/changeindex a-3-1-2 | filename.mkv` for audio.")
 
     media = reply.document or reply.audio or reply.video
     if not media:
@@ -307,11 +307,8 @@ async def change_index(bot, msg):
         await sts.edit(f"Error downloading media: {e}")
         return
 
-    if output_filename is None:
-        return await sts.edit("Please provide a filename in the format `a-3-1-2 | filename.mkv`.")
-
     output_file = os.path.join(DOWNLOAD_LOCATION, output_filename)
-    
+
     index_params = index_cmd.split('-')
     stream_type = index_params[0]
     indexes = [int(i) - 1 for i in index_params[1:]]
@@ -373,6 +370,7 @@ async def change_index(bot, msg):
             os.remove(output_file)
         except Exception as e:
             print(f"Error deleting files: {e}")
+
 
 
 @Client.on_message(filters.command("changeindex"))
