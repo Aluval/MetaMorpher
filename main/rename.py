@@ -270,14 +270,6 @@ async def rename_file(bot, msg):
         pass
     await sts.delete()
 
-@Client.on_message(filters.command("rename"))
-async def rename_private(client, message):
-  buttons = [[
-    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
-  ]]
-  reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
-
 
 # Change Index Command
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
@@ -303,7 +295,7 @@ async def change_index(bot, msg):
     sts = await msg.reply_text("🚀Downloading media...⚡")
     c_time = time.time()
     try:
-        downloaded = await reply.download(progress=progress_message, progress_args=(sts, c_time))
+        downloaded = await reply.download(progress=progress_message, progress_args=("Downloading", sts, c_time))
     except Exception as e:
         await sts.edit(f"Error downloading media: {e}")
         return
@@ -359,7 +351,7 @@ async def change_index(bot, msg):
             thumb=file_thumb, 
             caption=cap, 
             progress=progress_message, 
-            progress_args=("💠 Upload Started...", sts, c_time)
+            progress_args=("Uploading", sts, c_time)
         )
         await sts.delete()
     except RPCError as e:
@@ -374,7 +366,6 @@ async def change_index(bot, msg):
             os.remove(output_file)
         except Exception as e:
             print(f"Error deleting files: {e}")
-
 
 
 @Client.on_message(filters.command("changeindex"))
