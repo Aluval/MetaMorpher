@@ -309,7 +309,8 @@ async def change_index(bot, msg):
         return
 
     if output_filename is None:
-        output_filename = "output_" + os.path.basename(downloaded)
+        output_filename = f"output_{datetime.now().strftime('%Y%m%d%H%M%S')}.mkv"  # Unique filename based on timestamp
+
     output_file = os.path.join(DOWNLOAD_LOCATION, output_filename)
     
     index_params = index_cmd.split('-')
@@ -340,6 +341,7 @@ async def change_index(bot, msg):
     if media.thumbs:
         try:
             file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=f"{DOWNLOAD_LOCATION}/thumbnail.jpg")
+            print("Thumbnail downloaded successfully:", file_thumb)  # Debug print
         except Exception as e:
             print(f"Error downloading thumbnail: {e}")
             file_thumb = None
@@ -449,7 +451,9 @@ async def change_metadata(bot, msg):
     file_thumb = None
     if media.thumbs:
         try:
+            print("Thumbnail file ID:", media.thumbs[0].file_id)  # Debug print
             file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=f"{DOWNLOAD_LOCATION}/thumbnail.jpg")
+            print("Thumbnail downloaded successfully:", file_thumb)  # Debug print
         except Exception as e:
             print(f"Error downloading thumbnail: {e}")
             file_thumb = None
