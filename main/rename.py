@@ -482,7 +482,6 @@ async def change_metadata(bot, msg):
             os.remove(output_file)
         except Exception as e:
             print(f"Error deleting files: {e}")
-
      
 @Client.on_message(filters.command("changemetadata"))
 async def metadata_private(client, message):
