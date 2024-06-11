@@ -281,6 +281,39 @@ async def rename_private(client, message):
 
 
 # Change Index Command
+
+
+
+@Client.on_message(filters.command("changeindex"))
+async def changeindex_private(client, message):
+  buttons = [[
+    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
+  ]]
+  reply_markup = InlineKeyboardMarkup(buttons)
+  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)
+    
+def change_video_metadata(input_path, video_title, audio_title, subtitle_title, output_path):
+    command = [
+        'ffmpeg',
+        '-i', input_path,
+        '-metadata', f'title={video_title}',
+        '-metadata:s:v', f'title={video_title}',
+        '-metadata:s:a', f'title={audio_title}',
+        '-metadata:s:s', f'title={subtitle_title}',
+        '-map', '0:v?',
+        '-map', '0:a?',
+        '-map', '0:s?',
+        '-c:v', 'copy',
+        '-c:a', 'copy',
+        '-c:s', 'copy',
+        output_path,
+        '-y'
+    ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
     reply = msg.reply_to_message
@@ -346,6 +379,8 @@ async def change_index(bot, msg):
         except Exception as e:
             print(f"Error downloading thumbnail: {e}")
             file_thumb = None
+    else:
+        print("No thumbnail available.")
 
     filesize = os.path.getsize(output_file)
     filesize_human = humanbytes(filesize)
@@ -375,39 +410,6 @@ async def change_index(bot, msg):
             os.remove(output_file)
         except Exception as e:
             print(f"Error deleting files: {e}")
-
-
-
-@Client.on_message(filters.command("changeindex"))
-async def changeindex_private(client, message):
-  buttons = [[
-    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
-  ]]
-  reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)
-    
-def change_video_metadata(input_path, video_title, audio_title, subtitle_title, output_path):
-    command = [
-        'ffmpeg',
-        '-i', input_path,
-        '-metadata', f'title={video_title}',
-        '-metadata:s:v', f'title={video_title}',
-        '-metadata:s:a', f'title={audio_title}',
-        '-metadata:s:s', f'title={subtitle_title}',
-        '-map', '0:v?',
-        '-map', '0:a?',
-        '-map', '0:s?',
-        '-c:v', 'copy',
-        '-c:a', 'copy',
-        '-c:s', 'copy',
-        output_path,
-        '-y'
-    ]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
-
 
 
 @Client.on_message(filters.command("changemetadata") & filters.chat(GROUP))
