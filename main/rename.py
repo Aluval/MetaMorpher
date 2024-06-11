@@ -1,5 +1,5 @@
 import os
-import time
+import time, datetime
 import shutil
 import zipfile
 import tarfile
@@ -342,6 +342,7 @@ async def change_index(bot, msg):
     if media.thumbs:
         try:
             file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=f"{DOWNLOAD_LOCATION}/thumbnail.jpg")
+            print("Thumbnail downloaded successfully:", file_thumb)  # Debug print
         except Exception as e:
             print(f"Error downloading thumbnail: {e}")
             file_thumb = None
@@ -374,6 +375,8 @@ async def change_index(bot, msg):
             os.remove(output_file)
         except Exception as e:
             print(f"Error deleting files: {e}")
+
+
 
 @Client.on_message(filters.command("changeindex"))
 async def changeindex_private(client, message):
