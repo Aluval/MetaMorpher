@@ -388,16 +388,21 @@ def change_video_metadata(input_path, video_title, audio_title, subtitle_title, 
 async def change_metadata(bot, msg):
     reply = msg.reply_to_message
     if not reply:
-        return await msg.reply_text("Please reply to a media file with the metadata command\nFormat: `changemetadata video_title | audio_title | subtitle_title`")
+        return await msg.reply_text("Please reply to a media file with the metadata command\nFormat: `changemetadata video_title | audio_title | subtitle_title | filename.mkv`")
 
     if len(msg.command) < 2:
-        return await msg.reply_text("Please provide the new titles\nFormat: `changemetadata video_title | audio_title | subtitle_title`")
+        return await msg.reply_text("Please provide the new titles\nFormat: `changemetadata video_title | audio_title | subtitle_title | filename.mkv`")
 
     titles = " ".join(msg.command[1:]).strip().split('|')
-    if len(titles) != 3:
-        return await msg.reply_text("Please provide all three titles separated by '|'\nFormat: `changemetadata video_title | audio_title | subtitle_title`")
+    if len(titles) != 4:
+        return await msg.reply_text("Please provide all three titles and the filename separated by '|'\nFormat: `changemetadata video_title | audio_title | subtitle_title | filename.mkv`")
 
-    video_title, audio_title, subtitle_title = titles
+    video_title, audio_title, subtitle_title, output_filename = titles
+    video_title = video_title.strip()
+    audio_title = audio_title.strip()
+    subtitle_title = subtitle_title.strip()
+    output_filename = output_filename.strip()
+
     media = reply.document or reply.audio or reply.video
     if not media:
         return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the metadata command.")
@@ -410,25 +415,32 @@ async def change_metadata(bot, msg):
         await sts.edit(f"Error downloading media: {e}")
         return
 
-    output_file = os.path.join(DOWNLOAD_LOCATION, "output_" + os.path.basename(downloaded))
+    output_file = os.path.join(DOWNLOAD_LOCATION, output_filename)
 
     await sts.edit("💠 Changing metadata... ⚡")
     try:
-        change_video_metadata(downloaded, video_title.strip(), audio_title.strip(), subtitle_title.strip(), output_file)
+        change_video_metadata(downloaded, video_title, audio_title, subtitle_title, output_file)
     except Exception as e:
         await sts.edit(f"Error changing metadata: {e}")
         os.remove(downloaded)
         return
 
+    # Extract thumbnail if exists
+    file_thumb = None
+    if media.thumbs:
+        file_thumb = await bot.download_media(media.thumbs[0].file_id)
+
     await sts.edit("🔼 Uploading modified file... ⚡")
     try:
-        await bot.send_document(msg.chat.id, output_file, caption="Here is your file with updated metadata.")
+        await bot.send_document(msg.chat.id, output_file, thumb=file_thumb, caption="Here is your file with updated metadata.")
         await sts.delete()
     except Exception as e:
         await sts.edit(f"Error uploading modified file: {e}")
     finally:
         os.remove(downloaded)
         os.remove(output_file)
+        if file_thumb:
+            os.remove(file_thumb)
 
      
 @Client.on_message(filters.command("changemetadata"))
