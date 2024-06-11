@@ -279,7 +279,6 @@ async def rename_private(client, message):
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
 
 
-
 # Change Index Command
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
@@ -290,7 +289,7 @@ async def change_index(bot, msg):
     if len(msg.command) < 2:
         return await msg.reply_text("Please provide the index command\nFormat: `a-3-1-2 | filename.mkv` (Audio)")
 
-    command_parts = msg.command[1].strip().split("|")
+    command_parts = msg.command[1].strip().lower().split("|")
     index_cmd = command_parts[0].strip()
     output_filename = command_parts[1].strip() if len(command_parts) > 1 else None
 
@@ -310,10 +309,10 @@ async def change_index(bot, msg):
         return
 
     if output_filename is None:
-        output_filename = f"output_{int(time.time())}.mkv"  # Unique filename based on timestamp
+        return await sts.edit("Please provide a filename in the format `a-3-1-2 | filename.mkv`.")
 
     output_file = os.path.join(DOWNLOAD_LOCATION, output_filename)
-
+    
     index_params = index_cmd.split('-')
     stream_type = index_params[0]
     indexes = [int(i) - 1 for i in index_params[1:]]
@@ -360,7 +359,7 @@ async def change_index(bot, msg):
             thumb=file_thumb, 
             caption=cap, 
             progress=progress_message, 
-            progress_args=(sts, c_time)
+            progress_args=("💠 Upload Started...", sts, c_time)
         )
         await sts.delete()
     except RPCError as e:
@@ -375,6 +374,7 @@ async def change_index(bot, msg):
             os.remove(output_file)
         except Exception as e:
             print(f"Error deleting files: {e}")
+
 
 
 @Client.on_message(filters.command("changeindex"))
