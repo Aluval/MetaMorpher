@@ -283,20 +283,25 @@ async def rename_private(client, message):
 async def change_index(bot, msg):
     reply = msg.reply_to_message
     if not reply:
-        return await msg.reply_text("Please reply to a media file with the index command\nFormat: `/changeindex a-3-1-2 | filename.mkv` (Audio)")
+        return await msg.reply_text("Please reply to a media file with the index command\nFormat: `/changeindex a-3 -n filename.mkv` (Audio)")
 
     if len(msg.command) < 2:
-        return await msg.reply_text("Please provide the index command with a filename\nFormat: `/changeindex a-3-1-2 | filename.mkv` (Audio)")
+        return await msg.reply_text("Please provide the index command with a filename\nFormat: `/changeindex a-3 -n filename.mkv` (Audio)")
 
-    command_parts = msg.command[1].strip().split("|")
-    index_cmd = command_parts[0].strip().lower()
-    output_filename = command_parts[1].strip() if len(command_parts) > 1 else None
+    index_cmd = None
+    output_filename = None
+
+    for part in msg.command[1:]:
+        if part.startswith("-n"):
+            output_filename = part[2:].strip()
+        else:
+            index_cmd = part.strip().lower()
 
     if not output_filename:
-        return await msg.reply_text("Please provide a filename.")
+        return await msg.reply_text("Please provide a filename using the `-n` flag.")
 
-    if not index_cmd.startswith("a-"):
-        return await msg.reply_text("Invalid format. Use `/changeindex a-3-1-2 | filename.mkv` for audio.")
+    if not index_cmd or not index_cmd.startswith("a-"):
+        return await msg.reply_text("Invalid format. Use `/changeindex a-3 -n filename.mkv` for audio.")
 
     media = reply.document or reply.audio or reply.video
     if not media:
@@ -373,8 +378,6 @@ async def change_index(bot, msg):
             os.remove(output_file)
         except Exception as e:
             print(f"Error deleting files: {e}")
-
-
 
 @Client.on_message(filters.command("changeindex"))
 async def changeindex_private(client, message):
