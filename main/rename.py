@@ -286,11 +286,14 @@ async def change_index(bot, msg):
         return await msg.reply_text("Please reply to a media file with the index command\nFormat: `/changeindex a-3-1-2 | filename.mkv` (Audio)")
 
     if len(msg.command) < 2:
-        return await msg.reply_text("Please provide the index command\nFormat: `/changeindex a-3-1-2 | filename.mkv` (Audio)")
+        return await msg.reply_text("Please provide the index command with a filename\nFormat: `/changeindex a-3-1-2 | filename.mkv` (Audio)")
 
     command_parts = msg.command[1].strip().split("|")
     index_cmd = command_parts[0].strip().lower()
-    output_filename = command_parts[1].strip() if len(command_parts) > 1 else "output.mkv"
+    output_filename = command_parts[1].strip() if len(command_parts) > 1 else None
+
+    if not output_filename:
+        return await msg.reply_text("Please provide a filename.")
 
     if not index_cmd.startswith("a-"):
         return await msg.reply_text("Invalid format. Use `/changeindex a-3-1-2 | filename.mkv` for audio.")
