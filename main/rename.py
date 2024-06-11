@@ -279,6 +279,7 @@ async def rename_private(client, message):
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
 
 
+
 # Change Index Command
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
@@ -309,7 +310,7 @@ async def change_index(bot, msg):
         return
 
     if output_filename is None:
-        output_filename = f"output_{datetime.now().strftime('%Y%m%d%H%M%S')}.mkv"  # Unique filename based on timestamp
+        output_filename = f"output_{int(time.time())}.mkv"  # Unique filename based on timestamp
 
     output_file = os.path.join(DOWNLOAD_LOCATION, output_filename)
     
@@ -341,7 +342,6 @@ async def change_index(bot, msg):
     if media.thumbs:
         try:
             file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=f"{DOWNLOAD_LOCATION}/thumbnail.jpg")
-            print("Thumbnail downloaded successfully:", file_thumb)  # Debug print
         except Exception as e:
             print(f"Error downloading thumbnail: {e}")
             file_thumb = None
@@ -375,7 +375,6 @@ async def change_index(bot, msg):
         except Exception as e:
             print(f"Error deleting files: {e}")
 
-
 @Client.on_message(filters.command("changeindex"))
 async def changeindex_private(client, message):
   buttons = [[
@@ -405,6 +404,8 @@ def change_video_metadata(input_path, video_title, audio_title, subtitle_title, 
     stdout, stderr = process.communicate()
     if process.returncode != 0:
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+
+
 
 @Client.on_message(filters.command("changemetadata") & filters.chat(GROUP))
 async def change_metadata(bot, msg):
@@ -451,9 +452,7 @@ async def change_metadata(bot, msg):
     file_thumb = None
     if media.thumbs:
         try:
-            print("Thumbnail file ID:", media.thumbs[0].file_id)  # Debug print
             file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=f"{DOWNLOAD_LOCATION}/thumbnail.jpg")
-            print("Thumbnail downloaded successfully:", file_thumb)  # Debug print
         except Exception as e:
             print(f"Error downloading thumbnail: {e}")
             file_thumb = None
@@ -486,7 +485,7 @@ async def change_metadata(bot, msg):
             os.remove(output_file)
         except Exception as e:
             print(f"Error deleting files: {e}")
-     
+
 @Client.on_message(filters.command("changemetadata"))
 async def metadata_private(client, message):
   buttons = [[
