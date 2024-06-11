@@ -19,6 +19,8 @@ import aiohttp
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 
+thumbnail_path = "thumbnail.jpg"  # Path to save the thumbnail
+
 
 @Client.on_message(filters.command("removetags") & filters.chat(GROUP))
 async def remove_tags(bot, msg):
@@ -279,6 +281,20 @@ async def rename_private(client, message):
   await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)
     
 # Change Index Command
+@Client.on_message(filters.command("thumbnail") & filters.chat(GROUP))
+async def save_thumbnail(bot, msg):
+    reply = msg.reply_to_message
+    if not reply or not reply.photo:
+        return await msg.reply_text("Please reply to a photo message to save as a thumbnail.")
+
+    # Download the thumbnail
+    try:
+        await bot.download_media(message=reply.photo[-1], file_name=thumbnail_path)
+        await msg.reply_text("Thumbnail saved successfully!")
+    except Exception as e:
+        await msg.reply_text(f"Failed to save the thumbnail: {e}")
+
+
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
     reply = msg.reply_to_message
@@ -342,14 +358,7 @@ async def change_index(bot, msg):
         return
 
     # Thumbnail handling
-    file_thumb = None
-    if media.thumbs:
-        try:
-            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=f"{DOWNLOAD_LOCATION}/thumbnail.jpg")
-            print("Thumbnail downloaded successfully:", file_thumb)  # Debug print
-        except Exception as e:
-            print(f"Error downloading thumbnail: {e}")
-            file_thumb = None
+    file_thumb = thumbnail_path
 
     filesize = os.path.getsize(output_file)
     filesize_human = humanbytes(filesize)
@@ -373,8 +382,6 @@ async def change_index(bot, msg):
         await sts.edit(f"Upload timed out: {e}")
     finally:
         try:
-            if file_thumb:
-                os.remove(file_thumb)
             os.remove(downloaded)
             os.remove(output_file)
         except Exception as e:
