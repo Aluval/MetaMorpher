@@ -381,7 +381,6 @@ async def change_index(bot, msg):
         except Exception as e:
             print(f"Error deleting files: {e}")"""
 
-
 @Client.on_message(filters.command("changeindex") & filters.chat("GROUP"))
 async def change_index(bot, msg):
     reply = msg.reply_to_message
@@ -474,7 +473,7 @@ async def change_index(bot, msg):
     try:
         await bot.send_document(
             msg.chat.id, 
-            document=downloaded, 
+            document=output_file, 
             thumb=og_thumbnail, 
             caption=cap, 
             progress=progress_message, 
@@ -487,6 +486,7 @@ async def change_index(bot, msg):
         if file_thumb:
             os.remove(file_thumb)
         os.remove(downloaded)
+        os.remove(output_file)
     except:
         pass
 
