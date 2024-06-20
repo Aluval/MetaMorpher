@@ -75,8 +75,8 @@ def convert(seconds):
 
 # Define heroku_restart function
 async def heroku_restart():
-    HEROKU_API = "HRKU-d24346bf-b3b4-4134-bfd9-6c0e5375b396"
-    HEROKU_APP_NAME = "advancerename24bot"
+    HEROKU_API = "HRKU-987b360b-e27e-43bf-b4e8-026e4c07521e"
+    HEROKU_APP_NAME = "infinitystartrename24bot"
     x = None
     if not HEROKU_API or not HEROKU_APP_NAME:
         x = None
