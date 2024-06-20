@@ -18,11 +18,13 @@ from config import GROUP, AUTH_USERS, ADMIN
 from main.utils import heroku_restart
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
-
+import asyncio
 import logging
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
+
+DOWNLOAD_LOCATION1 = "./screenshots"
 
 
 # Global dictionary to store user settings
@@ -161,12 +163,92 @@ async def update_settings_message(message):
 
 
 
-@Client.on_message(filters.command("usersettings") & filters.group)
-async def display_user_settings(client, msg):
-    logging.info(f"Command /usersettings received from user {msg.from_user.id} in chat {msg.chat.id}")
-    
+# Sample Video Handler
+@Client.on_message(filters.command("SampleVideo") & filters.chat(GROUP))
+async def sample_video(bot, msg):
+    user_id = msg.from_user.id
+    duration = user_settings.get(user_id, {}).get("sample_video_duration", 0)
+    if duration == 0:
+        return await msg.reply_text("Please set a valid sample video duration using /usersettings.")
+
+    if not msg.reply_to_message:
+        return await msg.reply_text("Please reply to a valid video file or document.")
+
+    media = msg.reply_to_message.video or msg.reply_to_message.document
+    if not media:
+        return await msg.reply_text("Please reply to a valid video file or document.")
+
+    sts = await msg.reply_text("🚀 Downloading media... ⚡")
+    c_time = time.time()
+    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀 Downloading media... ⚡️", sts, c_time))
+    output_file = os.path.join(DOWNLOAD_LOCATION, f"sample_video_{duration}s.mp4")
+
+    await sts.edit("🚀 Processing sample video... ⚡")
+    try:
+        generate_sample_video(input_path, duration, output_file)
+    except Exception as e:
+        await sts.edit(f"Error generating sample video: {e}")
+        os.remove(input_path)
+        return
+
+    filesize = os.path.getsize(output_file)
+    filesize_human = humanbytes(filesize)
+    cap = f"{os.path.basename(output_file)}\n\n🌟 Size: {filesize_human}"
+
+    await sts.edit("💠 Uploading sample video... ⚡")
+    c_time = time.time()
+    try:
+        await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡️", sts, c_time))
+    except Exception as e:
+        return await sts.edit(f"Error: {e}")
+
+    os.remove(input_path)
+    os.remove(output_file)
+    await sts.delete()
+
+
+# Callback query handler for setting sample video duration
+@Client.on_callback_query(filters.regex("^set_sample_video_duration_"))
+async def set_sample_video_duration(client, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    duration_str = callback_query.data.split("_")[-1]
+    duration = int(duration_str)
+    user_settings[user_id] = user_settings.get(user_id, {})
+    user_settings[user_id]["sample_video_duration"] = duration
+    await callback_query.answer(f"Sample video duration set to {duration} seconds.")
+    await display_user_settings(client, callback_query.message, edit=True)
+  
+# Callback query handler for selecting sample video option
+@Client.on_callback_query(filters.regex("^sample_video_option$"))
+async def sample_video_option(client, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    current_duration = user_settings.get(user_id, {}).get("sample_video_duration", "Not set")
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("💠", callback_data="sunrises24_bot_updates")],
+        [InlineKeyboardButton(f"Sample Video 150s {'✅' if current_duration == 150 else ''}", callback_data="set_sample_video_duration_150")],
+        [InlineKeyboardButton(f"Sample Video 120s {'✅' if current_duration == 120 else ''}", callback_data="set_sample_video_duration_120")],
+        [InlineKeyboardButton(f"Sample Video 90s {'✅' if current_duration == 90 else ''}", callback_data="set_sample_video_duration_90")],
+        [InlineKeyboardButton(f"Sample Video 60s {'✅' if current_duration == 60 else ''}", callback_data="set_sample_video_duration_60")],
+        [InlineKeyboardButton(f"Sample Video 30s {'✅' if current_duration == 30 else ''}", callback_data="set_sample_video_duration_30")],
+        [InlineKeyboardButton("Back", callback_data="back_to_settings")]
+    ])
+    await callback_query.message.edit_text(f"Sample Video Duration Settings\nCurrent duration: {current_duration}", reply_markup=keyboard)
+  
+# Callback query handler for returning to user settings
+@Client.on_callback_query(filters.regex("^back_to_settings$"))
+async def back_to_settings(client, callback_query: CallbackQuery):
+    await display_user_settings(client, callback_query.message, edit=True)
+  
+# User settings command handler
+@Client.on_message(filters.command("usersettings") & filters.group)
+async def display_user_settings(client, msg, edit=False):
+    user_id = msg.from_user.id
+    current_duration = user_settings.get(user_id, {}).get("sample_video_duration", "Not set")
+    current_screenshots = user_settings.get(user_id, {}).get("screenshots", "Not set")
+    logging.info(f"Command /usersettings received from user {user_id} in chat {msg.chat.id}")
+    # Generate the inline keyboard
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("Sample Video Settings 🎞️", callback_data="sample_video_option")],
+        [InlineKeyboardButton("Screenshots Settings 📸", callback_data="screenshots_option")],
         [InlineKeyboardButton("Thumbnail Settings 📄", callback_data="thumbnail_settings")],
         [InlineKeyboardButton("Preview Metadata ✨", callback_data="preview_metadata")],
         [InlineKeyboardButton("Attach Photo 📎", callback_data="attach_photo"), 
@@ -176,11 +258,42 @@ async def display_user_settings(client, msg):
         [InlineKeyboardButton("Preview Rename task 📝", callback_data="preview_rename_task")],
         [InlineKeyboardButton("Preview Metadata task ☄️", callback_data="preview_metadata_task")],
         [InlineKeyboardButton("Preview Index task ♻️", callback_data="preview_change_index_task")],
-        [InlineKeyboardButton("Preview Remove Tags task 📛", callback_data="preview_removetags_task")],      
+        [InlineKeyboardButton("Preview Remove Tags task 📛", callback_data="preview_removetags_task")],
         [InlineKeyboardButton("Close ❌", callback_data="del")]
     ])
-
-    await msg.reply("User Settings", reply_markup=keyboard)
+    if edit:
+        await msg.edit_text(f"User Settings\nCurrent sample video duration: {current_duration}\nCurrent screenshots setting: {current_screenshots}", reply_markup=keyboard)
+    else:
+        await msg.reply(f"User Settings\nCurrent sample video duration: {current_duration}\nCurrent screenshots setting: {current_screenshots}", reply_markup=keyboard)
+@Client.on_callback_query(filters.regex("^screenshots_option$"))
+async def screenshots_option(client, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    current_screenshots = user_settings.get(user_id, {}).get("screenshots", 5)  # Default to 5 if not set
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"Screenshots 1 {'✅' if current_screenshots == 1 else ''}", callback_data="set_screenshots_1")],
+        [InlineKeyboardButton(f"Screenshots 2 {'✅' if current_screenshots == 2 else ''}", callback_data="set_screenshots_2")],
+        [InlineKeyboardButton(f"Screenshots 3 {'✅' if current_screenshots == 3 else ''}", callback_data="set_screenshots_3")],
+        [InlineKeyboardButton(f"Screenshots 4 {'✅' if current_screenshots == 4 else ''}", callback_data="set_screenshots_4")],
+        [InlineKeyboardButton(f"Screenshots 5 {'✅' if current_screenshots == 5 else ''}", callback_data="set_screenshots_5")],
+        [InlineKeyboardButton(f"Screenshots 6 {'✅' if current_screenshots == 6 else ''}", callback_data="set_screenshots_6")],
+        [InlineKeyboardButton(f"Screenshots 7 {'✅' if current_screenshots == 7 else ''}", callback_data="set_screenshots_7")],
+        [InlineKeyboardButton(f"Screenshots 8 {'✅' if current_screenshots == 8 else ''}", callback_data="set_screenshots_8")],
+        [InlineKeyboardButton(f"Screenshots 9 {'✅' if current_screenshots == 9 else ''}", callback_data="set_screenshots_9")],
+        [InlineKeyboardButton(f"Screenshots 10 {'✅' if current_screenshots == 10 else ''}", callback_data="set_screenshots_10")],
+        [InlineKeyboardButton("Back", callback_data="back_to_settings")]
+    ])
+    await callback_query.message.edit_text(f"Screenshots Settings\nCurrent number: {current_screenshots}", reply_markup=keyboard)
+@Client.on_callback_query(filters.regex("^set_screenshots_"))
+async def set_screenshots(client, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    num_str = callback_query.data.split("_")[-1]
+    num_screenshots = int(num_str)
+    
+    user_settings[user_id] = user_settings.get(user_id, {})
+    user_settings[user_id]["screenshots"] = num_screenshots
+    
+    await callback_query.answer(f"Number of screenshots set to {num_screenshots}.")
+    await display_user_settings(client, callback_query.message, edit=True)
 
 
 
@@ -274,11 +387,6 @@ async def inline_preview_change_index_task_callback(_, callback_query):
     await callback_query.message.reply_text(status_text)
 
 
-@Client.on_callback_query(filters.regex("^back_to_settings$"))
-async def back_to_settings_callback(client, callback_query: CallbackQuery):
-    await display_user_settings(client, callback_query.message)
-
-
 # Inline query handler for thumbnail settings
 @Client.on_callback_query(filters.regex("^thumbnail_settings$"))
 async def inline_thumbnail_settings(client, callback_query: CallbackQuery):
@@ -332,20 +440,25 @@ async def view_thumbnail(client, callback_query: CallbackQuery):
         logging.error(e)
         await callback_query.message.reply_text("You don't have any thumbnail.")
 
-# Command handler to delete the current thumbnail
+
+# Callback query handler for deleting the current thumbnail
 @Client.on_callback_query(filters.regex("^delete_thumbnail$"))
 async def delete_thumbnail(client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
 
+    logging.info(f"Attempting to delete thumbnail for user {user_id} at path {thumbnail_path}")
+
     try:
         if os.path.exists(thumbnail_path):
             os.remove(thumbnail_path)
+            logging.info(f"Thumbnail for user {user_id} removed successfully.")
             await callback_query.message.reply_text("Your thumbnail was removed ❌")
         else:
+            logging.info(f"No thumbnail found for user {user_id}.")
             await callback_query.message.reply_text("You don't have any thumbnail ‼️")
     except Exception as e:
-        logging.error(e)
+        logging.error(f"Error removing thumbnail for user {user_id}: {e}")
         await callback_query.message.reply_text("An error occurred while trying to remove your thumbnail. Please try again later.")
 
 
@@ -1040,11 +1153,48 @@ def change_video_metadata(input_path, video_title, audio_title, subtitle_title, 
     if process.returncode != 0:
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
 
-
-            
-
-
+def generate_sample_video(input_path, duration, output_path):
+    # Get the total duration of the input video using ffprobe
+    probe_command = [
+        'ffprobe',
+        '-v', 'error',
+        '-select_streams', 'v:0',
+        '-show_entries', 'format=duration',
+        '-of', 'default=noprint_wrappers=1:nokey=1',
+        input_path
+    ]
+    process = subprocess.Popen(probe_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        raise Exception(f"ffprobe error: {stderr.decode('utf-8')}")
     
+    total_duration = float(stdout.decode('utf-8').strip())
+    if duration > total_duration:
+        raise ValueError("Requested duration is longer than the total duration of the video")
+
+    # Calculate the start time for the sample (middle of the video)
+    start_time = (total_duration - duration) / 2
+
+    # Generate the sample video using ffmpeg
+    command = [
+        'ffmpeg',
+        '-ss', str(start_time),
+        '-i', input_path,
+        '-t', str(duration),
+        '-c:v', 'copy',
+        '-c:a', 'copy',
+        output_path,
+        '-y'
+    ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+
+
+
+
+"""    
  # Sample Video Generation Function
 def generate_sample_video(input_path, duration, output_path):
     command = [
@@ -1060,6 +1210,7 @@ def generate_sample_video(input_path, duration, output_path):
     stdout, stderr = process.communicate()
     if process.returncode != 0:
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+
 
 # Sample Video Handler
 @Client.on_message(filters.command(["samplevideo150", "samplevideo120", "samplevideo90", "samplevideo60", "samplevideo30"]) & filters.chat(GROUP))
@@ -1116,8 +1267,88 @@ async def samplevideo_private(client, message):
     InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
   ]]
   reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
-    
+  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)"""   
+
+
+# Command handler for generating screenshots
+@Client.on_message(filters.command("screenshots") & filters.group)
+async def screenshots_command(client, message: Message):
+    user_id = message.from_user.id
+    num_screenshots = user_settings.get(user_id, {}).get("screenshots", 5)  # Default to 5 if not set
+
+    if not message.reply_to_message:
+        return await message.reply_text("Please reply to a valid video file or document.")
+
+    media = message.reply_to_message.video or message.reply_to_message.document
+    if not media:
+        return await message.reply_text("Please reply to a valid video file.")
+
+    sts = await message.reply_text("🚀Downloading media...⚡")
+    c_time = time.time()
+    input_path = await client.download_media(media, progress=None)
+
+    if not os.path.exists(input_path):
+        await sts.edit(f"Error: The downloaded file does not exist.")
+        return
+
+    try:
+        await sts.edit("🚀Reading video duration...⚡")
+        command = [
+            'ffprobe', '-i', input_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv=p=0'
+        ]
+        duration_output = subprocess.check_output(command, stderr=subprocess.STDOUT)
+        duration = float(duration_output.decode('utf-8').strip())
+    except subprocess.CalledProcessError as e:
+        await sts.edit(f"Error reading video duration: {e.output.decode('utf-8')}")
+        os.remove(input_path)
+        return
+    except ValueError:
+        await sts.edit("Error reading video duration: Unable to convert duration to float.")
+        os.remove(input_path)
+        return
+
+    interval = duration / num_screenshots
+
+    await sts.edit(f"🚀Generating {num_screenshots} screenshots...⚡")
+    screenshot_paths = []
+    for i in range(num_screenshots):
+        time_position = interval * i
+        screenshot_path = os.path.join(DOWNLOAD_LOCATION1, f"screenshot_{i}.jpg")
+
+        # Create the screenshots directory if it doesn't exist
+        os.makedirs(DOWNLOAD_LOCATION1, exist_ok=True)
+
+        command = [
+            'ffmpeg', '-ss', str(time_position), '-i', input_path, '-vframes', '1', '-y', screenshot_path
+        ]
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+
+        if process.returncode != 0:
+            await sts.edit(f"Error generating screenshot {i+1}: {stderr.decode('utf-8')}")
+            for path in screenshot_paths:
+                os.remove(path)
+            os.remove(input_path)
+            return
+
+        screenshot_paths.append(screenshot_path)
+
+    await sts.edit(f"💠Uploading {num_screenshots} screenshots...⚡")
+    for i, screenshot_path in enumerate(screenshot_paths):
+        try:
+            await message.reply_photo(photo=screenshot_path)
+        except Exception as e:
+            await sts.edit(f"Error uploading screenshot {i+1}: {e}")
+            os.remove(screenshot_path)
+
+    os.remove(input_path)
+    for screenshot_path in screenshot_paths:
+        os.remove(screenshot_path)
+    await sts.delete()
+
+
+
+"""
 # Screenshots by Number Handler
 @Client.on_message(filters.command("screenshots") & filters.chat(GROUP))
 async def screenshots(bot, msg):
@@ -1201,7 +1432,7 @@ async def screenshots_private(client, message):
     InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
   ]]
   reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)     
+  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)""" 
     
 # Function to unzip files
 def unzip_file(file_path, extract_path):
