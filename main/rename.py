@@ -759,6 +759,84 @@ async def attach_photo(bot, msg):
         os.remove(output_file)
 
 
+
+@Client.on_message(filters.command("removetags") & filters.group)
+async def remove_tags(bot, msg):
+    global REMOVETAGS_ENABLED
+    if not REMOVETAGS_ENABLED:
+        return await msg.reply_text("The removetags feature is currently disabled.")
+
+    reply = msg.reply_to_message
+    if not reply:
+        return await msg.reply_text("Please reply to a media file with the removetags command.")
+
+    media = reply.document or reply.audio or reply.video
+    if not media:
+        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the removetags command.")
+
+    command_text = " ".join(msg.command[1:]).strip()
+    new_filename = None
+
+    # Extract new filename from command
+    if "-n" in command_text:
+        try:
+            new_filename = command_text.split('-n')[1].strip()
+        except IndexError:
+            return await msg.reply_text("Please provide a valid filename with the -n option (e.g., `-n new_filename.mkv`).")
+
+        # Check if new filename has a valid video file extension (.mkv, .mp4, .avi)
+        valid_extensions = ('.mkv', '.mp4', '.avi')
+        if not any(new_filename.lower().endswith(ext) for ext in valid_extensions):
+            return await msg.reply_text("The new filename must include a valid extension (e.g., `.mkv`, `.mp4`, `.avi`).")
+
+    sts = await msg.reply_text("🚀 Downloading media... ⚡")
+    c_time = time.time()
+    try:
+        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
+    except Exception as e:
+        await sts.edit(f"Error downloading media: {e}")
+        return
+
+    cleaned_file = os.path.join(DOWNLOAD_LOCATION, new_filename if new_filename else "cleaned_" + os.path.basename(downloaded))
+
+    await sts.edit("💠 Removing all tags... ⚡")
+    try:
+        remove_all_tags(downloaded, cleaned_file)
+    except Exception as e:
+        await sts.edit(f"Error removing all tags: {e}")
+        os.remove(downloaded)
+        return
+
+    file_thumb = f"{DOWNLOAD_LOCATION}/thumbnail.jpg"
+    if not os.path.exists(file_thumb):
+        try:
+            file_thumb = await bot.download_media(media.thumbs[0].file_id)
+        except Exception as e:
+            print(e)
+            file_thumb = None
+
+    user_id = msg.from_user.id  # Get the user ID of the sender
+    await sts.edit("🔼 Uploading cleaned file to your PM... ⚡")
+    try:
+        await bot.send_document(
+            user_id, 
+            cleaned_file, 
+            thumb=file_thumb, 
+            caption="Here is your file with all tags removed.", 
+            progress=progress_message, 
+            progress_args=("🔼 Upload Started... ⚡️", sts, c_time)
+        )
+        await sts.delete()
+        await msg.reply_text("✅ Check your PM for the cleaned file.")
+    except Exception as e:
+        await sts.edit(f"Error uploading cleaned file: {e}")
+    finally:
+        os.remove(downloaded)
+        os.remove(cleaned_file)
+        if file_thumb and os.path.exists(file_thumb):
+            os.remove(file_thumb)
+
+"""
 # Command handler for /removetags command
 @Client.on_message(filters.command("removetags") & filters.group)
 async def remove_tags(bot, msg):
@@ -825,7 +903,7 @@ async def remove_tags(bot, msg):
         os.remove(downloaded)
         os.remove(cleaned_file)
         if file_thumb and os.path.exists(file_thumb):
-            os.remove(file_thumb)
+            os.remove(file_thumb)"""
 
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
