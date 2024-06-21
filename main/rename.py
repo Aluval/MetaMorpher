@@ -932,15 +932,6 @@ async def change_index(bot, msg):
         except Exception as e:
             print(f"Error deleting files: {e}")
 
-# Assuming you have an instance of the Client already set up
-app = Client("my_account")
-
-# Register the handler
-app.add_handler(filters.command("changeindex") & filters.chat(GROUP), change_index)
-
-app.run()
-
-
 
 @Client.on_message(filters.command("screenshots") & filters.group)
 async def screenshots_command(client, message: Message):
