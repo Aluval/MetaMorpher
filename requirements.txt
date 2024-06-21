@@ -2,7 +2,6 @@ pyrogram==2.0.83
 Tgcrypto
 ffmpeg-python
 rarfile
-py7zr
 ffmpeg
 requests
 heroku3
