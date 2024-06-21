@@ -234,39 +234,6 @@ async def sample_video_option(client, callback_query: CallbackQuery):
 async def back_to_settings(client, callback_query: CallbackQuery):
     await display_user_settings(client, callback_query.message, edit=True)
 
-
-"""
-# User settings command handler
-@Client.on_message(filters.command("usersettings") & filters.group)
-async def display_user_settings(client, msg, edit=False):
-    user_id = msg.from_user.id
-    current_duration = user_settings.get(user_id, {}).get("sample_video_duration", "Not set")
-    current_screenshots = user_settings.get(user_id, {}).get("screenshots", "Not set")
-    logging.info(f"Command /usersettings received from user {user_id} in chat {msg.chat.id}")
-    # Generate the inline keyboard
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("Sample Video Settings 🎞️", callback_data="sample_video_option")],
-        [InlineKeyboardButton("Screenshots Settings 📸", callback_data="screenshots_option")],
-        [InlineKeyboardButton("Thumbnail Settings 📄", callback_data="thumbnail_settings")],
-        [InlineKeyboardButton("Preview Metadata ✨", callback_data="preview_metadata")],
-        [InlineKeyboardButton("Attach Photo 📎", callback_data="attach_photo"), 
-         InlineKeyboardButton("Preview Photo ✨", callback_data="preview_photo")],
-        [InlineKeyboardButton("Preview Attach Photo task 🖼️", callback_data="preview_photo_attach_task")],
-        [InlineKeyboardButton("Preview Multi task 📑", callback_data="preview_multitask")],
-        [InlineKeyboardButton("Preview Rename task 📝", callback_data="preview_rename_task")],
-        [InlineKeyboardButton("Preview Metadata task ☄️", callback_data="preview_metadata_task")],
-        [InlineKeyboardButton("Preview Index task ♻️", callback_data="preview_change_index_task")],
-        [InlineKeyboardButton("Preview Remove Tags task 📛", callback_data="preview_removetags_task")],
-        [InlineKeyboardButton("Close ❌", callback_data="del")]
-    ])
-    if edit:
-        await msg.edit_text(f"User Settings\nCurrent sample video duration: {current_duration}\nCurrent screenshots setting: {current_screenshots}", reply_markup=keyboard)
-    else:
-        await msg.reply(f"User Settings\nCurrent sample video duration: {current_duration}\nCurrent screenshots setting: {current_screenshots}", reply_markup=keyboard)
-"""
-
-
-
 @Client.on_message(filters.command("usersettings") & filters.group)
 async def display_user_settings(client, msg, edit=False):
     user_id = msg.from_user.id
