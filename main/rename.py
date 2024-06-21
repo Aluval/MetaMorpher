@@ -165,39 +165,40 @@ async def sample_video(bot, msg):
         return await msg.reply_text("Please set a valid sample video duration using /usersettings.")
      
     if not msg.reply_to_message:
-    return await msg.reply_text("Please reply to a valid video file or document.")
+        return await msg.reply_text("Please reply to a valid video file or document.")
 
-media = msg.reply_to_message.video or msg.reply_to_message.document
-if not media:
-    return await msg.reply_text("Please reply to a valid video file or document.")
+    media = msg.reply_to_message.video or msg.reply_to_message.document
+    if not media:
+        return await msg.reply_text("Please reply to a valid video file or document.")
 
-sts = await msg.reply_text("🚀 Downloading media... ⚡")
-c_time = time.time()
-input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀 Downloading media... ⚡️", sts, c_time))
-output_file = os.path.join(DOWNLOAD_LOCATION, f"sample_video_{duration}s.mp4")
+    sts = await msg.reply_text("🚀 Downloading media... ⚡")
+    c_time = time.time()
+    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀 Downloading media... ⚡️", sts, c_time))
+    output_file = os.path.join(DOWNLOAD_LOCATION, f"sample_video_{duration}s.mp4")
 
-await sts.edit("🚀 Processing sample video... ⚡")
-try:
-    generate_sample_video(input_path, duration, output_file)
-except Exception as e:
-    await sts.edit(f"Error generating sample video: {e}")
+    await sts.edit("🚀 Processing sample video... ⚡")
+    try:
+        generate_sample_video(input_path, duration, output_file)
+    except Exception as e:
+       await sts.edit(f"Error generating sample video: {e}")
+       os.remove(input_path)
+       return
+
+    filesize = os.path.getsize(output_file)
+    filesize_human = humanbytes(filesize)
+    cap = f"{os.path.basename(output_file)}\n\n🌟 Size: {filesize_human}"
+
+    await sts.edit("💠 Uploading sample video... ⚡")
+    c_time = time.time()
+    try:
+        await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡️", sts, c_time))
+    except Exception as e:
+        return await sts.edit(f"Error: {e}")
+
     os.remove(input_path)
-    return
+    os.remove(output_file)
+    await sts.delete()
 
-filesize = os.path.getsize(output_file)
-filesize_human = humanbytes(filesize)
-cap = f"{os.path.basename(output_file)}\n\n🌟 Size: {filesize_human}"
-
-await sts.edit("💠 Uploading sample video... ⚡")
-c_time = time.time()
-try:
-    await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡️", sts, c_time))
-except Exception as e:
-    return await sts.edit(f"Error: {e}")
-
-os.remove(input_path)
-os.remove(output_file)
-await sts.delete()
 # Callback query handler for setting sample video duration
 @Client.on_callback_query(filters.regex("^set_sample_video_duration_"))
 async def set_sample_video_duration(client, callback_query: CallbackQuery):
