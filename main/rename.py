@@ -157,13 +157,14 @@ async def update_settings_message(message):
 
     await message.edit_text("Use inline buttons to manage your settings:", reply_markup=keyboard)
 
-@Client.on_message(filters.command("SampleVideo") & filters.chat(GROUP)) 
-async def sample_video(bot, msg): 
-    user_id = msg.from_user.id 
-    duration = user_settings.get(user_id, {}).get("sample_video_duration", 0) 
-    if duration == 0: 
+
+@Client.on_message(filters.command("SampleVideo") & filters.chat(GROUP))
+async def sample_video(bot, msg):
+    user_id = msg.from_user.id
+    duration = user_settings.get(user_id, {}).get("sample_video_duration", 0)
+    if duration == 0:
         return await msg.reply_text("Please set a valid sample video duration using /usersettings.")
-     
+
     if not msg.reply_to_message:
         return await msg.reply_text("Please reply to a valid video file or document.")
 
@@ -173,31 +174,46 @@ async def sample_video(bot, msg):
 
     sts = await msg.reply_text("🚀 Downloading media... ⚡")
     c_time = time.time()
-    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀 Downloading media... ⚡️", sts, c_time))
+    try:
+        input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀 Downloading media... ⚡️", sts, c_time))
+    except Exception as e:
+        await sts.edit(f"Error downloading media: {e}")
+        return
+
     output_file = os.path.join(DOWNLOAD_LOCATION, f"sample_video_{duration}s.mp4")
 
     await sts.edit("🚀 Processing sample video... ⚡")
     try:
         generate_sample_video(input_path, duration, output_file)
     except Exception as e:
-       await sts.edit(f"Error generating sample video: {e}")
-       os.remove(input_path)
-       return
+        await sts.edit(f"Error generating sample video: {e}")
+        os.remove(input_path)
+        return
 
     filesize = os.path.getsize(output_file)
     filesize_human = humanbytes(filesize)
     cap = f"{os.path.basename(output_file)}\n\n🌟 Size: {filesize_human}"
 
-    await sts.edit("💠 Uploading sample video... ⚡")
+    user_id = msg.from_user.id  # Get the user ID of the sender
+    await sts.edit("💠 Uploading sample video to your PM... ⚡")
     c_time = time.time()
     try:
-        await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡️", sts, c_time))
+        await bot.send_document(
+            user_id, 
+            document=output_file, 
+            caption=cap, 
+            progress=progress_message, 
+            progress_args=("💠 Upload Started... ⚡️", sts, c_time)
+        )
+        await msg.reply_text("✅ Check your PM for the sample video.")
     except Exception as e:
-        return await sts.edit(f"Error: {e}")
+        await sts.edit(f"Error uploading sample video: {e}")
+        return
 
     os.remove(input_path)
     os.remove(output_file)
     await sts.delete()
+
 
 # Callback query handler for setting sample video duration
 @Client.on_callback_query(filters.regex("^set_sample_video_duration_"))
@@ -478,11 +494,7 @@ async def set_metadata_command(client, msg):
     
     await msg.reply_text("Metadata titles set successfully.")
 
-
-
-
-# RENAME
-# Command handler for /rename command
+#Rename Command
 @Client.on_message(filters.command("rename") & filters.group)
 async def rename_file(bot, msg):
     global RENAME_ENABLED
@@ -492,53 +504,53 @@ async def rename_file(bot, msg):
     reply = msg.reply_to_message
     if len(msg.command) < 2 or not reply:
         return await msg.reply_text("Please Reply To A File, Video, or Audio With filename + .extension e.g., .mkv, .mp4, or .zip")
-    
+
     media = reply.document or reply.audio or reply.video
     if not media:
         return await msg.reply_text("Please Reply To A File, Video, or Audio With filename + .extension e.g., .mkv, .mp4, or .zip")
-    
+
     new_name = msg.text.split(" ", 1)[1]
     sts = await msg.reply_text("🚀 Downloading... ⚡")
     c_time = time.time()
-    downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time)) 
+    downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
     filesize = humanbytes(media.file_size)
-    
+
     if CAPTION:
         try:
             cap = CAPTION.format(file_name=new_name, file_size=filesize)
-        except Exception as e:            
-            return await sts.edit(text=f"Your caption error: unexpected keyword ({e})")           
+        except Exception as e:
+            return await sts.edit(text=f"Your caption error: unexpected keyword ({e})")
     else:
         cap = f"{new_name}\n\n🌟 Size: {filesize}"
 
     thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
-    
+
     if os.path.exists(thumbnail_path):
         og_thumbnail = thumbnail_path
     else:
         try:
             og_thumbnail = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
         except Exception as e:
-            logging.error(e)
             og_thumbnail = None
 
     await sts.edit("💠 Uploading... ⚡")
     c_time = time.time()
     try:
-        await bot.send_document(msg.chat.id, document=downloaded, thumb=og_thumbnail, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡", sts, c_time))        
-    except Exception as e:  
-        return await sts.edit(f"Error: {e}")                       
+        await bot.send_document(msg.from_user.id, document=downloaded, thumb=og_thumbnail, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡", sts, c_time))
+        await msg.reply_text("✅ Check your PM for the renamed file.")
+    except Exception as e:
+        return await sts.edit(f"Error: {e}")
+
     try:
         os.remove(downloaded)
         if og_thumbnail and os.path.exists(og_thumbnail):
             os.remove(og_thumbnail)
     except Exception as e:
-        logging.error(e)
+        pass
+
     await sts.delete()
 
-
-
-
+#MultiTask Command 
 @Client.on_message(filters.command("multitask") & filters.group)
 async def multitask_command(bot, msg):
     global MULTITASK_ENABLED
@@ -553,7 +565,6 @@ async def multitask_command(bot, msg):
     metadata = []
     new_filename = None
 
-    # Extracting parameters
     if "-m" in command_text:
         metadata_part = command_text.split('-m')[1].split('-n')[0].strip()
         if '|' in metadata_part:
@@ -583,24 +594,18 @@ async def multitask_command(bot, msg):
         return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the multitask command.")
 
     sts = await msg.reply_text("🚀 Downloading media... ⚡")
-    c_time = time.time()
     try:
-        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
+        downloaded = await reply.download()
     except Exception as e:
         await sts.edit(f"Error downloading media: {e}")
         return
-
-    filesize = os.path.getsize(downloaded)
-    filesize_human = humanbytes(filesize)
 
     video_title = metadata[0]
     audio_title = metadata[1]
     subtitle_title = metadata[2]
 
-    cap = f"{new_filename}\n\n🌟 Size: {filesize_human}"
-
     thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
-    
+    og_thumbnail = None
     if os.path.exists(thumbnail_path):
         og_thumbnail = thumbnail_path
     else:
@@ -608,7 +613,6 @@ async def multitask_command(bot, msg):
             og_thumbnail = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
         except Exception as e:
             await sts.edit(f"Error downloading thumbnail: {e}")
-            logging.error(e)
             og_thumbnail = None
 
     await sts.edit("💠 Changing metadata... ⚡")
@@ -621,7 +625,8 @@ async def multitask_command(bot, msg):
 
     await sts.edit("💠 Uploading cleaned file... ⚡")
     try:
-        await bot.send_document(msg.chat.id, document=new_filename, thumb=og_thumbnail, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡️", sts, c_time))
+        await bot.send_document(msg.from_user.id, document=new_filename, thumb=og_thumbnail, caption=new_filename)
+        await msg.reply_text("✅ Check your PM for the processed file.")
     except Exception as e:
         await sts.edit(f"Error uploading cleaned file: {e}")
     finally:
@@ -629,7 +634,6 @@ async def multitask_command(bot, msg):
         if og_thumbnail and os.path.exists(og_thumbnail):
             os.remove(og_thumbnail)
         await sts.delete()
-
 
 @Client.on_message(filters.command("changemetadata") & filters.chat(GROUP))
 async def change_metadata(bot, msg):
@@ -649,10 +653,8 @@ async def change_metadata(bot, msg):
     if len(msg.command) < 3 or msg.command[1] != "-n":
         return await msg.reply_text("Please provide the filename with the `-n` flag\nFormat: `changemetadata -n filename.mkv`")
 
-    # Join all parts of the command after the -n flag to handle filenames with spaces
     output_filename = " ".join(msg.command[2:]).strip()
 
-    # Ensure output_filename has a valid extension
     if not output_filename.lower().endswith(('.mkv', '.mp4', '.avi')):
         return await msg.reply_text("Invalid file extension. Please use a valid video file extension (e.g., .mkv, .mp4, .avi).")
 
@@ -665,9 +667,8 @@ async def change_metadata(bot, msg):
         return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the metadata command.")
 
     sts = await msg.reply_text("🚀 Downloading media... ⚡")
-    c_time = time.time()
     try:
-        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
+        downloaded = await reply.download()
     except Exception as e:
         await sts.edit(f"Error downloading media: {e}")
         return
@@ -682,14 +683,10 @@ async def change_metadata(bot, msg):
         os.remove(downloaded)
         return
 
-    filesize = os.path.getsize(output_file)
-    filesize_human = humanbytes(filesize)
-    cap = f"{output_filename}\n\n🌟 Size: {filesize_human}"
-
     await sts.edit("💠 Uploading... ⚡")
-    c_time = time.time()
     try:
-        await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡️", sts, c_time))
+        await bot.send_document(msg.from_user.id, document=output_file, caption=output_filename)
+        await msg.reply_text("✅ Check your PM for the processed file.")
     except Exception as e:
         await sts.edit(f"Error uploading: {e}")
     finally:
@@ -697,8 +694,6 @@ async def change_metadata(bot, msg):
         os.remove(output_file)
         await sts.delete()
 
-
-# Command handler for attaching a photo
 @Client.on_message(filters.command("attachphoto") & filters.group)
 async def attach_photo(bot, msg):
     global PHOTO_ATTACH_ENABLED
@@ -725,15 +720,13 @@ async def attach_photo(bot, msg):
         return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the attach photo command.")
 
     sts = await msg.reply_text("🚀 Downloading media... ⚡")
-    c_time = time.time()
     try:
-        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
+        downloaded = await reply.download()
     except Exception as e:
         await sts.edit(f"Error downloading media: {e}")
         return
 
-    # Check if there is a previously set photo
-    attachment_path =  f"{DOWNLOAD_LOCATION}/attachment_{msg.from_user.id}.jpg"
+    attachment_path = f"{DOWNLOAD_LOCATION}/attachment_{msg.from_user.id}.jpg"
     if not os.path.exists(attachment_path):
         await sts.edit("Please send a photo to be attached using the `setphoto` command.")
         os.remove(downloaded)
@@ -751,15 +744,14 @@ async def attach_photo(bot, msg):
 
     await sts.edit("🔼 Uploading modified file... ⚡")
     try:
-        await bot.send_document(msg.chat.id, output_file, caption="Here is your file with the photo attachment.")
-        await sts.delete()
+        await bot.send_document(msg.from_user.id, output_file, caption="Here is your file with the photo attachment.")
+        await msg.reply_text("✅ Check your PM for the processed file.")
     except Exception as e:
         await sts.edit(f"Error uploading modified file: {e}")
     finally:
         os.remove(downloaded)
         os.remove(output_file)
-
-
+        await sts.delete()
 
 @Client.on_message(filters.command("removetags") & filters.group)
 async def remove_tags(bot, msg):
