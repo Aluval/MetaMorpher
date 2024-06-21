@@ -483,40 +483,7 @@ async def delete_thumbnail(client, callback_query: CallbackQuery):
         await callback_query.message.reply_text("An error occurred while trying to remove your thumbnail. Please try again later.")
       
 
-"""
-# Command handler to view the current thumbnail
-@Client.on_callback_query(filters.regex("^view_thumbnail$"))
-async def view_thumbnail(client, callback_query: CallbackQuery):
-    user_id = callback_query.from_user.id
-    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
 
-    try:
-        await callback_query.message.reply_photo(photo=thumbnail_path, caption="This is your current thumbnail")
-    except Exception as e:
-        logging.error(e)
-        await callback_query.message.reply_text("You don't have any thumbnail.")
-
-
-# Callback query handler for deleting the current thumbnail
-@Client.on_callback_query(filters.regex("^delete_thumbnail$"))
-async def delete_thumbnail(client, callback_query: CallbackQuery):
-    user_id = callback_query.from_user.id
-    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
-
-    logging.info(f"Attempting to delete thumbnail for user {user_id} at path {thumbnail_path}")
-
-    try:
-        if os.path.exists(thumbnail_path):
-            os.remove(thumbnail_path)
-            logging.info(f"Thumbnail for user {user_id} removed successfully.")
-            await callback_query.message.reply_text("Your thumbnail was removed ❌")
-        else:
-            logging.info(f"No thumbnail found for user {user_id}.")
-            await callback_query.message.reply_text("You don't have any thumbnail ‼️")
-    except Exception as e:
-        logging.error(f"Error removing thumbnail for user {user_id}: {e}")
-        await callback_query.message.reply_text("An error occurred while trying to remove your thumbnail. Please try again later.")
-"""
 
 # Inline query handler to return to user settings
 @Client.on_callback_query(filters.regex("^back_to_settings$"))
@@ -606,14 +573,7 @@ async def rename_file(bot, msg):
         logging.error(e)
     await sts.delete()
 
-@Client.on_message(filters.command("rename"))
-async def rename_private(client, message):
-  buttons = [[
-    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
-  ]]
-  reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)
-  
+
 
 
 @Client.on_message(filters.command("multitask") & filters.group)
@@ -775,14 +735,6 @@ async def change_metadata(bot, msg):
         await sts.delete()
 
 
-@Client.on_message(filters.command("changemetadata"))
-async def metadata_private(client, message):
-  buttons = [[
-    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
-  ]]
-  reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)  
-
 # Command handler for attaching a photo
 @Client.on_message(filters.command("attachphoto") & filters.group)
 async def attach_photo(bot, msg):
@@ -844,14 +796,7 @@ async def attach_photo(bot, msg):
         os.remove(downloaded)
         os.remove(output_file)
 
-@Client.on_message(filters.command("attachphoto"))
-async def attachphoto_private(client, message):
-  buttons = [[
-    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
-  ]]
-  reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)
-    
+
 # Command handler for /removetags command
 @Client.on_message(filters.command("removetags") & filters.group)
 async def remove_tags(bot, msg):
@@ -1026,6 +971,81 @@ async def change_index(bot, msg):
         except Exception as e:
             print(f"Error deleting files: {e}")
 
+@Client.on_message(filters.command("screenshots") & filters.group)
+async def screenshots_command(client, message: Message):
+    user_id = message.from_user.id
+    num_screenshots = user_settings.get(user_id, {}).get("screenshots", 5)  # Default to 5 if not set
+
+    if not message.reply_to_message:
+        return await message.reply_text("Please reply to a valid video file or document.")
+
+    media = message.reply_to_message.video or message.reply_to_message.document
+    if not media:
+        return await message.reply_text("Please reply to a valid video file.")
+
+    sts = await message.reply_text("🚀Downloading media...⚡")
+    c_time = time.time()
+    input_path = await client.download_media(media, progress=None)
+
+    if not os.path.exists(input_path):
+        await sts.edit(f"Error: The downloaded file does not exist.")
+        return
+
+    try:
+        await sts.edit("🚀Reading video duration...⚡")
+        command = [
+            'ffprobe', '-i', input_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv=p=0'
+        ]
+        duration_output = subprocess.check_output(command, stderr=subprocess.STDOUT)
+        duration = float(duration_output.decode('utf-8').strip())
+    except subprocess.CalledProcessError as e:
+        await sts.edit(f"Error reading video duration: {e.output.decode('utf-8')}")
+        os.remove(input_path)
+        return
+    except ValueError:
+        await sts.edit("Error reading video duration: Unable to convert duration to float.")
+        os.remove(input_path)
+        return
+
+    interval = duration / num_screenshots
+
+    await sts.edit(f"🚀Generating {num_screenshots} screenshots...⚡")
+    screenshot_paths = []
+    for i in range(num_screenshots):
+        time_position = interval * i
+        screenshot_path = os.path.join(DOWNLOAD_LOCATION1, f"screenshot_{i}.jpg")
+
+        # Create the screenshots directory if it doesn't exist
+        os.makedirs(DOWNLOAD_LOCATION1, exist_ok=True)
+
+        command = [
+            'ffmpeg', '-ss', str(time_position), '-i', input_path, '-vframes', '1', '-y', screenshot_path
+        ]
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+
+        if process.returncode != 0:
+            await sts.edit(f"Error generating screenshot {i+1}: {stderr.decode('utf-8')}")
+            for path in screenshot_paths:
+                os.remove(path)
+            os.remove(input_path)
+            return
+
+        screenshot_paths.append(screenshot_path)
+
+    await sts.edit(f"💠Uploading {num_screenshots} screenshots...⚡")
+    for i, screenshot_path in enumerate(screenshot_paths):
+        try:
+            await message.reply_photo(photo=screenshot_path)
+        except Exception as e:
+            await sts.edit(f"Error uploading screenshot {i+1}: {e}")
+            os.remove(screenshot_path)
+
+    os.remove(input_path)
+    for screenshot_path in screenshot_paths:
+        os.remove(screenshot_path)
+    await sts.delete()
+
 def remove_all_tags(input_path, output_path):
     command = [
         'ffmpeg',
@@ -1179,14 +1199,7 @@ async def restart_app(bot, msg):
 
 
 
-@Client.on_message(filters.command("changeindex"))
-async def changeindex_private(client, message):
-  buttons = [[
-    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
-  ]]
-  reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)
-    
+
 def change_video_metadata(input_path, video_title, audio_title, subtitle_title, output_path):
     command = [
         'ffmpeg',
@@ -1249,247 +1262,10 @@ def generate_sample_video(input_path, duration, output_path):
 
 
 
-
-"""    
- # Sample Video Generation Function
-def generate_sample_video(input_path, duration, output_path):
-    command = [
-        'ffmpeg',
-        '-i', input_path,
-        '-t', str(duration),
-        '-c:v', 'copy',
-        '-c:a', 'copy',
-        output_path,
-        '-y'
-    ]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
-
-
-# Sample Video Handler
-@Client.on_message(filters.command(["samplevideo150", "samplevideo120", "samplevideo90", "samplevideo60", "samplevideo30"]) & filters.chat(GROUP))
-async def sample_video(bot, msg):
-    durations = {
-        "samplevideo150": 150,
-        "samplevideo120": 120,
-        "samplevideo90": 90,
-        "samplevideo60": 60,
-        "samplevideo30": 30
-    }
-    duration = durations.get(msg.command[0], 0)
-    if duration == 0:
-        return await msg.reply_text("Invalid command")
-
-    if not msg.reply_to_message:
-        return await msg.reply_text("Please reply to a valid video file or document.")
-
-    media = msg.reply_to_message.video or msg.reply_to_message.document
-    if not media:
-        return await msg.reply_text("Please reply to a valid video file or document.")
-
-    sts = await msg.reply_text("🚀Downloading media...⚡")
-    c_time = time.time()
-    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Downloading media...⚡️", sts, c_time))
-    output_file = os.path.join(DOWNLOAD_LOCATION, f"sample_video_{duration}s.mp4")
-
-    await sts.edit("🚀Processing sample video...⚡")
-    try:
-        generate_sample_video(input_path, duration, output_file)
-    except Exception as e:
-        await sts.edit(f"Error generating sample video: {e}")
-        os.remove(input_path)
-        return
-
-    filesize = os.path.getsize(output_file)
-    filesize_human = humanbytes(filesize)
-    cap = f"{os.path.basename(output_file)}\n\n🌟Size: {filesize_human}"
-
-    await sts.edit("💠Uploading sample video...⚡")
-    c_time = time.time()
-    try:
-        await bot.send_document(msg.chat.id, document=output_file, caption=cap, progress=progress_message, progress_args=("💠Upload Started.....", sts, c_time))
-    except Exception as e:
-        return await sts.edit(f"Error {e}")
-
-    os.remove(input_path)
-    os.remove(output_file)
-    await sts.delete()       
-
-@Client.on_message(filters.command(["samplevideo150", "samplevideo120", "samplevideo90", "samplevideo60", "samplevideo30"]))
-async def samplevideo_private(client, message):
-  buttons = [[
-    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
-  ]]
-  reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)"""   
-
-
 # Command handler for generating screenshots
-@Client.on_message(filters.command("screenshots") & filters.group)
-async def screenshots_command(client, message: Message):
-    user_id = message.from_user.id
-    num_screenshots = user_settings.get(user_id, {}).get("screenshots", 5)  # Default to 5 if not set
-
-    if not message.reply_to_message:
-        return await message.reply_text("Please reply to a valid video file or document.")
-
-    media = message.reply_to_message.video or message.reply_to_message.document
-    if not media:
-        return await message.reply_text("Please reply to a valid video file.")
-
-    sts = await message.reply_text("🚀Downloading media...⚡")
-    c_time = time.time()
-    input_path = await client.download_media(media, progress=None)
-
-    if not os.path.exists(input_path):
-        await sts.edit(f"Error: The downloaded file does not exist.")
-        return
-
-    try:
-        await sts.edit("🚀Reading video duration...⚡")
-        command = [
-            'ffprobe', '-i', input_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv=p=0'
-        ]
-        duration_output = subprocess.check_output(command, stderr=subprocess.STDOUT)
-        duration = float(duration_output.decode('utf-8').strip())
-    except subprocess.CalledProcessError as e:
-        await sts.edit(f"Error reading video duration: {e.output.decode('utf-8')}")
-        os.remove(input_path)
-        return
-    except ValueError:
-        await sts.edit("Error reading video duration: Unable to convert duration to float.")
-        os.remove(input_path)
-        return
-
-    interval = duration / num_screenshots
-
-    await sts.edit(f"🚀Generating {num_screenshots} screenshots...⚡")
-    screenshot_paths = []
-    for i in range(num_screenshots):
-        time_position = interval * i
-        screenshot_path = os.path.join(DOWNLOAD_LOCATION1, f"screenshot_{i}.jpg")
-
-        # Create the screenshots directory if it doesn't exist
-        os.makedirs(DOWNLOAD_LOCATION1, exist_ok=True)
-
-        command = [
-            'ffmpeg', '-ss', str(time_position), '-i', input_path, '-vframes', '1', '-y', screenshot_path
-        ]
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-
-        if process.returncode != 0:
-            await sts.edit(f"Error generating screenshot {i+1}: {stderr.decode('utf-8')}")
-            for path in screenshot_paths:
-                os.remove(path)
-            os.remove(input_path)
-            return
-
-        screenshot_paths.append(screenshot_path)
-
-    await sts.edit(f"💠Uploading {num_screenshots} screenshots...⚡")
-    for i, screenshot_path in enumerate(screenshot_paths):
-        try:
-            await message.reply_photo(photo=screenshot_path)
-        except Exception as e:
-            await sts.edit(f"Error uploading screenshot {i+1}: {e}")
-            os.remove(screenshot_path)
-
-    os.remove(input_path)
-    for screenshot_path in screenshot_paths:
-        os.remove(screenshot_path)
-    await sts.delete()
 
 
 
-"""
-# Screenshots by Number Handler
-@Client.on_message(filters.command("screenshots") & filters.chat(GROUP))
-async def screenshots(bot, msg):
-    if len(msg.command) != 2:
-        return await msg.reply_text("Please provide the number of screenshots to generate.")
-    
-    try:
-        num_screenshots = int(msg.command[1])
-        if num_screenshots <= 0:
-            return await msg.reply_text("Number of screenshots must be a positive integer.")
-    except ValueError:
-        return await msg.reply_text("Please provide a valid number of screenshots.")
-
-    if not msg.reply_to_message:
-        return await msg.reply_text("Please reply to a valid video file or document.")
-    
-    media = msg.reply_to_message.video or msg.reply_to_message.document
-    if not media:
-        return await msg.reply_text("Please reply to a valid video file.")
-
-    sts = await msg.reply_text("🚀Downloading media...⚡")
-    c_time = time.time()
-    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Downloading media...⚡️", sts, c_time))
-
-    if not os.path.exists(input_path):
-        await sts.edit(f"Error: The downloaded file does not exist.")
-        return
-
-    try:
-        await sts.edit("🚀Reading video duration...⚡")
-        command = [
-            'ffprobe', '-i', input_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv=p=0'
-        ]
-        duration_output = subprocess.check_output(command, stderr=subprocess.STDOUT)
-        duration = float(duration_output.decode('utf-8').strip())
-    except subprocess.CalledProcessError as e:
-        await sts.edit(f"Error reading video duration: {e.output.decode('utf-8')}")
-        os.remove(input_path)
-        return
-    except ValueError:
-        await sts.edit("Error reading video duration: Unable to convert duration to float.")
-        os.remove(input_path)
-        return
-
-    interval = duration / num_screenshots
-
-    await sts.edit("🚀Generating screenshots... It's Take Time 5Min for 10 Screenshots⚡")
-    screenshot_paths = []
-    for i in range(num_screenshots):
-        time_position = interval * i
-        screenshot_path = os.path.join(DOWNLOAD_LOCATION, f"screenshot_{i}.jpg")
-        command = [
-            'ffmpeg', '-i', input_path, '-ss', str(time_position), '-vframes', '1', screenshot_path, '-y'
-        ]
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        if process.returncode != 0:
-            await sts.edit(f"Error generating screenshot {i+1}: {stderr.decode('utf-8')}")
-            os.remove(input_path)
-            for path in screenshot_paths:
-                os.remove(path)
-            return
-        screenshot_paths.append(screenshot_path)
-
-    await sts.edit("💠Uploading screenshots...⚡")
-    for i, screenshot_path in enumerate(screenshot_paths):
-        try:
-            await bot.send_photo(msg.chat.id, photo=screenshot_path)
-        except Exception as e:
-            await sts.edit(f"Error uploading screenshot {i+1}: {e}")
-            os.remove(screenshot_path)
-
-    os.remove(input_path)
-    for screenshot_path in screenshot_paths:
-        os.remove(screenshot_path)
-    await sts.delete()
-
-@Client.on_message(filters.command("screenshots"))
-async def screenshots_private(client, message):
-  buttons = [[
-    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
-  ]]
-  reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)""" 
-    
 # Function to unzip files
 def unzip_file(file_path, extract_path):
     extracted_files = []
@@ -1550,14 +1326,6 @@ async def unzip(bot, msg):
     os.remove(input_path)
     shutil.rmtree(extract_path)
 
-@Client.on_message(filters.command("unzip"))
-async def unzip_private(client, message):
-  buttons = [[
-    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
-  ]]
-  reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)    
-
 
 def add_photo_attachment(input_path, attachment_path, output_path):
     command = [
@@ -1597,15 +1365,6 @@ async def set_photo(bot, msg):
     except Exception as e:
         await msg.reply_text(f"Error saving photo: {e}")
 
-
-"""
-@Client.on_message(filters.command("setphoto"))
-async def setphoto_private(client, message):
-  buttons = [[
-    InlineKeyboardButton("GROUP", url="https://t.me/INFINITYRENAME24GROUP")
-  ]]
-  reply_markup = InlineKeyboardMarkup(buttons)
-  await message.reply_text(text=f"ʜᴇʏ {message.from_user.mention}\nTʜɪꜱ Fᴇᴀᴛᴜʀᴇ Oɴʟʏ Wᴏʀᴋ Iɴ Mʏ Gʀᴏᴜᴘ", reply_markup=reply_markup)"""
 
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
