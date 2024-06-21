@@ -158,8 +158,6 @@ async def update_settings_message(message):
     await message.edit_text("Use inline buttons to manage your settings:", reply_markup=keyboard)
 
 
-
-# Sample Video Handler
 @Client.on_message(filters.command("SampleVideo") & filters.chat(GROUP))
 async def sample_video(bot, msg):
     user_id = msg.from_user.id
@@ -177,6 +175,9 @@ async def sample_video(bot, msg):
     sts = await msg.reply_text("🚀 Downloading media... ⚡")
     c_time = time.time()
     input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀 Downloading media... ⚡️", sts, c_time))
+    
+    await asyncio.sleep(2)  # Adding delay to manage rate limits
+
     output_file = os.path.join(DOWNLOAD_LOCATION, f"sample_video_{duration}s.mp4")
 
     await sts.edit("🚀 Processing sample video... ⚡")
