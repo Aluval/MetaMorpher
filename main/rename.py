@@ -1264,7 +1264,7 @@ async def upload_files(bot, chat_id, directory):
             await upload_files(bot, chat_id, item_path)
 
 # Unzip file command handler
-@Client.on_message(filters.command("unzip") & filters.chat("GROUP"))
+@Client.on_message(filters.command("unzip") & filters.group)
 async def unzip_command(client, message: Message):
     if not message.reply_to_message:
         return await message.reply_text("Please reply to a file to unzip.")
