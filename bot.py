@@ -3,20 +3,6 @@
 from pyrogram import Client
 from config import *
 import os
-import signal
-import sys
-import time
-
-def graceful_exit(signum, frame):
-    print('Received SIGTERM, shutting down gracefully...')
-    # Perform cleanup tasks here
-    sys.exit(0)
-
-signal.signal(signal.SIGTERM, graceful_exit)
-
-# Your rename logic here
-while True:
-    time.sleep(1)
 
 
 class Bot(Client):
