@@ -4,9 +4,6 @@ import time, datetime
 import shutil
 import zipfile
 import tarfile
-import rarfile
-import py7zr
-import requests
 from pyrogram.types import Message
 from pyrogram.types import Document, Video
 from pyrogram import Client, filters
@@ -1229,85 +1226,7 @@ def generate_sample_video(input_path, duration, output_path):
 
 
 
-# Function to unzip files
-def unzip_file(file_path, extract_path):
-    extracted_files = []
-    try:
-        if file_path.endswith('.zip'):
-            with zipfile.ZipFile(file_path, 'r') as zip_ref:
-                zip_ref.extractall(extract_path)
-                extracted_files = zip_ref.namelist()
-        elif file_path.endswith('.rar'):
-            with rarfile.RarFile(file_path, 'r') as rar_ref:
-                rar_ref.extractall(extract_path)
-                extracted_files = rar_ref.namelist()
-        elif file_path.endswith('.7z'):
-            with py7zr.SevenZipFile(file_path, mode='r') as sz_ref:
-                sz_ref.extractall(extract_path)
-                extracted_files = sz_ref.getnames()
-        else:
-            raise ValueError("Unsupported file format. Only .zip, .rar, and .7z files are supported.")
-    except Exception as e:
-        print(f"Error unzipping file: {e}")
-    return extracted_files
 
-# Recursive function to upload files
-async def upload_files(bot, chat_id, directory):
-    for item in os.listdir(directory):
-        item_path = os.path.join(directory, item)
-        if os.path.isfile(item_path):
-            try:
-                await bot.send_document(chat_id, document=item_path)
-            except Exception as e:
-                print(f"Error uploading {item}: {e}")
-        elif os.path.isdir(item_path):
-            await upload_files(bot, chat_id, item_path)
-
-# Unzip file command handler
-@Client.on_message(filters.command("unzip") & filters.group)
-async def unzip_command(client, message: Message):
-    if not message.reply_to_message:
-        return await message.reply_text("Please reply to a file to unzip.")
-
-    media = message.reply_to_message.document
-    if not media:
-        return await message.reply_text("Please reply to a valid file.")
-
-    sts = await message.reply_text("🚀 Downloading file... ⚡")
-    try:
-        input_path = await client.download_media(media)
-    except Exception as e:
-        await sts.edit(f"Error downloading file: {e}")
-        return
-
-    if not os.path.exists(input_path):
-        await sts.edit("Error: The downloaded file does not exist.")
-        return
-
-    extract_path = os.path.join(DOWNLOAD_LOCATION, "extracted")
-    os.makedirs(extract_path, exist_ok=True)
-
-    await sts.edit("🚀 Unzipping file... ⚡")
-    extracted_files = unzip_file(input_path, extract_path)
-
-    if extracted_files:
-        await sts.edit(f"✅ File unzipped successfully. Uploading extracted files... ⚡")
-
-        # Send PM notification
-        try:
-            await client.send_message(message.from_user.id, "✅ Files unzipped and uploaded successfully.")
-        except Exception as e:
-            print(f"Failed to send PM notification: {e}")
-
-        # Upload extracted files
-        await upload_files(client, message.chat.id, extract_path)
-        await sts.edit(f"✅ All extracted files uploaded successfully.")
-    else:
-        await sts.edit(f"❌ Failed to unzip file.")
-
-    os.remove(input_path)
-    shutil.rmtree(extract_path)
-    await sts.delete()
 
 
 def add_photo_attachment(input_path, attachment_path, output_path):
@@ -1331,7 +1250,66 @@ def add_photo_attachment(input_path, attachment_path, output_path):
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
 
 
+# Function to unzip files
+def unzip_file(file_path, extract_path):
+    extracted_files = []
+    try:
+        if file_path.endswith('.zip'):
+            with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_path)
+                extracted_files = zip_ref.namelist()
+        # Add support for other archive formats here if needed
+    except Exception as e:
+        print(f"Error unzipping file: {e}")
+    return extracted_files
 
+# Recursive function to upload files
+async def upload_files(bot, chat_id, directory, base_path=""):
+    for item in os.listdir(directory):
+        item_path = os.path.join(directory, item)
+        if os.path.isfile(item_path):
+            try:
+                await bot.send_document(chat_id, document=item_path, caption=item)
+            except Exception as e:
+                print(f"Error uploading {item}: {e}")
+        elif os.path.isdir(item_path):
+            await upload_files(bot, chat_id, item_path, base_path=os.path.join(base_path, item))
+
+# Unzip file command handler
+@Client.on_message(filters.command("unzip") & filters.chat(GROUP))
+async def unzip(bot, msg):
+    if not msg.reply_to_message:
+        return await msg.reply_text("Please reply to a zip file to unzip.")
+
+    media = msg.reply_to_message.document
+    if not media:
+        return await msg.reply_text("Please reply to a valid zip file.")
+
+    sts = await msg.reply_text("🚀Downloading file...⚡")
+    c_time = time.time()
+    input_path = await bot.download_media(media, progress
+                                          =progress_message, progress_args=("🚀Downloading file...⚡️", sts, c_time))
+
+    if not os.path.exists(input_path):
+        await sts.edit(f"Error: The downloaded file does not exist.")
+        return
+
+    extract_path = os.path.join(DOWNLOAD_LOCATION, "extracted")
+    os.makedirs(extract_path, exist_ok=True)
+
+    await sts.edit("🚀Unzipping file...⚡")
+    extracted_files = unzip_file(input_path, extract_path)
+
+    if extracted_files:
+        await sts.edit(f"✅ File unzipped successfully. Uploading extracted files...⚡")
+        await upload_files(bot, msg.chat.id, extract_path)
+        await sts.edit(f"✅ All extracted files uploaded successfully.")
+    else:
+        await sts.edit(f"❌ Failed to unzip file.")
+
+    os.remove(input_path)
+    shutil.rmtree(extract_path)
+  
 # Handler for setting the photo with user ID
 @Client.on_message(filters.command("setphoto"))
 async def set_photo(bot, msg):
