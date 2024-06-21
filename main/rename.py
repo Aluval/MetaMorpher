@@ -4,6 +4,8 @@ import time, datetime
 import shutil
 import zipfile
 import tarfile
+import rarfile
+import py7zr
 import requests
 from pyrogram.types import Message
 from pyrogram.types import Document, Video
@@ -829,75 +831,6 @@ async def remove_tags(bot, msg):
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
 
-"""
-# Command handler for /removetags command
-@Client.on_message(filters.command("removetags") & filters.group)
-async def remove_tags(bot, msg):
-    global REMOVETAGS_ENABLED
-    if not REMOVETAGS_ENABLED:
-        return await msg.reply_text("The removetags feature is currently disabled.")
-
-    reply = msg.reply_to_message
-    if not reply:
-        return await msg.reply_text("Please reply to a media file with the removetags command.")
-
-    media = reply.document or reply.audio or reply.video
-    if not media:
-        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the removetags command.")
-
-    command_text = " ".join(msg.command[1:]).strip()
-    new_filename = None
-
-    # Extract new filename from command
-    if "-n" in command_text:
-        try:
-            new_filename = command_text.split('-n')[1].strip()
-        except IndexError:
-            return await msg.reply_text("Please provide a valid filename with the -n option (e.g., `-n new_filename.mkv`).")
-
-        # Check if new filename has a valid video file extension (.mkv, .mp4, .avi)
-        valid_extensions = ('.mkv', '.mp4', '.avi')
-        if not any(new_filename.lower().endswith(ext) for ext in valid_extensions):
-            return await msg.reply_text("The new filename must include a valid extension (e.g., `.mkv`, `.mp4`, `.avi`).")
-
-    sts = await msg.reply_text("🚀 Downloading media... ⚡")
-    c_time = time.time()
-    try:
-        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
-    except Exception as e:
-        await sts.edit(f"Error downloading media: {e}")
-        return
-
-    cleaned_file = os.path.join(DOWNLOAD_LOCATION, new_filename if new_filename else "cleaned_" + os.path.basename(downloaded))
-
-    await sts.edit("💠 Removing all tags... ⚡")
-    try:
-        remove_all_tags(downloaded, cleaned_file)
-    except Exception as e:
-        await sts.edit(f"Error removing all tags: {e}")
-        os.remove(downloaded)
-        return
-
-    file_thumb = f"{DOWNLOAD_LOCATION}/thumbnail.jpg"
-    if not os.path.exists(file_thumb):
-        try:
-            file_thumb = await bot.download_media(media.thumbs[0].file_id)
-        except Exception as e:
-            print(e)
-            file_thumb = None
-
-    await sts.edit("🔼 Uploading cleaned file... ⚡")
-    try:
-        await bot.send_document(msg.chat.id, cleaned_file, thumb=file_thumb, caption="Here is your file with all tags removed.", progress=progress_message, progress_args=("🔼 Upload Started... ⚡️", sts, c_time))
-        await sts.delete()
-    except Exception as e:
-        await sts.edit(f"Error uploading cleaned file: {e}")
-    finally:
-        os.remove(downloaded)
-        os.remove(cleaned_file)
-        if file_thumb and os.path.exists(file_thumb):
-            os.remove(file_thumb)"""
-
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
     global CHANGE_INDEX_ENABLED
@@ -932,10 +865,9 @@ async def change_index(bot, msg):
     if not media:
         return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the index command.")
 
-    sts = await msg.reply_text("🚀Downloading media...⚡")
-    c_time = time.time()
+    sts = await msg.reply_text("🚀 Downloading media... ⚡")
     try:
-        downloaded = await reply.download(progress=progress_message, progress_args=("Downloading", sts, c_time))
+        downloaded = await reply.download()
     except Exception as e:
         await sts.edit(f"Error downloading media: {e}")
         return
@@ -956,12 +888,12 @@ async def change_index(bot, msg):
 
     ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
 
-    await sts.edit("💠Changing indexing...⚡")
+    await sts.edit("💠 Changing indexing... ⚡")
     process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
 
     if process.returncode != 0:
-        await sts.edit(f"❗FFmpeg error: {stderr.decode('utf-8')}")
+        await sts.edit(f"❗ FFmpeg error: {stderr.decode('utf-8')}")
         os.remove(downloaded)
         return
 
@@ -970,26 +902,22 @@ async def change_index(bot, msg):
     if media.thumbs:
         try:
             file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=f"{DOWNLOAD_LOCATION}/thumbnail.jpg")
-            print("Thumbnail downloaded successfully:", file_thumb)  # Debug print
         except Exception as e:
-            print(f"Error downloading thumbnail: {e}")
             file_thumb = None
 
     filesize = os.path.getsize(output_file)
     filesize_human = humanbytes(filesize)
-    cap = f"{output_filename}\n\n🌟Size: {filesize_human}"
+    cap = f"{output_filename}\n\n🌟 Size: {filesize_human}"
 
-    await sts.edit("💠Uploading...⚡")
-    c_time = time.time()
+    await sts.edit("💠 Uploading... ⚡")
     try:
         await bot.send_document(
-            msg.chat.id, 
+            msg.from_user.id, 
             document=output_file, 
             thumb=file_thumb, 
-            caption=cap, 
-            progress=progress_message, 
-            progress_args=("Uploading", sts, c_time)
+            caption=cap
         )
+        await msg.reply_text("✅ Check your PM for the processed file.")
         await sts.delete()
     except RPCError as e:
         await sts.edit(f"Upload failed: {e}")
@@ -1004,6 +932,16 @@ async def change_index(bot, msg):
         except Exception as e:
             print(f"Error deleting files: {e}")
 
+# Assuming you have an instance of the Client already set up
+app = Client("my_account")
+
+# Register the handler
+app.add_handler(filters.command("changeindex") & filters.chat(GROUP), change_index)
+
+app.run()
+
+
+
 @Client.on_message(filters.command("screenshots") & filters.group)
 async def screenshots_command(client, message: Message):
     user_id = message.from_user.id
@@ -1016,19 +954,20 @@ async def screenshots_command(client, message: Message):
     if not media:
         return await message.reply_text("Please reply to a valid video file.")
 
-    sts = await message.reply_text("🚀Downloading media...⚡")
-    c_time = time.time()
-    input_path = await client.download_media(media, progress=None)
+    sts = await message.reply_text("🚀 Downloading media... ⚡")
+    try:
+        input_path = await client.download_media(media)
+    except Exception as e:
+        await sts.edit(f"Error downloading media: {e}")
+        return
 
     if not os.path.exists(input_path):
-        await sts.edit(f"Error: The downloaded file does not exist.")
+        await sts.edit("Error: The downloaded file does not exist.")
         return
 
     try:
-        await sts.edit("🚀Reading video duration...⚡")
-        command = [
-            'ffprobe', '-i', input_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv=p=0'
-        ]
+        await sts.edit("🚀 Reading video duration... ⚡")
+        command = ['ffprobe', '-i', input_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv=p=0']
         duration_output = subprocess.check_output(command, stderr=subprocess.STDOUT)
         duration = float(duration_output.decode('utf-8').strip())
     except subprocess.CalledProcessError as e:
@@ -1042,18 +981,15 @@ async def screenshots_command(client, message: Message):
 
     interval = duration / num_screenshots
 
-    await sts.edit(f"🚀Generating {num_screenshots} screenshots...⚡")
+    await sts.edit(f"🚀 Generating {num_screenshots} screenshots... ⚡")
     screenshot_paths = []
     for i in range(num_screenshots):
         time_position = interval * i
         screenshot_path = os.path.join(DOWNLOAD_LOCATION1, f"screenshot_{i}.jpg")
 
-        # Create the screenshots directory if it doesn't exist
         os.makedirs(DOWNLOAD_LOCATION1, exist_ok=True)
 
-        command = [
-            'ffmpeg', '-ss', str(time_position), '-i', input_path, '-vframes', '1', '-y', screenshot_path
-        ]
+        command = ['ffmpeg', '-ss', str(time_position), '-i', input_path, '-vframes', '1', '-y', screenshot_path]
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
 
@@ -1066,10 +1002,10 @@ async def screenshots_command(client, message: Message):
 
         screenshot_paths.append(screenshot_path)
 
-    await sts.edit(f"💠Uploading {num_screenshots} screenshots...⚡")
+    await sts.edit(f"💠 Uploading {num_screenshots} screenshots to your PM... ⚡")
     for i, screenshot_path in enumerate(screenshot_paths):
         try:
-            await message.reply_photo(photo=screenshot_path)
+            await client.send_photo(chat_id=user_id, photo=screenshot_path)
         except Exception as e:
             await sts.edit(f"Error uploading screenshot {i+1}: {e}")
             os.remove(screenshot_path)
@@ -1077,7 +1013,14 @@ async def screenshots_command(client, message: Message):
     os.remove(input_path)
     for screenshot_path in screenshot_paths:
         os.remove(screenshot_path)
+
+    # Send notification in group chat
+    try:
+        await message.reply_text("📸 Screenshots have been sent to your PM.")
+    except Exception as e:
+        print(f"Failed to send notification: {e}")
     await sts.delete()
+
 
 def remove_all_tags(input_path, output_path):
     command = [
@@ -1295,10 +1238,6 @@ def generate_sample_video(input_path, duration, output_path):
 
 
 
-# Command handler for generating screenshots
-
-
-
 # Function to unzip files
 def unzip_file(file_path, extract_path):
     extracted_files = []
@@ -1307,57 +1246,77 @@ def unzip_file(file_path, extract_path):
             with zipfile.ZipFile(file_path, 'r') as zip_ref:
                 zip_ref.extractall(extract_path)
                 extracted_files = zip_ref.namelist()
-        # Add support for other archive formats here if needed
+        elif file_path.endswith('.rar'):
+            with rarfile.RarFile(file_path, 'r') as rar_ref:
+                rar_ref.extractall(extract_path)
+                extracted_files = rar_ref.namelist()
+        elif file_path.endswith('.7z'):
+            with py7zr.SevenZipFile(file_path, mode='r') as sz_ref:
+                sz_ref.extractall(extract_path)
+                extracted_files = sz_ref.getnames()
+        else:
+            raise ValueError("Unsupported file format. Only .zip, .rar, and .7z files are supported.")
     except Exception as e:
         print(f"Error unzipping file: {e}")
     return extracted_files
 
 # Recursive function to upload files
-async def upload_files(bot, chat_id, directory, base_path=""):
+async def upload_files(bot, chat_id, directory):
     for item in os.listdir(directory):
         item_path = os.path.join(directory, item)
         if os.path.isfile(item_path):
             try:
-                await bot.send_document(chat_id, document=item_path, caption=item)
+                await bot.send_document(chat_id, document=item_path)
             except Exception as e:
                 print(f"Error uploading {item}: {e}")
         elif os.path.isdir(item_path):
-            await upload_files(bot, chat_id, item_path, base_path=os.path.join(base_path, item))
+            await upload_files(bot, chat_id, item_path)
 
 # Unzip file command handler
-@Client.on_message(filters.command("unzip") & filters.chat(GROUP))
-async def unzip(bot, msg):
-    if not msg.reply_to_message:
-        return await msg.reply_text("Please reply to a zip file to unzip.")
+@Client.on_message(filters.command("unzip") & filters.chat("GROUP"))
+async def unzip_command(client, message: Message):
+    if not message.reply_to_message:
+        return await message.reply_text("Please reply to a file to unzip.")
 
-    media = msg.reply_to_message.document
+    media = message.reply_to_message.document
     if not media:
-        return await msg.reply_text("Please reply to a valid zip file.")
+        return await message.reply_text("Please reply to a valid file.")
 
-    sts = await msg.reply_text("🚀Downloading file...⚡")
-    c_time = time.time()
-    input_path = await bot.download_media(media, progress
-                                          =progress_message, progress_args=("🚀Downloading file...⚡️", sts, c_time))
+    sts = await message.reply_text("🚀 Downloading file... ⚡")
+    try:
+        input_path = await client.download_media(media)
+    except Exception as e:
+        await sts.edit(f"Error downloading file: {e}")
+        return
 
     if not os.path.exists(input_path):
-        await sts.edit(f"Error: The downloaded file does not exist.")
+        await sts.edit("Error: The downloaded file does not exist.")
         return
 
     extract_path = os.path.join(DOWNLOAD_LOCATION, "extracted")
     os.makedirs(extract_path, exist_ok=True)
 
-    await sts.edit("🚀Unzipping file...⚡")
+    await sts.edit("🚀 Unzipping file... ⚡")
     extracted_files = unzip_file(input_path, extract_path)
 
     if extracted_files:
-        await sts.edit(f"✅ File unzipped successfully. Uploading extracted files...⚡")
-        await upload_files(bot, msg.chat.id, extract_path)
+        await sts.edit(f"✅ File unzipped successfully. Uploading extracted files... ⚡")
+
+        # Send PM notification
+        try:
+            await client.send_message(message.from_user.id, "✅ Files unzipped and uploaded successfully.")
+        except Exception as e:
+            print(f"Failed to send PM notification: {e}")
+
+        # Upload extracted files
+        await upload_files(client, message.chat.id, extract_path)
         await sts.edit(f"✅ All extracted files uploaded successfully.")
     else:
         await sts.edit(f"❌ Failed to unzip file.")
 
     os.remove(input_path)
     shutil.rmtree(extract_path)
+    await sts.delete()
 
 
 def add_photo_attachment(input_path, attachment_path, output_path):
