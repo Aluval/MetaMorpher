@@ -19,10 +19,6 @@ from main.utils import heroku_restart
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 import asyncio
-import logging
-
-# Initialize logging
-logging.basicConfig(level=logging.INFO)
 
 DOWNLOAD_LOCATION1 = "./screenshots"
 
@@ -237,7 +233,9 @@ async def sample_video_option(client, callback_query: CallbackQuery):
 @Client.on_callback_query(filters.regex("^back_to_settings$"))
 async def back_to_settings(client, callback_query: CallbackQuery):
     await display_user_settings(client, callback_query.message, edit=True)
-  
+
+
+"""
 # User settings command handler
 @Client.on_message(filters.command("usersettings") & filters.group)
 async def display_user_settings(client, msg, edit=False):
@@ -265,6 +263,37 @@ async def display_user_settings(client, msg, edit=False):
         await msg.edit_text(f"User Settings\nCurrent sample video duration: {current_duration}\nCurrent screenshots setting: {current_screenshots}", reply_markup=keyboard)
     else:
         await msg.reply(f"User Settings\nCurrent sample video duration: {current_duration}\nCurrent screenshots setting: {current_screenshots}", reply_markup=keyboard)
+"""
+
+
+
+@Client.on_message(filters.command("usersettings") & filters.group)
+async def display_user_settings(client, msg, edit=False):
+    user_id = msg.from_user.id
+    current_duration = user_settings.get(user_id, {}).get("sample_video_duration", "Not set")
+    current_screenshots = user_settings.get(user_id, {}).get("screenshots", "Not set")
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("Sample Video Settings 🎞️", callback_data="sample_video_option")],
+        [InlineKeyboardButton("Screenshots Settings 📸", callback_data="screenshots_option")],
+        [InlineKeyboardButton("Thumbnail Settings 📄", callback_data="thumbnail_settings")],
+        [InlineKeyboardButton("Preview Metadata ✨", callback_data="preview_metadata")],
+        [InlineKeyboardButton("Attach Photo 📎", callback_data="attach_photo"), 
+         InlineKeyboardButton("Preview Photo ✨", callback_data="preview_photo")],
+        [InlineKeyboardButton("Preview Attach Photo task 🖼️", callback_data="preview_photo_attach_task")],
+        [InlineKeyboardButton("Preview Multi task 📑", callback_data="preview_multitask")],
+        [InlineKeyboardButton("Preview Rename task 📝", callback_data="preview_rename_task")],
+        [InlineKeyboardButton("Preview Metadata task ☄️", callback_data="preview_metadata_task")],
+        [InlineKeyboardButton("Preview Index task ♻️", callback_data="preview_change_index_task")],
+        [InlineKeyboardButton("Preview Remove Tags task 📛", callback_data="preview_removetags_task")],
+        [InlineKeyboardButton("Close ❌", callback_data="del")]
+    ])
+    if edit:
+        await msg.edit_text(f"User Settings\nCurrent sample video duration: {current_duration}\nCurrent screenshots setting: {current_screenshots}", reply_markup=keyboard)
+    else:
+        await msg.reply(f"User Settings\nCurrent sample video duration: {current_duration}\nCurrent screenshots setting: {current_screenshots}", reply_markup=keyboard)
+
+
 @Client.on_callback_query(filters.regex("^screenshots_option$"))
 async def screenshots_option(client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
@@ -428,6 +457,33 @@ async def set_thumbnail_handler(client, message):
     await client.download_media(message=message, file_name=thumbnail_path)
     await message.reply("Your permanent thumbnail is updated. If the bot is restarted, the new thumbnail will be preserved.")
 
+@Client.on_callback_query(filters.regex("^view_thumbnail$"))
+async def view_thumbnail(client, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
+
+    try:
+        await callback_query.message.reply_photo(photo=thumbnail_path, caption="This is your current thumbnail")
+    except Exception as e:
+        await callback_query.message.reply_text("You don't have any thumbnail.")
+
+
+@Client.on_callback_query(filters.regex("^delete_thumbnail$"))
+async def delete_thumbnail(client, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
+
+    try:
+        if os.path.exists(thumbnail_path):
+            os.remove(thumbnail_path)
+            await callback_query.message.reply_text("Your thumbnail was removed ❌")
+        else:
+            await callback_query.message.reply_text("You don't have any thumbnail ‼️")
+    except Exception as e:
+        await callback_query.message.reply_text("An error occurred while trying to remove your thumbnail. Please try again later.")
+      
+
+"""
 # Command handler to view the current thumbnail
 @Client.on_callback_query(filters.regex("^view_thumbnail$"))
 async def view_thumbnail(client, callback_query: CallbackQuery):
@@ -460,7 +516,7 @@ async def delete_thumbnail(client, callback_query: CallbackQuery):
     except Exception as e:
         logging.error(f"Error removing thumbnail for user {user_id}: {e}")
         await callback_query.message.reply_text("An error occurred while trying to remove your thumbnail. Please try again later.")
-
+"""
 
 # Inline query handler to return to user settings
 @Client.on_callback_query(filters.regex("^back_to_settings$"))
