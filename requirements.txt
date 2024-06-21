@@ -6,4 +6,3 @@ ffmpeg
 requests
 heroku3
 aiohttp
-https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest.zip
