@@ -850,6 +850,13 @@ async def remove_tags(bot, msg):
         )
         await sts.delete()
         await msg.reply_text(f"File `{new_filename if new_filename else os.path.basename(cleaned_file)}` has been uploaded to your PM")
+    except Exception as e:
+        await sts.edit(f"Error uploading: {e}")
+    finally:
+        os.remove(downloaded)
+        os.remove(output_file)
+        if file_thumb and os.path.exists(file_thumb):
+            os.remove(file_thumb)
 
 """
 @Client.on_message(filters.command("removetags") & filters.group)
