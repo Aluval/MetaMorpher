@@ -702,6 +702,7 @@ async def attach_photo(bot, msg):
         await sts.delete()
 
 
+
 @Client.on_message(filters.command("changemetadata") & filters.chat(GROUP))
 async def change_metadata(bot, msg):
     global METADATA_ENABLED, user_settings
@@ -776,6 +777,8 @@ async def change_metadata(bot, msg):
         os.remove(output_file)
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
+
+
 
 @Client.on_message(filters.command("removetags") & filters.chat(GROUP))
 async def remove_tags(bot, msg):
