@@ -834,10 +834,6 @@ async def remove_tags(bot, msg):
     else:
         file_thumb = thumbnail_path
 
-    filesize = os.path.getsize(cleaned_file)
-    filesize_human = humanbytes(filesize)
-    cap = f"Here is your file with all tags removed:\n\n{new_filename if new_filename else os.path.basename(cleaned_file)}\n\n🌟 Size: {filesize_human}"
-
     user_id = msg.from_user.id  # Get the user ID of the sender
     await sts.edit("🔼 Uploading cleaned file to your PM... ⚡")
     try:
@@ -845,7 +841,7 @@ async def remove_tags(bot, msg):
             user_id,
             cleaned_file,
             thumb=file_thumb,
-            caption=cap,
+            caption="Here is your file with all tags removed.",
             progress=progress_message,
             progress_args=("🔼 Upload Started... ⚡️", sts, c_time)
         )
