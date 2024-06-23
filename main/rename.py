@@ -14,11 +14,11 @@ from main.utils import progress_message, humanbytes
 import subprocess
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup,CallbackQuery
 from config import GROUP, AUTH_USERS, ADMIN
-from main.utils import heroku_restart
+from main.utils import heroku_restart, upload_files
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 import asyncio
-from main.ffmpeg import remove_all_tags, change_video_metadata, generate_sample_video, add_photo_attachment, handle_link_download
+from main.ffmpeg import remove_all_tags, change_video_metadata, generate_sample_video, add_photo_attachment, unzip_file
 
 DOWNLOAD_LOCATION1 = "./screenshots"
 
@@ -158,61 +158,6 @@ async def update_settings_message(message):
     await message.edit_text("Use inline buttons to manage your settings:", reply_markup=keyboard)
 
 
-@Client.on_message(filters.command("SampleVideo") & filters.chat(GROUP))
-async def sample_video(bot, msg):
-    user_id = msg.from_user.id
-    duration = user_settings.get(user_id, {}).get("sample_video_duration", 0)
-    if duration == 0:
-        return await msg.reply_text("Please set a valid sample video duration using /usersettings.")
-
-    if not msg.reply_to_message:
-        return await msg.reply_text("Please reply to a valid video file or document.")
-
-    media = msg.reply_to_message.video or msg.reply_to_message.document
-    if not media:
-        return await msg.reply_text("Please reply to a valid video file or document.")
-
-    sts = await msg.reply_text("🚀 Downloading media... ⚡")
-    c_time = time.time()
-    try:
-        input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀 Downloading media... ⚡️", sts, c_time))
-    except Exception as e:
-        await sts.edit(f"Error downloading media: {e}")
-        return
-
-    output_file = os.path.join(DOWNLOAD_LOCATION, f"sample_video_{duration}s.mp4")
-
-    await sts.edit("🚀 Processing sample video... ⚡")
-    try:
-        generate_sample_video(input_path, duration, output_file)
-    except Exception as e:
-        await sts.edit(f"Error generating sample video: {e}")
-        os.remove(input_path)
-        return
-
-    filesize = os.path.getsize(output_file)
-    filesize_human = humanbytes(filesize)
-    cap = f"{os.path.basename(output_file)}\n\n🌟 Size: {filesize_human}"
-
-    user_id = msg.from_user.id  # Get the user ID of the sender
-    await sts.edit("💠 Uploading sample video to your PM... ⚡")
-    c_time = time.time()
-    try:
-        await bot.send_document(
-            user_id, 
-            document=output_file, 
-            caption=cap, 
-            progress=progress_message, 
-            progress_args=("💠 Upload Started... ⚡️", sts, c_time)
-        )
-        await msg.reply_text("✅ Check your PM for the sample video.")
-    except Exception as e:
-        await sts.edit(f"Error uploading sample video: {e}")
-        return
-
-    os.remove(input_path)
-    os.remove(output_file)
-    await sts.delete()
 
 
 # Callback query handler for setting sample video duration
@@ -253,6 +198,7 @@ async def display_user_settings(client, msg, edit=False):
     current_screenshots = user_settings.get(user_id, {}).get("screenshots", "Not set")
 
     keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("💠", callback_data="sunrises24_bot_updates")],
         [InlineKeyboardButton("Sample Video Settings 🎞️", callback_data="sample_video_option")],
         [InlineKeyboardButton("Screenshots Settings 📸", callback_data="screenshots_option")],
         [InlineKeyboardButton("Thumbnail Settings 📄", callback_data="thumbnail_settings")],
@@ -265,6 +211,7 @@ async def display_user_settings(client, msg, edit=False):
         [InlineKeyboardButton("Preview Metadata task ☄️", callback_data="preview_metadata_task")],
         [InlineKeyboardButton("Preview Index task ♻️", callback_data="preview_change_index_task")],
         [InlineKeyboardButton("Preview Remove Tags task 📛", callback_data="preview_removetags_task")],
+        [InlineKeyboardButton("💠", callback_data="sunrises24_bot_updates")],
         [InlineKeyboardButton("Close ❌", callback_data="del")]
     ])
     if edit:
@@ -829,44 +776,6 @@ async def remove_tags(bot, msg):
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
 
-import os
-import subprocess
-import time
-from pyrogram import Client, filters
-from pyrogram.errors import RPCError, TimeoutError
-
-# Replace this with your actual group ID
-GROUP = -1001234567890
-DOWNLOAD_LOCATION = "./downloads"  # Update as necessary
-
-CHANGE_INDEX_ENABLED = True  # Ensure this variable is defined and set accordingly
-
-def humanbytes(size):
-    # Function to convert bytes to a human-readable format
-    if not size:
-        return ""
-    power = 2 ** 10
-    n = 0
-    power_labels = {0: '', 1: 'Ki', 2: 'Mi', 3: 'Gi', 4: 'Ti'}
-    while size >= power:
-        size /= power
-        n += 1
-    return f"{size:.2f} {power_labels[n]}B"
-
-async def progress_message(current, total, message, start):
-    # Define your progress function (example implementation)
-    now = time.time()
-    diff = now - start
-    if diff % 10 == 0 or current == total:
-        percentage = current * 100 / total
-        speed = current / diff
-        elapsed_time = round(diff)
-        estimated_total_time = round(total / speed)
-        time_to_completion = round(estimated_total_time - elapsed_time)
-        progress_str = f"{percentage:.2f}%"
-        progress_message = f"{progress_str} | {humanbytes(current)} of {humanbytes(total)}\nSpeed: {humanbytes(speed)}/s\nETA: {time_to_completion}s"
-        await message.edit(progress_message)
-
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
     global CHANGE_INDEX_ENABLED
@@ -1058,23 +967,62 @@ async def screenshots_command(client, message: Message):
         print(f"Failed to send notification: {e}")
     await sts.delete()
 
+@Client.on_message(filters.command("SampleVideo") & filters.chat(GROUP))
+async def sample_video(bot, msg):
+    user_id = msg.from_user.id
+    duration = user_settings.get(user_id, {}).get("sample_video_duration", 0)
+    if duration == 0:
+        return await msg.reply_text("Please set a valid sample video duration using /usersettings.")
 
-def remove_all_tags(input_path, output_path):
-    command = [
-        'ffmpeg',
-        '-i', input_path,
-        '-map', '0',
-        '-map_metadata', '-1',  # This removes all metadata
-        '-c', 'copy',
-        output_path,
-        '-y'
-    ]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+    if not msg.reply_to_message:
+        return await msg.reply_text("Please reply to a valid video file or document.")
 
+    media = msg.reply_to_message.video or msg.reply_to_message.document
+    if not media:
+        return await msg.reply_text("Please reply to a valid video file or document.")
 
+    sts = await msg.reply_text("🚀 Downloading media... ⚡")
+    c_time = time.time()
+    try:
+        input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀 Downloading media... ⚡️", sts, c_time))
+    except Exception as e:
+        await sts.edit(f"Error downloading media: {e}")
+        return
+
+    output_file = os.path.join(DOWNLOAD_LOCATION, f"sample_video_{duration}s.mp4")
+
+    await sts.edit("🚀 Processing sample video... ⚡")
+    try:
+        generate_sample_video(input_path, duration, output_file)
+    except Exception as e:
+        await sts.edit(f"Error generating sample video: {e}")
+        os.remove(input_path)
+        return
+
+    filesize = os.path.getsize(output_file)
+    filesize_human = humanbytes(filesize)
+    cap = f"{os.path.basename(output_file)}\n\n🌟 Size: {filesize_human}"
+
+    user_id = msg.from_user.id  # Get the user ID of the sender
+    await sts.edit("💠 Uploading sample video to your PM... ⚡")
+    c_time = time.time()
+    try:
+        await bot.send_document(
+            user_id, 
+            document=output_file, 
+            caption=cap, 
+            progress=progress_message, 
+            progress_args=("💠 Upload Started... ⚡️", sts, c_time)
+        )
+        await msg.reply_text("✅ Check your PM for the sample video.")
+    except Exception as e:
+        await sts.edit(f"Error uploading sample video: {e}")
+        return
+
+    os.remove(input_path)
+    os.remove(output_file)
+    await sts.delete()
+  
 @Client.on_message(filters.command("linktofile") & filters.chat(AUTH_USERS))
 async def linktofile(bot, msg: Message):
     reply = msg.reply_to_message
@@ -1191,9 +1139,6 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str):
         except Exception as e:
             print(f"Error deleting file: {e}")
         await sts.delete()
-
-            
-
  
  # Define restart_app command
 @Client.on_message(filters.command("restart") & filters.chat(GROUP))
@@ -1209,120 +1154,6 @@ async def restart_app(bot, msg):
     elif result is True:
         return await msg.reply_text("Restarting app, wait for a minute.")
         
-
-
-
-
-def change_video_metadata(input_path, video_title, audio_title, subtitle_title, output_path):
-    command = [
-        'ffmpeg',
-        '-i', input_path,
-        '-metadata', f'title={video_title}',
-        '-metadata:s:v', f'title={video_title}',
-        '-metadata:s:a', f'title={audio_title}',
-        '-metadata:s:s', f'title={subtitle_title}',
-        '-map', '0:v?',
-        '-map', '0:a?',
-        '-map', '0:s?',
-        '-c:v', 'copy',
-        '-c:a', 'copy',
-        '-c:s', 'copy',
-        output_path,
-        '-y'
-    ]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
-
-def generate_sample_video(input_path, duration, output_path):
-    # Get the total duration of the input video using ffprobe
-    probe_command = [
-        'ffprobe',
-        '-v', 'error',
-        '-select_streams', 'v:0',
-        '-show_entries', 'format=duration',
-        '-of', 'default=noprint_wrappers=1:nokey=1',
-        input_path
-    ]
-    process = subprocess.Popen(probe_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        raise Exception(f"ffprobe error: {stderr.decode('utf-8')}")
-    
-    total_duration = float(stdout.decode('utf-8').strip())
-    if duration > total_duration:
-        raise ValueError("Requested duration is longer than the total duration of the video")
-
-    # Calculate the start time for the sample (middle of the video)
-    start_time = (total_duration - duration) / 2
-
-    # Generate the sample video using ffmpeg
-    command = [
-        'ffmpeg',
-        '-ss', str(start_time),
-        '-i', input_path,
-        '-t', str(duration),
-        '-c:v', 'copy',
-        '-c:a', 'copy',
-        output_path,
-        '-y'
-    ]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
-
-
-
-
-
-
-def add_photo_attachment(input_path, attachment_path, output_path):
-    command = [
-        'ffmpeg',
-        '-i', input_path,
-        '-map', '0:v?',
-        '-map', '0:a?',
-        '-map', '0:s?',
-        '-c:v', 'copy',
-        '-c:a', 'copy',
-        '-c:s', 'copy',
-        '-attach', attachment_path,
-        '-metadata:s:t', 'mimetype=image/jpeg',
-        output_path,
-        '-y'
-    ]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
-
-
-# Function to unzip files
-def unzip_file(file_path, extract_path):
-    extracted_files = []
-    try:
-        if file_path.endswith('.zip'):
-            with zipfile.ZipFile(file_path, 'r') as zip_ref:
-                zip_ref.extractall(extract_path)
-                extracted_files = zip_ref.namelist()
-        # Add support for other archive formats here if needed
-    except Exception as e:
-        print(f"Error unzipping file: {e}")
-    return extracted_files
-
-# Recursive function to upload files
-async def upload_files(bot, chat_id, directory, base_path=""):
-    for item in os.listdir(directory):
-        item_path = os.path.join(directory, item)
-        if os.path.isfile(item_path):
-            try:
-                await bot.send_document(chat_id, document=item_path, caption=item)
-            except Exception as e:
-                print(f"Error uploading {item}: {e}")
-        elif os.path.isdir(item_path):
-            await upload_files(bot, chat_id, item_path, base_path=os.path.join(base_path, item))
 
 # Unzip file command handler
 @Client.on_message(filters.command("unzip") & filters.chat(GROUP))
