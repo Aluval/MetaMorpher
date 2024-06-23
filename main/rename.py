@@ -703,42 +703,45 @@ async def attach_photo(bot, msg):
         os.remove(output_file)
         await sts.delete()
 
+@Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
+async def change_index(bot, msg):
+    global CHANGE_INDEX_ENABLED
 
-
-@Client.on_message(filters.command("changemetadata") & filters.group)
-async def change_metadata(bot, msg):
-    global METADATA_ENABLED, user_settings
-
-    if not METADATA_ENABLED:
-        return await msg.reply_text("Metadata changing feature is currently disabled.")
-
-    user_id = msg.from_user.id
-    if user_id not in user_settings or not any(user_settings[user_id].values()):
-        return await msg.reply_text("Metadata titles are not set. Please set metadata titles using `/setmetadata video_title audio_title subtitle_title`.")
+    if not CHANGE_INDEX_ENABLED:
+        return await msg.reply_text("The changeindex feature is currently disabled.")
 
     reply = msg.reply_to_message
     if not reply:
-        return await msg.reply_text("Please reply to a media file with the metadata command\nFormat: `changemetadata -n filename.mkv`")
+        return await msg.reply_text("Please reply to a media file with the index command\nFormat: `/changeindex a-3 -n filename.mkv` (Audio)")
 
-    if len(msg.command) < 3 or msg.command[1] != "-n":
-        return await msg.reply_text("Please provide the filename with the `-n` flag\nFormat: `changemetadata -n filename.mkv`")
+    if len(msg.command) < 3:
+        return await msg.reply_text("Please provide the index command with a filename\nFormat: `/changeindex a-3 -n filename.mkv` (Audio)")
 
-    output_filename = " ".join(msg.command[2:]).strip()
+    index_cmd = None
+    output_filename = None
 
-    if not output_filename.lower().endswith(('.mkv', '.mp4', '.avi')):
-        return await msg.reply_text("Invalid file extension. Please use a valid video file extension (e.g., .mkv, .mp4, .avi).")
+    # Extract index command and output filename from the command
+    for i in range(1, len(msg.command)):
+        if msg.command[i] == "-n":
+            output_filename = " ".join(msg.command[i + 1:])  # Join all the parts after the flag
+            break
 
-    video_title = user_settings[user_id]['video_title']
-    audio_title = user_settings[user_id]['audio_title']
-    subtitle_title = user_settings[user_id]['subtitle_title']
+    index_cmd = " ".join(msg.command[1:i])  # Get the index command before the flag
+
+    if not output_filename:
+        return await msg.reply_text("Please provide a filename using the `-n` flag.")
+
+    if not index_cmd or not index_cmd.startswith("a-"):
+        return await msg.reply_text("Invalid format. Use `/changeindex a-3 -n filename.mkv` for audio.")
 
     media = reply.document or reply.audio or reply.video
     if not media:
-        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the metadata command.")
+        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the index command.")
 
     sts = await msg.reply_text("🚀 Downloading media... ⚡")
     c_time = time.time()
     try:
+        # Download the media file
         downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
     except Exception as e:
         await sts.edit(f"Error downloading media: {e}")
@@ -746,22 +749,40 @@ async def change_metadata(bot, msg):
 
     output_file = os.path.join(DOWNLOAD_LOCATION, output_filename)
 
-    await sts.edit("💠 Changing metadata... ⚡")
-    try:
-        change_video_metadata(downloaded, video_title, audio_title, subtitle_title, output_file)
-    except Exception as e:
-        await sts.edit(f"Error changing metadata: {e}")
+    index_params = index_cmd.split('-')
+    stream_type = index_params[0]
+    indexes = [int(i) - 1 for i in index_params[1:]]
+
+    # Construct the FFmpeg command to modify indexes
+    ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']  # Always map video stream
+
+    for idx in indexes:
+        ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
+
+    # Copy all subtitle streams if they exist
+    ffmpeg_cmd.extend(['-map', '0:s?'])
+
+    ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
+
+    await sts.edit("💠 Changing indexing... ⚡")
+    process = await asyncio.create_subprocess_exec(*ffmpeg_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    stdout, stderr = await process.communicate()
+
+    if process.returncode != 0:
+        await sts.edit(f"❗ FFmpeg error: {stderr.decode('utf-8')}")
         os.remove(downloaded)
         return
 
+    # Thumbnail handling
     thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
-    if not os.path.exists(thumbnail_path):
+
+    if os.path.exists(thumbnail_path):
+        file_thumb = thumbnail_path
+    else:
         try:
             file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
         except Exception as e:
             file_thumb = None
-    else:
-        file_thumb = thumbnail_path
 
     filesize = os.path.getsize(output_file)
     filesize_human = humanbytes(filesize)
@@ -769,16 +790,32 @@ async def change_metadata(bot, msg):
 
     await sts.edit("💠 Uploading... ⚡")
     try:
-        await bot.send_document(msg.from_user.id, document=output_file, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡️", sts, c_time))
+        await bot.send_document(
+            msg.chat.id,
+            document=output_file,
+            thumb=file_thumb,
+            caption=cap,
+            progress=progress_message,
+            progress_args=("💠 Upload Started... ⚡️", sts, c_time)
+        )
         await sts.delete()
-        await msg.reply_text(f"File `{output_filename}` has been uploaded to your PM. Check your PM of the bot ✅ .")
-    except Exception as e:
-        await sts.edit(f"Error uploading: {e}")
+    except RPCError as e:
+        await sts.edit(f"Upload failed: {e}")
+    except TimeoutError as e:
+        await sts.edit(f"Upload timed out: {e}")
     finally:
-        os.remove(downloaded)
-        os.remove(output_file)
-        if file_thumb and os.path.exists(file_thumb):
-            os.remove(file_thumb)
+        try:
+            if file_thumb and os.path.exists(file_thumb):
+                os.remove(file_thumb)
+            os.remove(downloaded)
+            os.remove(output_file)
+        except Exception as e:
+            print(f"Error deleting files: {e}")
+
+    # Send notification about the file upload
+    await msg.reply_text(f"File `{output_filename}` has been uploaded to your PM. Check your PM of the bot ✅ .")
+
+
 
 @Client.on_message(filters.command("removetags") & filters.group)
 async def remove_tags(bot, msg):
