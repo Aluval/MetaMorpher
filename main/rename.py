@@ -776,11 +776,9 @@ async def change_metadata(bot, msg):
         os.remove(output_file)
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
-
-import os
 from pyrogram import Client, filters
-from pyrogram.errors import RPCError, TimeoutError
-from your_module import remove_all_tags  # Replace with your actual tag removal function
+from pyrogram.errors.exceptions import RPCError, Timeout
+import os
 
 DOWNLOAD_LOCATION = "/path/to/download/location"
 
@@ -853,7 +851,7 @@ async def remove_tags(bot, msg):
         await msg.reply_text("✅ Check your PM for the cleaned file.")
     except RPCError as e:
         await sts.edit(f"Upload failed: {e}")
-    except TimeoutError as e:
+    except Timeout as e:
         await sts.edit(f"Upload timed out: {e}")
     except Exception as e:
         await sts.edit(f"Error uploading cleaned file: {e}")
@@ -862,6 +860,7 @@ async def remove_tags(bot, msg):
         os.remove(cleaned_file)
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
+
           
 """
 @Client.on_message(filters.command("removetags") & filters.group)
