@@ -777,7 +777,7 @@ async def change_metadata(bot, msg):
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
 
-@Client.on_message(filters.command("removetags") & filters.chat(GROUP))
+@Client.on_message(filters.command("removetags") & filters.group)
 async def remove_tags(bot, msg):
     global REMOVETAGS_ENABLED
     if not REMOVETAGS_ENABLED:
@@ -824,6 +824,7 @@ async def remove_tags(bot, msg):
         os.remove(downloaded)
         return
 
+    # Thumbnail handling
     thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
     if not os.path.exists(thumbnail_path):
         try:
@@ -835,21 +836,21 @@ async def remove_tags(bot, msg):
 
     filesize = os.path.getsize(cleaned_file)
     filesize_human = humanbytes(filesize)
-    cap = f"{new_filename if new_filename else os.path.basename(cleaned_file)}\n\n🌟 Size: {filesize_human}"
+    cap = f"Here is your file with all tags removed:\n\n{new_filename if new_filename else os.path.basename(cleaned_file)}\n\n🌟 Size: {filesize_human}"
 
     user_id = msg.from_user.id  # Get the user ID of the sender
     await sts.edit("🔼 Uploading cleaned file to your PM... ⚡")
     try:
         await bot.send_document(
-            user_id, 
-            cleaned_file, 
-            thumb=file_thumb, 
-            caption=cap, 
-            progress=progress_message, 
+            user_id,
+            cleaned_file,
+            thumb=file_thumb,
+            caption=cap,
+            progress=progress_message,
             progress_args=("🔼 Upload Started... ⚡️", sts, c_time)
         )
         await sts.delete()
-        await msg.reply_text(f"File `{new_filename if new_filename else os.path.basename(cleaned_file)}` has been uploaded to your PM.")
+        await msg.reply_text(f"File `{new_filename if new_filename else os.path.basename(cleaned_file)}` has been uploaded to your PM. Check your PM of the bot ✅ .")
     except Exception as e:
         await sts.edit(f"Error uploading cleaned file: {e}")
     finally:
