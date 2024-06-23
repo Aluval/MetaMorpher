@@ -583,7 +583,7 @@ async def multitask_command(bot, msg):
         await sts.delete()
 
 
-@Client.on_message(filters.command("changemetadata") & filters.chat(GROUP))
+@Client.on_message(filters.command("changemetadata") & filters.group)
 async def change_metadata(bot, msg):
     global METADATA_ENABLED, user_settings
 
