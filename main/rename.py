@@ -889,7 +889,6 @@ async def change_index(bot, msg):
     # Send notification about the file upload
     await msg.reply_text(f"File `{output_filename}` has been uploaded to your PM. Check your PM of the bot ✅ .")
 
-# Command handler for /removetags command
 @Client.on_message(filters.command("removetags") & filters.group)
 async def remove_tags(bot, msg):
     global REMOVETAGS_ENABLED
@@ -948,7 +947,19 @@ async def remove_tags(bot, msg):
 
     await sts.edit("🔼 Uploading cleaned file... ⚡")
     try:
-        await bot.send_document(msg.chat.id, cleaned_file, thumb=file_thumb, caption="Here is your file with all tags removed.", progress=progress_message, progress_args=("🔼 Upload Started... ⚡️", sts, c_time))
+        # Send cleaned file to user's PM
+        await bot.send_document(
+            msg.from_user.id,
+            cleaned_file,
+            thumb=file_thumb,
+            caption="Here is your file with all tags removed.",
+            progress=progress_message,
+            progress_args=("🔼 Upload Started... ⚡️", sts, c_time)
+        )
+
+        # Notify in the group about the upload
+        await msg.reply_text(f"✅ File `{new_filename if new_filename else os.path.basename(cleaned_file)}` has been uploaded to your PM. Check your PM of the bot ✅ .")
+        
         await sts.delete()
     except Exception as e:
         await sts.edit(f"Error uploading cleaned file: {e}")
@@ -957,7 +968,6 @@ async def remove_tags(bot, msg):
         os.remove(cleaned_file)
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
-
 
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
