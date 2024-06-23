@@ -496,7 +496,7 @@ async def rename_file(bot, msg):
 
     await sts.delete()
 
-"""
+
 #MultiTask Command 
 @Client.on_message(filters.command("multitask") & filters.group)
 async def multitask_command(bot, msg):
@@ -580,153 +580,8 @@ async def multitask_command(bot, msg):
         os.remove(downloaded)
         if og_thumbnail and os.path.exists(og_thumbnail):
             os.remove(og_thumbnail)
-        await sts.delete()"""
+        await sts.delete()
 
-
-@Client.on_message(filters.command("multitask") & filters.group)
-async def multitask_command(bot, msg):
-    global MULTITASK_ENABLED, REMOVETAGS_ENABLED
-    DOWNLOAD_LOCATION = "/path/to/your/download/location"  # Replace with your actual download location
-
-    if not MULTITASK_ENABLED:
-        return await msg.reply_text("The multitask feature is currently disabled.")
-
-    if len(msg.command) < 2:
-        return await msg.reply_text("Please provide the required arguments\nFormat: `/multitask -m video_title | audio_title | subtitle_title -n new_filename.mkv`")
-
-    command_text = " ".join(msg.command[1:]).strip()
-    metadata = []
-    new_filename = None
-
-    if "-m" in command_text:
-        try:
-            metadata_part = command_text.split('-m')[1].split('-n')[0].strip()
-            metadata = list(map(str.strip, metadata_part.split('|')))
-            if len(metadata) != 3:
-                raise ValueError("Please provide all three metadata entries separated by '|'.")
-        except IndexError:
-            return await msg.reply_text("Invalid metadata format. Use `-m video_title | audio_title | subtitle_title`.")
-        except ValueError as ve:
-            return await msg.reply_text(str(ve))
-
-    if "-n" in command_text:
-        try:
-            new_filename_part = command_text.split('-n')[1].strip()
-            if not new_filename_part.lower().endswith(('.mkv', '.mp4', '.avi')):
-                raise ValueError("Invalid file extension. Please use a valid video file extension (e.g., .mkv, .mp4, .avi).")
-            new_filename = new_filename_part
-        except IndexError:
-            return await msg.reply_text("Please provide a valid filename with the -n option (e.g., `-n new_filename.mkv`).")
-        except ValueError as ve:
-            return await msg.reply_text(str(ve))
-
-    if not metadata or not new_filename:
-        return await msg.reply_text("Please provide all necessary arguments.\nFormat: `/multitask -m video_title | audio_title | subtitle_title -n new_filename.mkv`")
-
-    reply = msg.reply_to_message
-    if not reply:
-        return await msg.reply_text("Please reply to a media file with the multitask command.")
-
-    media = reply.document or reply.audio or reply.video
-    if not media:
-        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the multitask command.")
-
-    sts_removetags = await msg.reply_text("🔖 Removing all tags... ⚡")
-    c_time_removetags = time.time()
-
-    try:
-        downloaded_removetags = await reply.download(progress=progress_message, progress_args=("🔖 Downloading media for removetags... ⚡️", sts_removetags, c_time_removetags))
-    except Exception as e:
-        await sts_removetags.edit(f"Error downloading media for removetags operation: {e}")
-        return
-
-    cleaned_file_removetags = os.path.join(DOWNLOAD_LOCATION, new_filename if new_filename else "cleaned_" + os.path.basename(downloaded_removetags))
-
-    try:
-        remove_all_tags(downloaded_removetags, cleaned_file_removetags)
-    except Exception as e:
-        await sts_removetags.edit(f"Error removing all tags: {e}")
-        os.remove(downloaded_removetags)
-        return
-
-    file_thumb_removetags = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
-    if not os.path.exists(file_thumb_removetags):
-        try:
-            file_thumb_removetags = await bot.download_media(media.thumbs[0].file_id)
-        except Exception as e:
-            print(e)
-            file_thumb_removetags = None
-
-    await sts_removetags.edit("🔼 Uploading cleaned file with tags removed to your PM... ⚡")
-    try:
-        await bot.send_document(
-            msg.from_user.id,
-            document=cleaned_file_removetags,
-            thumb=file_thumb_removetags,
-            caption="Here is your file with all tags removed.",
-            progress=progress_message,
-            progress_args=("🔼 Upload Started... ⚡️", sts_removetags, c_time_removetags)
-        )
-        await sts_removetags.delete()
-        await msg.reply_text("✅ Check your PM for the cleaned file with tags removed.")
-    except Exception as e:
-        await sts_removetags.edit(f"Error uploading cleaned file with tags removed: {e}")
-    finally:
-        os.remove(downloaded_removetags)
-        os.remove(cleaned_file_removetags)
-        if file_thumb_removetags and os.path.exists(file_thumb_removetags):
-            os.remove(file_thumb_removetags)
-
-    # After removetags, proceed with multitask operations
-    sts_multitask = await msg.reply_text("💠 Changing metadata and performing multitask operations... ⚡")
-    c_time_multitask = time.time()
-
-    try:
-        downloaded_multitask = await reply.download(progress=progress_message, progress_args=("💠 Downloading media for multitask... ⚡️", sts_multitask, c_time_multitask))
-    except Exception as e:
-        await sts_multitask.edit(f"Error downloading media for multitask operations: {e}")
-        return
-
-    video_title = metadata[0]
-    audio_title = metadata[1]
-    subtitle_title = metadata[2]
-
-    thumbnail_path_multitask = os.path.join(DOWNLOAD_LOCATION, f"thumbnail_{msg.from_user.id}.jpg")
-    og_thumbnail_multitask = None
-    if os.path.exists(thumbnail_path_multitask):
-        og_thumbnail_multitask = thumbnail_path_multitask
-    else:
-        try:
-            og_thumbnail_multitask = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path_multitask)
-        except Exception as e:
-            await sts_multitask.edit(f"Error downloading thumbnail for multitask operations: {e}")
-            og_thumbnail_multitask = None
-
-    try:
-        change_video_metadata(downloaded_multitask, video_title, audio_title, subtitle_title, new_filename)
-    except Exception as e:
-        await sts_multitask.edit(f"Error changing metadata or performing multitask operations: {e}")
-        os.remove(downloaded_multitask)
-        return
-
-    await sts_multitask.edit("💠 Uploading cleaned file after multitask operations... ⚡")
-    try:
-        await bot.send_document(
-            msg.from_user.id,
-            document=new_filename,
-            thumb=og_thumbnail_multitask,
-            caption=new_filename,
-            progress=progress_message,
-            progress_args=("💠 Upload Started... ⚡️", sts_multitask, c_time_multitask)
-        )
-        await sts_multitask.delete()
-        await msg.reply_text("✅ Check your PM for the processed file after multitask operations.")
-    except Exception as e:
-        await sts_multitask.edit(f"Error uploading cleaned file after multitask operations: {e}")
-    finally:
-        os.remove(downloaded_multitask)
-        if og_thumbnail_multitask and os.path.exists(og_thumbnail_multitask):
-            os.remove(og_thumbnail_multitask)
 
 
 """
@@ -850,7 +705,7 @@ async def attach_photo(bot, msg):
 
 
 
-@Client.on_message(filters.command("changemetadata") & filters.chat(GROUP))
+@Client.on_message(filters.command("changemetadata") & filters.group)
 async def change_metadata(bot, msg):
     global METADATA_ENABLED, user_settings
 
@@ -972,7 +827,7 @@ async def remove_tags(bot, msg):
         os.remove(downloaded)
         return
 
-    file_thumb = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
+    file_thumb = f"{DOWNLOAD_LOCATION}/thumbnail.jpg"
     if not os.path.exists(file_thumb):
         try:
             file_thumb = await bot.download_media(media.thumbs[0].file_id)
