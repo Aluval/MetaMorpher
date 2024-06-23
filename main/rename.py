@@ -815,8 +815,7 @@ async def change_index(bot, msg):
     # Send notification about the file upload
     await msg.reply_text(f"File `{output_filename}` has been uploaded to your PM. Check your PM of the bot ✅ .")
 
-
-
+# Command handler for /removetags command
 @Client.on_message(filters.command("removetags") & filters.group)
 async def remove_tags(bot, msg):
     global REMOVETAGS_ENABLED
@@ -859,6 +858,7 @@ async def remove_tags(bot, msg):
     await sts.edit("💠 Removing all tags... ⚡")
     try:
         remove_all_tags(downloaded, cleaned_file)
+
     except Exception as e:
         await sts.edit(f"Error removing all tags: {e}")
         os.remove(downloaded)
@@ -872,19 +872,10 @@ async def remove_tags(bot, msg):
             print(e)
             file_thumb = None
 
-    user_id = msg.from_user.id  # Get the user ID of the sender
-    await sts.edit("🔼 Uploading cleaned file to your PM... ⚡")
+    await sts.edit("🔼 Uploading cleaned file... ⚡")
     try:
-        await bot.send_document(
-            user_id, 
-            cleaned_file, 
-            thumb=file_thumb, 
-            caption="Here is your file with all tags removed.", 
-            progress=progress_message, 
-            progress_args=("🔼 Upload Started... ⚡️", sts, c_time)
-        )
+        await bot.send_document(msg.chat.id, cleaned_file, thumb=file_thumb, caption="Here is your file with all tags removed.", progress=progress_message, progress_args=("🔼 Upload Started... ⚡️", sts, c_time))
         await sts.delete()
-        await msg.reply_text("✅ Check your PM for the cleaned file.")
     except Exception as e:
         await sts.edit(f"Error uploading cleaned file: {e}")
     finally:
@@ -892,6 +883,18 @@ async def remove_tags(bot, msg):
         os.remove(cleaned_file)
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
+
+    # Send processed file to user via PM
+    try:
+        output_filename = os.path.basename(cleaned_file)
+        output_file = cleaned_file
+        await bot.send_document(msg.from_user.id, document=output_file, caption=f"Here is your cleaned file: {output_filename}")
+        await msg.reply_text("✅ Check your PM for the processed file.")
+    except Exception as e:
+        print(e)
+        await msg.reply_text("❌ Error sending the processed file to your PM.")
+
+
 
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
