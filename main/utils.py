@@ -90,3 +90,16 @@ async def heroku_restart():
             print(e)
             x = False
     return x
+
+# Recursive function to upload files
+async def upload_files(bot, chat_id, directory, base_path=""):
+    for item in os.listdir(directory):
+        item_path = os.path.join(directory, item)
+        if os.path.isfile(item_path):
+            try:
+                await bot.send_document(chat_id, document=item_path, caption=item)
+            except Exception as e:
+                print(f"Error uploading {item}: {e}")
+        elif os.path.isdir(item_path):
+            await upload_files(bot, chat_id, item_path, base_path=os.path.join(base_path, item))
+            
