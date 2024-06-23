@@ -889,6 +889,7 @@ async def change_index(bot, msg):
     # Send notification about the file upload
     await msg.reply_text(f"File `{output_filename}` has been uploaded to your PM. Check your PM of the bot ✅ .")
 
+
 @Client.on_message(filters.command("removetags") & filters.group)
 async def remove_tags(bot, msg):
     global REMOVETAGS_ENABLED
@@ -956,8 +957,8 @@ async def remove_tags(bot, msg):
             progress_args=("🔼 Upload Started... ⚡️", sts, c_time)
         )
         await sts.delete()
-        
-        # Send a message to the user to check their PM for the uploaded file
+
+        # Send a brief message about checking PM for the file
         await msg.reply_text(f"File `{new_filename if new_filename else os.path.basename(cleaned_file)}` has been uploaded to your PM. Check your PM of the bot ✅ .")
     except Exception as e:
         await sts.edit(f"Error uploading cleaned file: {e}")
