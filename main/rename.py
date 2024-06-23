@@ -18,6 +18,7 @@ from main.utils import heroku_restart
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 import asyncio
+from main.ffmpeg import remove_all_tags, change_video_metadata, generate_sample_video, add_photo_attachment, handle_link_download
 
 DOWNLOAD_LOCATION1 = "./screenshots"
 
@@ -828,6 +829,44 @@ async def remove_tags(bot, msg):
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
 
+import os
+import subprocess
+import time
+from pyrogram import Client, filters
+from pyrogram.errors import RPCError, TimeoutError
+
+# Replace this with your actual group ID
+GROUP = -1001234567890
+DOWNLOAD_LOCATION = "./downloads"  # Update as necessary
+
+CHANGE_INDEX_ENABLED = True  # Ensure this variable is defined and set accordingly
+
+def humanbytes(size):
+    # Function to convert bytes to a human-readable format
+    if not size:
+        return ""
+    power = 2 ** 10
+    n = 0
+    power_labels = {0: '', 1: 'Ki', 2: 'Mi', 3: 'Gi', 4: 'Ti'}
+    while size >= power:
+        size /= power
+        n += 1
+    return f"{size:.2f} {power_labels[n]}B"
+
+async def progress_message(current, total, message, start):
+    # Define your progress function (example implementation)
+    now = time.time()
+    diff = now - start
+    if diff % 10 == 0 or current == total:
+        percentage = current * 100 / total
+        speed = current / diff
+        elapsed_time = round(diff)
+        estimated_total_time = round(total / speed)
+        time_to_completion = round(estimated_total_time - elapsed_time)
+        progress_str = f"{percentage:.2f}%"
+        progress_message = f"{progress_str} | {humanbytes(current)} of {humanbytes(total)}\nSpeed: {humanbytes(speed)}/s\nETA: {time_to_completion}s"
+        await message.edit(progress_message)
+
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
     global CHANGE_INDEX_ENABLED
@@ -863,8 +902,9 @@ async def change_index(bot, msg):
         return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the index command.")
 
     sts = await msg.reply_text("🚀 Downloading media... ⚡")
+    c_time = time.time()
     try:
-        downloaded = await reply.download()
+        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
     except Exception as e:
         await sts.edit(f"Error downloading media: {e}")
         return
@@ -895,10 +935,13 @@ async def change_index(bot, msg):
         return
 
     # Thumbnail handling
-    file_thumb = None
-    if media.thumbs:
+    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
+    
+    if os.path.exists(thumbnail_path):
+        file_thumb = thumbnail_path
+    else:
         try:
-            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=f"{DOWNLOAD_LOCATION}/thumbnail.jpg")
+            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
         except Exception as e:
             file_thumb = None
 
@@ -909,12 +952,13 @@ async def change_index(bot, msg):
     await sts.edit("💠 Uploading... ⚡")
     try:
         await bot.send_document(
-            msg.from_user.id, 
+            msg.chat.id, 
             document=output_file, 
             thumb=file_thumb, 
-            caption=cap
+            caption=cap, 
+            progress=progress_message, 
+            progress_args=("💠 Upload Started... ⚡️", sts, c_time)
         )
-        await msg.reply_text("✅ Check your PM for the processed file.")
         await sts.delete()
     except RPCError as e:
         await sts.edit(f"Upload failed: {e}")
@@ -922,12 +966,17 @@ async def change_index(bot, msg):
         await sts.edit(f"Upload timed out: {e}")
     finally:
         try:
-            if file_thumb:
+            if file_thumb and os.path.exists(file_thumb):
                 os.remove(file_thumb)
             os.remove(downloaded)
             os.remove(output_file)
         except Exception as e:
             print(f"Error deleting files: {e}")
+
+    await msg.reply_text("Check your file in your PM of bot")
+
+    # Send notification about the file upload
+    await msg.reply_text(f"File `{output_filename}` has been uploaded to your PM✅. Check your PM of the bot.")
 
 
 @Client.on_message(filters.command("screenshots") & filters.group)
