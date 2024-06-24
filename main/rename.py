@@ -484,10 +484,13 @@ async def rename_file(bot, msg):
     try:
         await bot.send_document(msg.from_user.id, document=downloaded, thumb=og_thumbnail, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡", sts, c_time))
         await msg.reply_text(
-        f"┏📥 **File Name:** {new_name}\n"
+        f"┏📥 **File Name:** {new_name}\n\n"
         f"┠💾 **Size:** {filesize}\n"
         f"┠♻️ **Mode:** Rename\n"
-        f"┗🚹 **Request User:** {msg.from_user.mention}"
+        f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
+
+          ❄ File have been Sent in Bot PM!
+          @{Botusername}
     )
     except Exception as e:
         return await sts.edit(f"Error: {e}")
@@ -581,10 +584,13 @@ async def multitask_command(bot, msg):
     try:
         await bot.send_document(msg.from_user.id, document=new_filename, thumb=og_thumbnail, caption=new_filename)
         await msg.reply_text(
-        f"┏📥 **File Name:** {new_filename}\n"
+        f"┏📥 **File Name:** {new_filename}\n\n"
         f"┠💾 **Size:** {filesize_human}\n"
         f"┠♻️ **Mode:** Multitask\n"
-        f"┗🚹 **Request User:** {msg.from_user.mention}"
+        f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
+
+          ❄ File have been Sent in Bot PM!
+          @{Botusername}
     )
     except Exception as e:
         await sts.edit(f"Error uploading cleaned file: {e}")
@@ -661,10 +667,13 @@ async def change_metadata(bot, msg):
         await bot.send_document(msg.from_user.id, document=output_file, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡️", sts, c_time))
         await sts.delete()
         await msg.reply_text(
-        f"┏📥 **File Name:** {output_filename}\n"
+        f"┏📥 **File Name:** {output_filename}\n\n"
         f"┠💾 **Size:** {filesize_human}\n"
         f"┠♻️ **Mode:** Metadata\n"
-        f"┗🚹 **Request User:** {msg.from_user.mention}"
+        f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
+
+          ❄ File have been Sent in Bot PM!
+          @{Botusername}
     )
     except Exception as e:
         await sts.edit(f"Error uploading: {e}")
@@ -790,10 +799,13 @@ async def attach_photo(bot, msg):
     try:
         await bot.send_document(msg.from_user.id, output_file, caption=output_filename)
         await msg.reply_text(
-            f"┏📥 **File Name:** {output_filename}\n"
+            f"┏📥 **File Name:** {output_filename}\n\n"
             f"┠💾 **Size:** {filesize_human}\n"
             f"┠♻️ **Mode:** Attach Photo\n"
-            f"┗🚹 **Request User:** {msg.from_user.mention}"
+            f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
+
+          ❄ File have been Sent in Bot PM!
+          @{Botusername}
         )
     except Exception as e:
         await sts.edit(f"Error uploading modified file: {e}")
@@ -899,10 +911,13 @@ async def change_index(bot, msg):
         )
         await sts.delete()
         await msg.reply_text(
-            f"┏📥 **File Name:** {output_filename}\n"
+            f"┏📥 **File Name:** {output_filename}\n\n"
             f"┠💾 **Size:** {filesize_human}\n"
             f"┠♻️ **Mode:** Change Index\n"
-            f"┗🚹 **Request User:** {msg.from_user.mention}"
+            f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
+
+          ❄ File have been Sent in Bot PM!
+          @{Botusername}
         )
     except RPCError as e:
         await sts.edit(f"Upload failed: {e}")
