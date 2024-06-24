@@ -649,7 +649,12 @@ async def change_metadata(bot, msg):
     try:
         await bot.send_document(msg.from_user.id, document=output_file, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡️", sts, c_time))
         await sts.delete()
-        await msg.reply_text(f"✅ File `{output_filename}` has been uploaded to your PM. Check your PM of the bot ✅ .")
+        await msg.reply_text(
+        f"┏📥 File Name: {output_filename}\n"
+        f"┠💾 Size: {filesize_human}\n"
+        f"┠♻️ Mode: Metadata\n"
+        f"┗🚹 Request User: {msg.from_user.mention}"
+    )
     except Exception as e:
         await sts.edit(f"Error uploading: {e}")
     finally:
