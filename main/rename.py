@@ -438,7 +438,7 @@ async def set_metadata_command(client, msg):
         "subtitle_title": titles[2].strip()
     }
     
-    await msg.reply_text("Metadata titles set successfully.")
+    await msg.reply_text("Metadata titles set successfully ✅.")
 
 #Rename Command
 @Client.on_message(filters.command("rename") & filters.group)
@@ -484,12 +484,12 @@ async def rename_file(bot, msg):
     try:
         await bot.send_document(msg.from_user.id, document=downloaded, thumb=og_thumbnail, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡", sts, c_time))
         await msg.reply_text(
-        f"┏📥 **File Name:** {new_name}\n\n"
+        f"┏📥 **File Name:** {new_name}\n"
         f"┠💾 **Size:** {filesize}\n"
         f"┠♻️ **Mode:** Rename\n"
         f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-        f"❄**File have been Sent in Bot PM!**/n"
-          f"@{Botusername}" 
+        f"❄**File have been Sent in Bot PM!**"
+          
     )
     except Exception as e:
         return await sts.edit(f"Error: {e}")
@@ -583,12 +583,11 @@ async def multitask_command(bot, msg):
     try:
         await bot.send_document(msg.from_user.id, document=new_filename, thumb=og_thumbnail, caption=new_filename)
         await msg.reply_text(
-        f"┏📥 **File Name:** {new_filename}\n\n"
+        f"┏📥 **File Name:** {new_filename}\n"
         f"┠💾 **Size:** {filesize_human}\n"
         f"┠♻️ **Mode:** Multitask\n"
         f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-        f"❄**File have been Sent in Bot PM!**\n"
-        f"@{Botusername}"
+        f"❄**File have been Sent in Bot PM!**"        
     )
     except Exception as e:
         await sts.edit(f"Error uploading cleaned file: {e}")
@@ -665,12 +664,12 @@ async def change_metadata(bot, msg):
         await bot.send_document(msg.from_user.id, document=output_file, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡️", sts, c_time))
         await sts.delete()
         await msg.reply_text(
-        f"┏📥 **File Name:** {output_filename}\n\n"
+        f"┏📥 **File Name:** {output_filename}\n"
         f"┠💾 **Size:** {filesize_human}\n"
         f"┠♻️ **Mode:** Metadata\n"
         f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-        f"❄**File have been Sent in Bot PM!**\n"
-        f"@{Botusername}"  
+        f"❄**File have been Sent in Bot PM!**"
+       
     )
     except Exception as e:
         await sts.edit(f"Error uploading: {e}")
@@ -796,12 +795,12 @@ async def attach_photo(bot, msg):
     try:
         await bot.send_document(msg.from_user.id, output_file, caption=output_filename)
         await msg.reply_text(
-            f"┏📥 **File Name:** {output_filename}\n\n"
+            f"┏📥 **File Name:** {output_filename}\n"
             f"┠💾 **Size:** {filesize_human}\n"
             f"┠♻️ **Mode:** Attach Photo\n"
             f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-            f"❄**File have been Sent in Bot PM!**\n"
-            f"@{Botusername}" 
+            f"❄**File have been Sent in Bot PM!**"
+            
         )
     except Exception as e:
         await sts.edit(f"Error uploading modified file: {e}")
@@ -907,12 +906,11 @@ async def change_index(bot, msg):
         )
         await sts.delete()
         await msg.reply_text(
-            f"┏📥 **File Name:** {output_filename}\n\n"
+            f"┏📥 **File Name:** {output_filename}\n"
             f"┠💾 **Size:** {filesize_human}\n"
             f"┠♻️ **Mode:** Change Index\n"
             f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-            f"❄**File have been Sent in Bot PM!**\n"
-            f"@{Botusername}" 
+            f"❄**File have been Sent in Bot PM!**"            
         )
     except RPCError as e:
         await sts.edit(f"Upload failed: {e}")
@@ -1113,12 +1111,11 @@ async def remove_tags(bot, msg):
         filesize = os.path.getsize(cleaned_file)
         filesize_human = humanbytes(filesize)
         await msg.reply_text(
-            f"┏📥 **File Name:** {new_filename if new_filename else os.path.basename(cleaned_file)}\n\n"
+            f"┏📥 **File Name:** {new_filename if new_filename else os.path.basename(cleaned_file)}\n"
             f"┠💾 **Size:** {filesize_human}\n"
             f"┠♻️ **Mode:** Remove Tags\n"
             f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-            f"❄**File have been Sent in Bot PM!**\n"
-            f"@{Botusername}" 
+            f"❄**File has been sent to your PM in the bot!**"            
         )
         
         await sts.delete()
