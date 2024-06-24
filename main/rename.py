@@ -582,7 +582,6 @@ async def multitask_command(bot, msg):
             os.remove(og_thumbnail)
         await sts.delete()
 
-
 @Client.on_message(filters.command("changemetadata") & filters.group)
 async def change_metadata(bot, msg):
     global METADATA_ENABLED, user_settings
@@ -650,10 +649,10 @@ async def change_metadata(bot, msg):
         await bot.send_document(msg.from_user.id, document=output_file, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡️", sts, c_time))
         await sts.delete()
         await msg.reply_text(
-        f"┏📥 File Name: {output_filename}\n"
-        f"┠💾 Size: {filesize_human}\n"
-        f"┠♻️ Mode: Metadata\n"
-        f"┗🚹 Request User: {msg.from_user.mention}"
+        f"┏📥 **File Name:** {output_filename}\n"
+        f"┠💾 **Size:** {filesize_human}\n"
+        f"┠♻️ **Mode:** Metadata\n"
+        f"┗🚹 **Request User:** {msg.from_user.mention}"
     )
     except Exception as e:
         await sts.edit(f"Error uploading: {e}")
@@ -662,6 +661,7 @@ async def change_metadata(bot, msg):
         os.remove(output_file)
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
+
 
 """
 @Client.on_message(filters.command("changemetadata") & filters.chat(GROUP))
