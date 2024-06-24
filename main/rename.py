@@ -488,9 +488,8 @@ async def rename_file(bot, msg):
         f"┠💾 **Size:** {filesize}\n"
         f"┠♻️ **Mode:** Rename\n"
         f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-
-         "❄ File have been Sent in Bot PM!"
-           f"@{Botusername}"
+        f"❄**File have been Sent in Bot PM!**/n"
+          f"@{Botusername}" 
     )
     except Exception as e:
         return await sts.edit(f"Error: {e}")
@@ -588,8 +587,7 @@ async def multitask_command(bot, msg):
         f"┠💾 **Size:** {filesize_human}\n"
         f"┠♻️ **Mode:** Multitask\n"
         f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-
-         "❄ File have been Sent in Bot PM!"
+        f"❄**File have been Sent in Bot PM!**/n"
           f"@{Botusername}"
     )
     except Exception as e:
@@ -671,9 +669,8 @@ async def change_metadata(bot, msg):
         f"┠💾 **Size:** {filesize_human}\n"
         f"┠♻️ **Mode:** Metadata\n"
         f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-
-         "❄ File have been Sent in Bot PM!"
-          f"@{Botusername}"
+        f"❄**File have been Sent in Bot PM!**/n"
+          f"@{Botusername}"  
     )
     except Exception as e:
         await sts.edit(f"Error uploading: {e}")
@@ -803,9 +800,8 @@ async def attach_photo(bot, msg):
             f"┠💾 **Size:** {filesize_human}\n"
             f"┠♻️ **Mode:** Attach Photo\n"
             f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-
-         "❄ File have been Sent in Bot PM!"
-          f"@{Botusername}"
+            f"❄**File have been Sent in Bot PM!**/n"
+          f"@{Botusername}" 
         )
     except Exception as e:
         await sts.edit(f"Error uploading modified file: {e}")
@@ -915,9 +911,8 @@ async def change_index(bot, msg):
             f"┠💾 **Size:** {filesize_human}\n"
             f"┠♻️ **Mode:** Change Index\n"
             f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-
-         "❄ File have been Sent in Bot PM!"
-          f"@{Botusername}"
+            f"❄**File have been Sent in Bot PM!**/n"
+          f"@{Botusername}" 
         )
     except RPCError as e:
         await sts.edit(f"Upload failed: {e}")
@@ -1122,9 +1117,8 @@ async def remove_tags(bot, msg):
             f"┠💾 **Size:** {filesize_human}\n"
             f"┠♻️ **Mode:** Remove Tags\n"
             f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-
-         "❄ File have been Sent in Bot PM!"
-          f"@{Botusername}"
+            f"❄**File have been Sent in Bot PM!**/n"
+          f"@{Botusername}" 
         )
         
         await sts.delete()
