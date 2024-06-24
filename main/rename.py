@@ -871,13 +871,11 @@ async def change_index(bot, msg):
             thumb=file_thumb,
             caption=cap,
             progress=progress_message,
-            progress_args=("💠 Upload Started... ⚡️", sts, c_time)
+            progress_args=("💠 Upload Started... ⚡", sts, c_time)
         )
-        await sts.delete()
-    except RPCError as e:
-        await sts.edit(f"Upload failed: {e}")
-    except TimeoutError as e:
-        await sts.edit(f"Upload timed out: {e}")
+        await msg.reply_text(f"✅ File `{output_filename}` has been uploaded to your PM. Check your PM from the bot ✅ .")
+    except Exception as e:
+        return await sts.edit(f"Error: {e}")
     finally:
         try:
             if file_thumb and os.path.exists(file_thumb):
@@ -887,9 +885,7 @@ async def change_index(bot, msg):
         except Exception as e:
             print(f"Error deleting files: {e}")
 
-    # Send notification about the file upload to the group
-    await msg.reply_text(f"File `{output_filename}` has been uploaded to your PM. Check your PM from the bot ✅ .")
-
+    
 """
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
