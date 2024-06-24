@@ -1133,46 +1133,6 @@ async def change_index(bot, msg):
         return
 
     # Thumbnail handling
-    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
-    
-    if os.path.exists(thumbnail_path):
-        file_thumb = thumbnail_path
-    else:
-        try:
-            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
-        except Exception as e:
-            file_thumb = None
-
-    filesize = os.path.getsize(output_file)
-    filesize_human = humanbytes(filesize)
-    cap = f"{output_filename}\n\n🌟 Size: {filesize_human}"
-
-    await sts.edit("💠 Uploading... ⚡")
-    try:
-        await bot.send_document(
-            msg.chat.id, 
-            document=output_file, 
-            thumb=file_thumb, 
-            caption=cap, 
-            progress=progress_message, 
-            progress_args=("💠 Upload Started... ⚡️", sts, c_time)
-        )
-        await sts.delete()
-    except RPCError as e:
-        await sts.edit(f"Upload failed: {e}")
-    except TimeoutError as e:
-        await sts.edit(f"Upload timed out: {e}")
-    finally:
-        try:
-            if file_thumb and os.path.exists(file_thumb):
-                os.remove(file_thumb)
-            os.remove(downloaded)
-            os.remove(output_file)
-        except Exception as e:
-            print(f"Error deleting files: {e}")
-    
-    # Send notification about the file upload
-    await msg.reply_text(f"File `{output_filename}` has been uploaded to your PM. Check your PM of the bot ✅ .")
 
 
 @Client.on_message(filters.command("screenshots") & filters.group)
