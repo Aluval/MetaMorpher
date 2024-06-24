@@ -847,7 +847,7 @@ async def change_index(bot, msg: Message):
 
     await sts.edit("💠 Uploading... ⚡")
     try:
-        # Try to send the document to the user's PM
+        # Send the document to the user's PM
         await bot.send_document(
             msg.from_user.id,  # Send to the user's PM
             document=output_file,
@@ -857,7 +857,10 @@ async def change_index(bot, msg: Message):
             progress_args=("💠 Upload Started... ⚡️", sts, c_time)
         )
         await sts.delete()
-        await msg.reply_text(f"✅ File `{output_filename}` has been uploaded to your PM. Check your PM from the bot ✅ .")
+
+        # Notify the group about the upload to PM
+        group_notification = f"📢 File `{output_filename}` has been uploaded to your PM. Check your PM from the bot ✅ ."
+        await msg.reply_text(group_notification)
     except Exception as e:
         # Log the error to help identify the issue
         print(f"Error uploading to PM: {e}")
