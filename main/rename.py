@@ -778,7 +778,7 @@ async def attach_photo(bot, msg):
         await sts.delete()
 
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
-async def change_index(bot, msg: Message):
+async def change_index(bot, msg):
     global CHANGE_INDEX_ENABLED
 
     if not CHANGE_INDEX_ENABLED:
@@ -847,7 +847,7 @@ async def change_index(bot, msg: Message):
 
     await sts.edit("💠 Uploading... ⚡")
     try:
-        # Send the document to the user's PM
+        # Try to send the document to the user's PM
         await bot.send_document(
             msg.from_user.id,  # Send to the user's PM
             document=output_file,
@@ -857,10 +857,7 @@ async def change_index(bot, msg: Message):
             progress_args=("💠 Upload Started... ⚡️", sts, c_time)
         )
         await sts.delete()
-
-        # Notify the group about the upload to PM
-        group_notification = f"📢 File `{output_filename}` has been uploaded to your PM. Check your PM from the bot ✅ ."
-        await msg.reply_text(group_notification)
+        await msg.reply_text(f"✅ File `{output_filename}` has been uploaded to your PM. Check your PM from the bot ✅ .")
     except Exception as e:
         # Log the error to help identify the issue
         print(f"Error uploading to PM: {e}")
@@ -874,6 +871,7 @@ async def change_index(bot, msg: Message):
                 os.remove(file_thumb)
         except Exception as e:
             print(f"Error deleting files: {e}")
+
 """
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
