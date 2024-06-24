@@ -788,23 +788,15 @@ async def change_index(bot, msg):
     if not reply:
         return await msg.reply_text("Please reply to a media file with the index command\nFormat: `/changeindex a-3 -n filename.mkv` (Audio)")
 
-    if len(msg.command) < 3:
-        return await msg.reply_text("Please provide the index command with a filename\nFormat: `/changeindex a-3 -n filename.mkv` (Audio)")
+    if len(msg.command) < 3 or msg.command[1] != "-n":
+        return await msg.reply_text("Please provide the filename with the `-n` flag\nFormat: `/changeindex a-3 -n filename.mkv`")
 
-    index_cmd = None
-    output_filename = None
+    output_filename = " ".join(msg.command[2:]).strip()
 
-    # Extract index command and output filename from the command
-    for i in range(1, len(msg.command)):
-        if msg.command[i] == "-n":
-            output_filename = " ".join(msg.command[i + 1:])  # Join all the parts after the flag
-            break
+    if not output_filename.lower().endswith(('.mkv', '.mp4', '.avi')):
+        return await msg.reply_text("Invalid file extension. Please use a valid video file extension (e.g., .mkv, .mp4, .avi).")
 
-    index_cmd = " ".join(msg.command[1:i])  # Get the index command before the flag
-
-    if not output_filename:
-        return await msg.reply_text("Please provide a filename using the `-n` flag.")
-
+    index_cmd = msg.command[0]
     if not index_cmd or not index_cmd.startswith("a-"):
         return await msg.reply_text("Invalid format. Use `/changeindex a-3 -n filename.mkv` for audio.")
 
@@ -815,7 +807,6 @@ async def change_index(bot, msg):
     sts = await msg.reply_text("🚀 Downloading media... ⚡")
     c_time = time.time()
     try:
-        # Download the media file
         downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
     except Exception as e:
         await sts.edit(f"Error downloading media: {e}")
@@ -827,16 +818,10 @@ async def change_index(bot, msg):
     stream_type = index_params[0]
     indexes = [int(i) - 1 for i in index_params[1:]]
 
-    # Construct the FFmpeg command to modify indexes
-    ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']  # Always map video stream
-
+    ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']
     for idx in indexes:
         ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
-
-    # Copy all subtitle streams if they exist
-    ffmpeg_cmd.extend(['-map', '0:s?'])
-
-    ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
+    ffmpeg_cmd.extend(['-map', '0:s?', '-c', 'copy', output_file, '-y'])
 
     await sts.edit("💠 Changing indexing... ⚡")
     process = await asyncio.create_subprocess_exec(*ffmpeg_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
@@ -847,16 +832,14 @@ async def change_index(bot, msg):
         os.remove(downloaded)
         return
 
-    # Thumbnail handling
     thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
-
-    if os.path.exists(thumbnail_path):
-        file_thumb = thumbnail_path
-    else:
+    if not os.path.exists(thumbnail_path):
         try:
             file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
         except Exception as e:
             file_thumb = None
+    else:
+        file_thumb = thumbnail_path
 
     filesize = os.path.getsize(output_file)
     filesize_human = humanbytes(filesize)
@@ -864,9 +847,16 @@ async def change_index(bot, msg):
 
     await sts.edit("💠 Uploading... ⚡")
     try:
-        await bot.send_document(msg.from_user.id, document=output_file, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡️", sts, c_time))
+        await bot.send_document(
+            msg.from_user.id,  # Send to the user's PM
+            document=output_file,
+            thumb=file_thumb,
+            caption=cap,
+            progress=progress_message,
+            progress_args=("💠 Upload Started... ⚡️", sts, c_time)
+        )
         await sts.delete()
-        await msg.reply_text(f"✅ File `{output_filename}` has been uploaded to your PM. Check your PM of the bot ✅ .")
+        await msg.reply_text(f"✅ File `{output_filename}` has been uploaded to your PM. Check your PM from the bot ✅ .")
     except Exception as e:
         await sts.edit(f"Error uploading: {e}")
     finally:
@@ -875,7 +865,6 @@ async def change_index(bot, msg):
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
 
-   
 """
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
