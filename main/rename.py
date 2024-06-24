@@ -483,7 +483,12 @@ async def rename_file(bot, msg):
     c_time = time.time()
     try:
         await bot.send_document(msg.from_user.id, document=downloaded, thumb=og_thumbnail, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡", sts, c_time))
-        await msg.reply_text("✅ Check your PM for the renamed file.")
+        await msg.reply_text(
+        f"┏📥 **File Name:** {new_name}\n"
+        f"┠💾 **Size:** {filesize}\n"
+        f"┠♻️ **Mode:** Rename\n"
+        f"┗🚹 **Request User:** {msg.from_user.mention}"
+    )
     except Exception as e:
         return await sts.edit(f"Error: {e}")
 
@@ -495,7 +500,6 @@ async def rename_file(bot, msg):
         pass
 
     await sts.delete()
-
 
 #MultiTask Command 
 @Client.on_message(filters.command("multitask") & filters.group)
@@ -570,10 +574,18 @@ async def multitask_command(bot, msg):
         os.remove(downloaded)
         return
 
+    filesize = os.path.getsize(new_filename)
+    filesize_human = humanbytes(filesize)
+
     await sts.edit("💠 Uploading cleaned file... ⚡")
     try:
         await bot.send_document(msg.from_user.id, document=new_filename, thumb=og_thumbnail, caption=new_filename)
-        await msg.reply_text("✅ Check your PM for the processed file.")
+        await msg.reply_text(
+        f"┏📥 **File Name:** {new_filename}\n"
+        f"┠💾 **Size:** {filesize_human}\n"
+        f"┠♻️ **Mode:** Multitask\n"
+        f"┗🚹 **Request User:** {msg.from_user.mention}"
+    )
     except Exception as e:
         await sts.edit(f"Error uploading cleaned file: {e}")
     finally:
@@ -771,10 +783,18 @@ async def attach_photo(bot, msg):
         os.remove(downloaded)
         return
 
+    filesize = os.path.getsize(output_file)
+    filesize_human = humanbytes(filesize)
+
     await sts.edit("🔼 Uploading modified file... ⚡")
     try:
-        await bot.send_document(msg.from_user.id, output_file, caption="Here is your file with the photo attachment.")
-        await msg.reply_text("✅ Check your PM for the processed file.")
+        await bot.send_document(msg.from_user.id, output_file, caption=output_filename)
+        await msg.reply_text(
+            f"┏📥 **File Name:** {output_filename}\n"
+            f"┠💾 **Size:** {filesize_human}\n"
+            f"┠♻️ **Mode:** Attach Photo\n"
+            f"┗🚹 **Request User:** {msg.from_user.mention}"
+        )
     except Exception as e:
         await sts.edit(f"Error uploading modified file: {e}")
     finally:
@@ -865,26 +885,25 @@ async def change_index(bot, msg):
 
     filesize = os.path.getsize(output_file)
     filesize_human = humanbytes(filesize)
-
-    # Prepare caption template
-    caption = (
-        f"┏📥 File Name: {output_filename}\n"
-        f"┠💾 Size: {filesize_human}\n"
-        f"┠♻️ Mode: {index_cmd}\n"
-        f"┗🚹 Request User: {msg.from_user.mention}"
-    )
+    cap = f"{output_filename}\n\n🌟 Size: {filesize_human}"
 
     await sts.edit("💠 Uploading... ⚡")
     try:
         await bot.send_document(
-            msg.from_user.id,  # Sending to PM of the user who initiated the command
+            msg.from_user.id,
             document=output_file,
             thumb=file_thumb,
-            caption=caption,
+            caption=cap,
             progress=progress_message,
             progress_args=("💠 Upload Started... ⚡️", sts, c_time)
         )
         await sts.delete()
+        await msg.reply_text(
+            f"┏📥 **File Name:** {output_filename}\n"
+            f"┠💾 **Size:** {filesize_human}\n"
+            f"┠♻️ **Mode:** Change Index\n"
+            f"┗🚹 **Request User:** {msg.from_user.mention}"
+        )
     except RPCError as e:
         await sts.edit(f"Upload failed: {e}")
     except TimeoutError as e:
@@ -898,8 +917,6 @@ async def change_index(bot, msg):
         except Exception as e:
             print(f"Error deleting files: {e}")
 
-    # Send notification about the file upload
-    await msg.reply_text(f"File `{output_filename}` has been uploaded to your PM. Check your PM of the bot ✅.")
 
 """
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
