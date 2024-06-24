@@ -13,6 +13,7 @@ ADMIN = int(os.environ.get("ADMIN", '6469754522'))
 FSUB_UPDATES = os.environ.get("FSUB_CHANNEL", "Sunrises24BotUpdates")
 FSUB_GROUP = os.environ.get("FSUB_GROUP", "INFINITYRENAME24GROUP")
 CAPTION = os.environ.get("CAPTION", "")
+Botusername = os.environ.get("Botusername", "INFINITYSTARRENAME24BOT")
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 DOWNLOAD_LOCATION = "./DOWNLOADS"
 group = environ.get('GROUP', '-1002128043143')
