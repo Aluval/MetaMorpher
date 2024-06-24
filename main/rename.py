@@ -847,17 +847,30 @@ async def change_index(bot, msg):
 
     await sts.edit("💠 Uploading... ⚡")
     try:
-        await bot.send_document(msg.from_user.id, document=output_file, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡️", sts, c_time))
+        # Try to send the document to the user's PM
+        await bot.send_document(
+            msg.from_user.id,  # Send to the user's PM
+            document=output_file,
+            thumb=file_thumb,
+            caption=cap,
+            progress=progress_message,
+            progress_args=("💠 Upload Started... ⚡️", sts, c_time)
+        )
         await sts.delete()
         await msg.reply_text(f"✅ File `{output_filename}` has been uploaded to your PM. Check your PM from the bot ✅ .")
     except Exception as e:
-        await sts.edit(f"Error uploading: {e}")
+        # Log the error to help identify the issue
+        print(f"Error uploading to PM: {e}")
+        await sts.edit(f"Error uploading to PM: {e}")
     finally:
-        os.remove(downloaded)
-        os.remove(output_file)
-        if file_thumb and os.path.exists(file_thumb):
-            os.remove(file_thumb)
-
+        # Cleanup
+        try:
+            os.remove(downloaded)
+            os.remove(output_file)
+            if file_thumb and os.path.exists(file_thumb):
+                os.remove(file_thumb)
+        except Exception as e:
+            print(f"Error deleting files: {e}")
 
 """
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
