@@ -866,17 +866,14 @@ async def change_index(bot, msg):
     try:
         await bot.send_document(msg.from_user.id, document=output_file, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡️", sts, c_time))
         await sts.delete()
-        await msg.reply_text(f"✅ File `{output_filename}` has been uploaded to your PM. Check your PM from the bot ✅ .")
+        await msg.reply_text(f"✅ File `{output_filename}` has been uploaded to your PM. Check your PM of the bot ✅ .")
     except Exception as e:
-        await sts.edit(f"Error: {e}")
+        await sts.edit(f"Error uploading: {e}")
     finally:
-        try:
-            if file_thumb and os.path.exists(file_thumb):
-                os.remove(file_thumb)
-            os.remove(downloaded)
-            os.remove(output_file)
-        except Exception as e:
-            print(f"Error deleting files: {e}")
+        os.remove(downloaded)
+        os.remove(output_file)
+        if file_thumb and os.path.exists(file_thumb):
+            os.remove(file_thumb)
 
    
 """
