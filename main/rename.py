@@ -778,7 +778,7 @@ async def attach_photo(bot, msg):
         await sts.delete()
 
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
-async def change_index(bot, msg):
+async def change_index(bot, msg: Message):
     global CHANGE_INDEX_ENABLED
 
     if not CHANGE_INDEX_ENABLED:
@@ -871,7 +871,6 @@ async def change_index(bot, msg):
                 os.remove(file_thumb)
         except Exception as e:
             print(f"Error deleting files: {e}")
-
 """
 @Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
 async def change_index(bot, msg):
