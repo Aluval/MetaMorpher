@@ -96,6 +96,38 @@ def add_photo_attachment(input_path, attachment_path, output_path):
     if process.returncode != 0:
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
 
+# Function to merge videos 
+async def merge_videos(input_file, output_file):
+    file_generator_command = [
+        "ffmpeg",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        input_file,
+        "-c",
+        "copy",
+        "-map",
+        "0",
+        output_file,
+    ]
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *file_generator_command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await process.communicate()
+
+        if process.returncode != 0:
+            raise Exception(f"FFmpeg process returned error: {stderr.decode()}")
+
+    except Exception as e:
+        raise RuntimeError(f"Error merging videos: {e}")
+
+
+
 # Function to unzip files
 def unzip_file(file_path, extract_path):
     extracted_files = []
