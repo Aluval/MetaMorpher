@@ -6,4 +6,4 @@ ffmpeg
 requests
 heroku3
 aiohttp
-zipfile
+
