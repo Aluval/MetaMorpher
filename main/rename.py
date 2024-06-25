@@ -901,7 +901,7 @@ async def start_merge_command(bot, msg):
         return await msg.reply_text("The merge feature is currently disabled.")
 
     user_id = msg.from_user.id
-    merge_state[user_id] = {"files": [], "output_filename": None}
+    merge_state[user_id] = {"video": [], "output_filename": None}
 
     await msg.reply_text("Send up to 10 video/document files one by one. Once done, send `/videomerge filename`.")
 
@@ -909,7 +909,7 @@ async def start_merge_command(bot, msg):
 @Client.on_message(filters.command("videomerge") & filters.group)
 async def start_video_merge_command(bot, msg):
     user_id = msg.from_user.id
-    if user_id not in merge_state or not merge_state[user_id]["files"]:
+    if user_id not in merge_state or not merge_state[user_id]["video"]:
         return await msg.reply_text("No files received for merging. Please send files using /merge command first.")
 
     output_filename = msg.text.split(' ', 1)[1].strip()  # Extract output filename from command
@@ -918,17 +918,17 @@ async def start_video_merge_command(bot, msg):
     await merge_and_upload(bot, msg)
 
 # Handling media files sent by users
-@Client.on_message(filters.document | filters.audio | filters.video & filters.group)
+@Client.on_message(filters.document | filters.video & filters.group)
 async def handle_media_files(bot, msg):
     user_id = msg.from_user.id
-    if user_id in merge_state and len(merge_state[user_id]["files"]) < 10:
-        merge_state[user_id]["files"].append(msg)
+    if user_id in merge_state and len(merge_state[user_id]["video"]) < 10:
+        merge_state[user_id]["video"].append(msg)
         await msg.reply_text("File received. Send another file or use `/videomerge filename` to start merging.")
 
 # Function to merge and upload files
 async def merge_and_upload(bot, msg):
     user_id = msg.from_user.id
-    files_to_merge = merge_state[user_id]["files"]
+    files_to_merge = merge_state[user_id]["video"]
     output_filename = merge_state[user_id]["output_filename"] or "merged_output.mp4"  # Default output filename
     output_path = os.path.join(DOWNLOAD_LOCATION, output_filename)
 
