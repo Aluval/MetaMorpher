@@ -1,4 +1,5 @@
 import subprocess
+import zipfile
 
 
 def remove_all_tags(input_path, output_path):
