@@ -972,7 +972,7 @@ async def start_video_merge_command(bot, msg):
 async def handle_thumbnail(bot, msg):
     user_id = msg.from_user.id
     if user_id in merge_state and "output_filename" in merge_state[user_id] and merge_state[user_id]["output_filename"]:
-        thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
+        thumbnail_path = f"{DOWNLOAD_LOCATION}/mergethumbnail_{user_id}.jpg"
         await msg.download(file_name=thumbnail_path)
         merge_state[user_id]["thumbnail"] = thumbnail_path
         await merge_and_upload(bot, msg)
