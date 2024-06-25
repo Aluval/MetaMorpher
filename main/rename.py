@@ -870,9 +870,8 @@ async def change_index(bot, msg):
             progress_args=("💠 Upload Started... ⚡️", sts, c_time)
         )
         await sts.delete()
-        await msg.reply_text(
-               print(f"Error deleting files: {e}")
-         f"┏📥 **File Name:** {output_filename}\n"
+        await msg.reply_text(          
+            f"┏📥 **File Name:** {output_filename}\n"
             f"┠💾 **Size:** {filesize_human}\n"
             f"┠♻️ **Mode:** Change Index\n"
             f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
