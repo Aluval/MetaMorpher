@@ -23,7 +23,7 @@ DOWNLOAD_LOCATION1 = "./screenshots"
 
 
 # Global dictionary to store user settings
-
+merge_state = {}
 user_settings = {}
 
 # Initialize global settings variables
@@ -33,7 +33,9 @@ MULTITASK_ENABLED = True
 RENAME_ENABLED = True
 REMOVETAGS_ENABLED = True
 CHANGE_INDEX_ENABLED = True 
-  
+MERGE_ENABLED = True
+
+
 
 # Command handler to start the interaction (only in admin)
 @Client.on_message(filters.command("bsettings") & filters.chat(ADMIN))
@@ -925,119 +927,109 @@ async def change_index(bot, msg):
         except Exception as e:
             print(f"Error deleting files: {e}")
 
+@Client.on_message(filters.command("merge") & filters.group)
+async def start_merge_command(bot, msg):
+    global MERGE_ENABLED
+    if not MERGE_ENABLED:
+        return await msg.reply_text("The merge feature is currently disabled.")
 
-"""
-@Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
-async def change_index(bot, msg):
-    global CHANGE_INDEX_ENABLED
+    user_id = msg.from_user.id
+    merge_state[user_id] = {"files": [], "thumbnail": None, "output_filename": None}
 
-    if not CHANGE_INDEX_ENABLED:
-        return await msg.reply_text("The changeindex feature is currently disabled.")
+    await msg.reply_text("Send up to 10 video/document files one by one. Once done, send `/videomerge filename` and a thumbnail.")
 
-    reply = msg.reply_to_message
-    if not reply:
-        return await msg.reply_text("Please reply to a media file with the index command\nFormat: `/changeindex a-3 -n filename.mkv` (Audio)")
+@Client.on_message(filters.command("videomerge") & filters.group)
+async def start_video_merge_command(bot, msg):
+    user_id = msg.from_user.id
+    if user_id not in merge_state or not merge_state[user_id]["files"]:
+        return await msg.reply_text("No files received for merging. Please send files using /merge command first.")
 
-    if len(msg.command) < 3:
-        return await msg.reply_text("Please provide the index command with a filename\nFormat: `/changeindex a-3 -n filename.mkv` (Audio)")
+    output_filename = msg.text.split(' ', 1)[1].strip()  # Extract output filename from command
+    merge_state[user_id]["output_filename"] = output_filename
 
-    index_cmd = None
-    output_filename = None
+    await msg.reply_text("Please send a thumbnail image for the merged video.")
 
-    # Extract index command and output filename from the command
-    for i in range(1, len(msg.command)):
-        if msg.command[i] == "-n":
-            output_filename = " ".join(msg.command[i + 1:])  # Join all the parts after the flag
-            break
+@Client.on_message(filters.photo & filters.group)
+async def handle_thumbnail(bot, msg):
+    user_id = msg.from_user.id
+    if user_id in merge_state and "output_filename" in merge_state[user_id] and merge_state[user_id]["output_filename"]:
+        thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
+        await msg.download(file_name=thumbnail_path)
+        merge_state[user_id]["thumbnail"] = thumbnail_path
+        await merge_and_upload(bot, msg)
 
-    index_cmd = " ".join(msg.command[1:i])  # Get the index command before the flag
+@Client.on_message(filters.document | filters.audio | filters.video & filters.group)
+async def handle_media_files(bot, msg):
+    user_id = msg.from_user.id
+    if user_id in merge_state and len(merge_state[user_id]["files"]) < 10:
+        merge_state[user_id]["files"].append(msg)
+        await msg.reply_text("File received. Send another file or use `/videomerge filename` to start merging.")
 
-    if not output_filename:
-        return await msg.reply_text("Please provide a filename using the `-n` flag.")
+async def merge_and_upload(bot, msg):
+    user_id = msg.from_user.id
+    files_to_merge = merge_state[user_id]["files"]
+    output_filename = merge_state[user_id]["output_filename"] or "merged_output.mp4"  # Default output filename
+    output_path = os.path.join(DOWNLOAD_LOCATION, output_filename)
+    thumbnail_path = merge_state[user_id]["thumbnail"]
 
-    if not index_cmd or not index_cmd.startswith("a-"):
-        return await msg.reply_text("Invalid format. Use `/changeindex a-3 -n filename.mkv` for audio.")
+    sts = await msg.reply_text("🚀 Starting merge process...")
 
-    media = reply.document or reply.audio or reply.video
-    if not media:
-        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the index command.")
-
-    sts = await msg.reply_text("🚀 Downloading media... ⚡")
-    c_time = time.time()
     try:
-        # Download the media file
-        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
-    except Exception as e:
-        await sts.edit(f"Error downloading media: {e}")
-        return
+        file_paths = []
+        for file_msg in files_to_merge:
+            file_path = await download_media(file_msg, sts)
+            file_paths.append(file_path)
 
-    output_file = os.path.join(DOWNLOAD_LOCATION, output_filename)
+        input_file = os.path.join(DOWNLOAD_LOCATION, "input.txt")
+        with open(input_file, "w") as f:
+            for file_path in file_paths:
+                f.write(f"file '{file_path}'\n")
 
-    index_params = index_cmd.split('-')
-    stream_type = index_params[0]
-    indexes = [int(i) - 1 for i in index_params[1:]]
+        await sts.edit("💠 Merging videos... ⚡")
+        await merge_videos(input_file, output_path)
 
-    # Construct the FFmpeg command to modify indexes
-    ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']  # Always map video stream
+        filesize = os.path.getsize(output_path)
+        filesize_human = humanbytes(filesize)
+        cap = f"{output_filename}\n\n🌟 Size: {filesize_human}"
 
-    for idx in indexes:
-        ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
-
-    # Copy all subtitle streams if they exist
-    ffmpeg_cmd.extend(['-map', '0:s?'])
-
-    ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
-
-    await sts.edit("💠 Changing indexing... ⚡")
-    process = await asyncio.create_subprocess_exec(*ffmpeg_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    stdout, stderr = await process.communicate()
-
-    if process.returncode != 0:
-        await sts.edit(f"❗ FFmpeg error: {stderr.decode('utf-8')}")
-        os.remove(downloaded)
-        return
-
-    # Thumbnail handling
-    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
-
-    if os.path.exists(thumbnail_path):
-        file_thumb = thumbnail_path
-    else:
-        try:
-            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
-        except Exception as e:
-            file_thumb = None
-
-    filesize = os.path.getsize(output_file)
-    filesize_human = humanbytes(filesize)
-    cap = f"{output_filename}\n\n🌟 Size: {filesize_human}"
-
-    await sts.edit("💠 Uploading... ⚡")
-    try:
+        await sts.edit("💠 Uploading... ⚡")
+        c_time = time.time()
         await bot.send_document(
-            msg.chat.id,
-            document=output_file,
-            thumb=file_thumb,
-            caption=cap,
-            progress=progress_message,
-            progress_args=("💠 Upload Started... ⚡️", sts, c_time)
+            msg.from_user.id, 
+            document=output_path, 
+            thumb=thumbnail_path, 
+            caption=cap, 
+            progress=progress_message, 
+            progress_args=("💠 Upload Started... ⚡", sts, c_time)
         )
-        await sts.delete()
-    except RPCError as e:
-        await sts.edit(f"Upload failed: {e}")
-    except TimeoutError as e:
-        await sts.edit(f"Upload timed out: {e}")
-    finally:
-        try:
-            if file_thumb and os.path.exists(file_thumb):
-                os.remove(file_thumb)
-            os.remove(downloaded)
-            os.remove(output_file)
-        except Exception as e:
-            print(f"Error deleting files: {e}")
 
-    # Send notification about the file upload
-    await msg.reply_text(f"File `{output_filename}` has been uploaded to your PM. Check your PM of the bot ✅ .")"""
+        await msg.reply_text(
+            f"┏📥 **File Name:** {output_filename}\n"
+            f"┠💾 **Size:** {filesize_human}\n"
+            f"┠♻️ **Mode:** Merge\n"
+            f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
+            f"❄**File has been sent in Bot PM!**"
+        )
+
+    except Exception as e:
+        await sts.edit(f"❌ Error: {e}")
+
+    finally:
+        # Clean up temporary files
+        for file_path in file_paths:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        if os.path.exists(input_file):
+            os.remove(input_file)
+        if os.path.exists(output_path):
+            os.remove(output_path)
+        if thumbnail_path and os.path.exists(thumbnail_path):
+            os.remove(thumbnail_path)
+
+        # Clear merge state for the user
+        del merge_state[user_id]
+
+        await sts.delete()
 
 @Client.on_message(filters.command("removetags") & filters.group)
 async def remove_tags(bot, msg):
