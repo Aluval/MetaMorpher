@@ -701,65 +701,7 @@ async def change_metadata(bot, msg):
             os.remove(file_thumb)
 
 
-"""
-@Client.on_message(filters.command("changemetadata") & filters.chat(GROUP))
-async def change_metadata(bot, msg):
-    global METADATA_ENABLED, user_settings
 
-    if not METADATA_ENABLED:
-        return await msg.reply_text("Metadata changing feature is currently disabled.")
-
-    user_id = msg.from_user.id
-    if user_id not in user_settings or not any(user_settings[user_id].values()):
-        return await msg.reply_text("Metadata titles are not set. Please set metadata titles using `/setmetadata video_title audio_title subtitle_title`.")
-
-    reply = msg.reply_to_message
-    if not reply:
-        return await msg.reply_text("Please reply to a media file with the metadata command\nFormat: `changemetadata -n filename.mkv`")
-
-    if len(msg.command) < 3 or msg.command[1] != "-n":
-        return await msg.reply_text("Please provide the filename with the `-n` flag\nFormat: `changemetadata -n filename.mkv`")
-
-    output_filename = " ".join(msg.command[2:]).strip()
-
-    if not output_filename.lower().endswith(('.mkv', '.mp4', '.avi')):
-        return await msg.reply_text("Invalid file extension. Please use a valid video file extension (e.g., .mkv, .mp4, .avi).")
-
-    video_title = user_settings[user_id]['video_title']
-    audio_title = user_settings[user_id]['audio_title']
-    subtitle_title = user_settings[user_id]['subtitle_title']
-
-    media = reply.document or reply.audio or reply.video
-    if not media:
-        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the metadata command.")
-
-    sts = await msg.reply_text("🚀 Downloading media... ⚡")
-    try:
-        downloaded = await reply.download()
-    except Exception as e:
-        await sts.edit(f"Error downloading media: {e}")
-        return
-
-    output_file = os.path.join(DOWNLOAD_LOCATION, output_filename)
-
-    await sts.edit("💠 Changing metadata... ⚡")
-    try:
-        change_video_metadata(downloaded, video_title, audio_title, subtitle_title, output_file)
-    except Exception as e:
-        await sts.edit(f"Error changing metadata: {e}")
-        os.remove(downloaded)
-        return
-
-    await sts.edit("💠 Uploading... ⚡")
-    try:
-        await bot.send_document(msg.from_user.id, document=output_file, caption=output_filename)
-        await msg.reply_text("✅ Check your PM for the processed file.")
-    except Exception as e:
-        await sts.edit(f"Error uploading: {e}")
-    finally:
-        os.remove(downloaded)
-        os.remove(output_file)
-        await sts.delete()"""
 
 @Client.on_message(filters.command("attachphoto") & filters.group)
 async def attach_photo(bot, msg):
