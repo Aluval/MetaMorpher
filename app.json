@@ -1,9 +1,9 @@
 { 
-    "name": "INFINITYSTARRENAME24BOT", 
+    "name": "ADVANCERENAME24BOT", 
     "description": "A SIMPLE RENAME BOT WITH THUMBNAIL,CAPTION & HIGH SPEED ⚡️",
     "logo":"https://telegra.ph/file/9ab6d71f68a43dd426a11.jpg",
-    "repository": "https://github.com/Aluval/INFINITYSTARRENAME24BOT",   
-    "keywords": ["Rename-bot", "Telegram", "INFINITY 24 BOT"], 
+    "repository": "https://github.com/Aluval/ADVANCERENAME24BOT",   
+    "keywords": ["Rename-bot", "Telegram", "ADVANCE RENAME 24 BOT"], 
     "env": { 
         "BOT_TOKEN": { 
             "description": "Your Bot token from @Botfather", 
@@ -16,6 +16,26 @@
         "API_HASH": { 
             "description": "Your API_HASH from https://my.telegram.org/apps", 
             "required": true 
+        },
+        "FSUB_UPDATES": { 
+            "description": "forcesub username channel and admin it", 
+            "required": true 
+        }, 
+        "FSUB_GROUP": { 
+            "description": "forcesub username group and admin it", 
+            "required": true 
+        },
+        "SUNRISES_PIC": { 
+            "description": "Start Pic", 
+            "required": true 
+        }, 
+        "AUTH_USERS": { 
+            "description": "For Restart OWNER ID", 
+            "required": true 
+        },
+        "GROUP": { 
+            "description": "GROUP ID", 
+            "required": true 
         }, 
         "ADMIN": { 
             "description": "Your telegram ID,Run the Bot", 
@@ -24,7 +44,7 @@
         "CAPTION": { 
             "description": "your permanent caption", 
             "required": false 
-        }  
+        }       
         },
     "buildpacks": [
         {
