@@ -53,7 +53,7 @@ async def display_bot_settings_inline(msg):
     rename_status = "✅ Enabled" if RENAME_ENABLED else "❌ Disabled"
     removealltags_status = "✅ Enabled" if REMOVETAGS_ENABLED else "❌ Disabled"
     change_index_status = "✅ Enabled" if CHANGE_INDEX_ENABLED else "❌ Disabled"
-    
+    merge_video_status = "✅ Enabled" if MERGE_ENABLED else "❌ Disabled"    
     
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -62,6 +62,7 @@ async def display_bot_settings_inline(msg):
             [InlineKeyboardButton(f"{removealltags_status} Remove All Tags 📛", callback_data="toggle_removealltags")],
             [InlineKeyboardButton(f"{metadata_status} Change Metadata ☄️", callback_data="toggle_metadata")],            
             [InlineKeyboardButton(f"{change_index_status} Change Index ♻️", callback_data="toggle_change_index")],
+            [InlineKeyboardButton(f"{merge_video_status} Merge Video 🎞️", callback_data="toggle_merge_video")],
             [InlineKeyboardButton(f"{photo_attach_status} Attach Photo 🖼️", callback_data="toggle_photo_attach")],                        
             [InlineKeyboardButton(f"{multitask_status} Multi task 📑", callback_data="toggle_multitask")],            
             [InlineKeyboardButton("Close ❌", callback_data="del")],
@@ -125,6 +126,13 @@ async def toggle_change_index_callback(_, callback_query):
 
     CHANGE_INDEX_ENABLED = not CHANGE_INDEX_ENABLED
     await update_settings_message(callback_query.message)
+
+@Client.on_callback_query(filters.regex("^toggle_merge_video$"))
+async def toggle_merge_video_callback(_, callback_query):
+    global MERGE_ENABLED
+
+    MERGE_ENABLED = not MERGE_ENABLED
+    await update_settings_message(callback_query.message)
     
 # Callback query handler for the "sunrises24_bot_updates" button
 @Client.on_callback_query(filters.regex("^sunrises24_bot_updates$"))
@@ -141,6 +149,7 @@ async def update_settings_message(message):
     rename_status = "✅ Enabled" if RENAME_ENABLED else "❌ Disabled"
     removealltags_status = "✅ Enabled" if REMOVETAGS_ENABLED else "❌ Disabled"
     change_index_status = "✅ Enabled" if CHANGE_INDEX_ENABLED else "❌ Disabled"
+    merge_video_status = "✅ Enabled" if MERGE_ENABLED else "❌ Disabled"    
       
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -149,6 +158,7 @@ async def update_settings_message(message):
             [InlineKeyboardButton(f"{removealltags_status} Remove All Tags 📛", callback_data="toggle_removealltags")],
             [InlineKeyboardButton(f"{metadata_status} Change Metadata ☄️", callback_data="toggle_metadata")],            
             [InlineKeyboardButton(f"{change_index_status} Change Index ♻️", callback_data="toggle_change_index")],
+            [InlineKeyboardButton(f"{merge_video_status} Merge Video 🎞️", callback_data="toggle_merge_video")],
             [InlineKeyboardButton(f"{photo_attach_status} Attach Photo 🖼️", callback_data="toggle_photo_attach")],                        
             [InlineKeyboardButton(f"{multitask_status} Multi task 📑", callback_data="toggle_multitask")],            
             [InlineKeyboardButton("Close ❌", callback_data="del")],
@@ -211,6 +221,7 @@ async def display_user_settings(client, msg, edit=False):
         [InlineKeyboardButton("Preview Rename task 📝", callback_data="preview_rename_task")],
         [InlineKeyboardButton("Preview Metadata task ☄️", callback_data="preview_metadata_task")],
         [InlineKeyboardButton("Preview Index task ♻️", callback_data="preview_change_index_task")],
+        [InlineKeyboardButton("Preview Merge Video task 🎞️", callback_data="preview_merge_video_task")],
         [InlineKeyboardButton("Preview Remove Tags task 📛", callback_data="preview_removetags_task")],
         [InlineKeyboardButton("💠", callback_data="sunrises24_bot_updates")],
         [InlineKeyboardButton("Close ❌", callback_data="del")]
@@ -290,6 +301,7 @@ async def inline_preview_photo_callback(client, callback_query):
         return
     
     await callback_query.message.reply_photo(photo=attachment_path, caption="Attached Photo")
+
 # Inline query handler for previewing multitask status
 @Client.on_callback_query(filters.regex("^preview_multitask$"))
 async def inline_preview_multitask_callback(_, callback_query):
@@ -298,6 +310,13 @@ async def inline_preview_multitask_callback(_, callback_query):
     status_text = "Multi task is enabled." if MULTITASK_ENABLED else "Multi task is disabled."
     await callback_query.message.reply_text(status_text)
 
+# Inline query handler for previewing multitask status
+@Client.on_callback_query(filters.regex("^preview_merge_video_task$"))
+async def inline_preview_merge_video_callback(_, callback_query):
+    await callback_query.answer()
+    global MERGE_ENABLED
+    status_text = "Merge Video is enabled." if MERGE_ENABLED else "Merge Video task is disabled."
+    await callback_query.message.reply_text(status_text)
 
 # Inline query handler for previewing multitask status
 @Client.on_callback_query(filters.regex("^preview_metadata_task$"))
