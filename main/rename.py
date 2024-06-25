@@ -9,7 +9,7 @@ from pyrogram.types import Document, Video
 from pyrogram import Client, filters
 from pyrogram.enums import MessageMediaType
 from pyrogram.errors import MessageNotModified
-from config import DOWNLOAD_LOCATION, CAPTION, Botusername
+from config import DOWNLOAD_LOCATION, CAPTION
 from main.utils import progress_message, humanbytes
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup,CallbackQuery
 from config import GROUP, AUTH_USERS, ADMIN
