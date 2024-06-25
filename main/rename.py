@@ -888,6 +888,7 @@ async def change_index(bot, msg):
         except Exception as e:
             print(f"Error deleting files: {e}")
 
+"""
 @Client.on_message(filters.command("merge") & filters.group)
 async def start_merge_command(bot, msg):
     global MERGE_ENABLED
@@ -990,7 +991,125 @@ async def merge_and_upload(bot, msg):
         # Clear merge state for the user
         del merge_state[user_id]
 
+        await sts.delete()"""
+
+
+
+# Command to start merging files
+@Client.on_message(filters.command("merge") & filters.group)
+async def start_merge_command(bot, msg):
+    global MERGE_ENABLED
+    if not MERGE_ENABLED:
+        return await msg.reply_text("The merge feature is currently disabled.")
+
+    user_id = msg.from_user.id
+    merge_state[user_id] = {"files": [], "output_filename": None}
+
+    await msg.reply_text("Send up to 10 video/document files one by one. Once done, send `/videomerge filename`.")
+
+# Command to finalize merging and start process
+@Client.on_message(filters.command("videomerge") & filters.group)
+async def start_video_merge_command(bot, msg):
+    user_id = msg.from_user.id
+    if user_id not in merge_state or not merge_state[user_id]["files"]:
+        return await msg.reply_text("No files received for merging. Please send files using /merge command first.")
+
+    output_filename = msg.text.split(' ', 1)[1].strip()  # Extract output filename from command
+    merge_state[user_id]["output_filename"] = output_filename
+
+    await merge_and_upload(bot, msg)
+
+# Handling media files sent by users
+@Client.on_message(filters.document | filters.audio | filters.video & filters.group)
+async def handle_media_files(bot, msg):
+    user_id = msg.from_user.id
+    if user_id in merge_state and len(merge_state[user_id]["files"]) < 10:
+        merge_state[user_id]["files"].append(msg)
+        await msg.reply_text("File received. Send another file or use `/videomerge filename` to start merging.")
+
+# Function to merge and upload files
+async def merge_and_upload(bot, msg):
+    user_id = msg.from_user.id
+    files_to_merge = merge_state[user_id]["files"]
+    output_filename = merge_state[user_id]["output_filename"] or "merged_output.mp4"  # Default output filename
+    output_path = os.path.join(DOWNLOAD_LOCATION, output_filename)
+
+    sts = await msg.reply_text("🚀 Starting merge process...")
+
+    try:
+        file_paths = []
+        for file_msg in files_to_merge:
+            file_path = await download_media(file_msg, sts)
+            file_paths.append(file_path)
+
+        input_file = os.path.join(DOWNLOAD_LOCATION, "input.txt")
+        with open(input_file, "w") as f:
+            for file_path in file_paths:
+                f.write(f"file '{file_path}'\n")
+
+        await sts.edit("💠 Merging videos... ⚡")
+        await merge_videos(input_file, output_path)
+
+        filesize = os.path.getsize(output_path)
+        filesize_human = humanbytes(filesize)
+        cap = f"{output_filename}\n\n🌟 Size: {filesize_human}"
+
+        await sts.edit("💠 Uploading... ⚡")
+
+        # Thumbnail handling
+        thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
+        file_thumb = None
+        if os.path.exists(thumbnail_path):
+            file_thumb = thumbnail_path
+        else:
+            # Logic to download the thumbnail if not provided
+            try:
+                file_thumb = await bot.download_media(msg.thumbs[0].file_id, file_name=thumbnail_path)
+            except Exception as e:
+                print(f"Error downloading thumbnail: {e}")
+
+        # Uploading the merged file
+        c_time = time.time()
+        await bot.send_document(
+            user_id,
+            document=output_path,
+            thumb=file_thumb,
+            caption=cap,
+            progress=progress_message,
+            progress_args=("💠 Upload Started... ⚡", sts, c_time)
+        )
+
         await sts.delete()
+
+        await msg.reply_text(
+            f"┏📥 **File Name:** {output_filename}\n"
+            f"┠💾 **Size:** {filesize_human}\n"
+            f"┠♻️ **Mode:** Merge\n"
+            f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
+            f"❄ **File has been sent in Bot PM!**"
+        )
+
+    except Exception as e:
+        await sts.edit(f"❌ Error: {e}")
+
+    finally:
+        # Clean up temporary files
+        for file_path in file_paths:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        if os.path.exists(input_file):
+            os.remove(input_file)
+        if os.path.exists(output_path):
+            os.remove(output_path)
+        if file_thumb and os.path.exists(file_thumb):
+            os.remove(file_thumb)
+
+        # Clear merge state for the user
+        del merge_state[user_id]
+
+        await sts.delete()
+
+
 
 @Client.on_message(filters.command("removetags") & filters.group)
 async def remove_tags(bot, msg):
