@@ -91,6 +91,17 @@ async def heroku_restart():
             x = False
     return x
 
+#for merging downloading media
+async def download_media(msg, sts):
+    c_time = time.time()
+    try:
+        file_path = await msg.download(progress=progress_message, progress_args=("🚀 Downloading media... ⚡", sts, c_time))
+        await msg.reply_text(f"✅ Media downloaded successfully: {os.path.basename(file_path)}")
+        return file_path
+    except Exception as e:
+        await sts.edit(f"❌ Error downloading media: {e}")
+        raise
+        
 # Recursive function to upload files
 async def upload_files(bot, chat_id, directory, base_path=""):
     for item in os.listdir(directory):
