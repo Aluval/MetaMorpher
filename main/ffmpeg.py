@@ -127,7 +127,62 @@ async def merge_videos(input_file, output_file):
     except Exception as e:
         raise RuntimeError(f"Error merging videos: {e}")
 
+# Function to merge subtitles
+def merge_sub(video_path: str, sub_paths: list, output_path: str, user_id: int):
+    muxcmd = ["ffmpeg", "-hide_banner", "-i", video_path]
 
+    for sub_path in sub_paths:
+        muxcmd.extend(["-i", sub_path])
+
+    muxcmd.extend(["-map", "0:v:0", "-map", "0:a:?"])
+
+    video_data = ffmpeg.probe(filename=video_path)
+    video_streams_data = video_data.get("streams")
+    sub_tracks = 0
+
+    for stream in video_streams_data:
+        if stream["codec_type"] == "subtitle":
+            sub_tracks += 1
+
+    for j in range(1, len(sub_paths) + 1):
+        muxcmd.extend(["-map", f"{j}:s", f"-metadata:s:s:{sub_tracks}", f"title=Track {sub_tracks + 1} - tg@SUNRISES_24"])
+        sub_tracks += 1
+
+    muxcmd.extend([f"-disposition:s:s:{sub_tracks}", "default", "-map", "0:s:?", "-c:v", "copy", "-c:a", "copy", "-c:s", "srt"])
+    muxcmd.append(output_path)
+
+    subprocess.call(muxcmd)
+    return output_path
+
+# Function to merge audio
+def merge_audio(video_path: str, audio_paths: list, output_path: str):
+    muxcmd = ["ffmpeg", "-hide_banner", "-i", video_path]
+
+    for audio_path in audio_paths:
+        muxcmd.extend(["-i", audio_path])
+
+    muxcmd.extend(["-map", "0:v:0", "-map", "0:a:?"])
+
+    video_data = ffmpeg.probe(filename=video_path)
+    video_streams_data = video_data.get("streams")
+    audio_tracks = 0
+
+    for stream in video_streams_data:
+        if stream["codec_type"] == "audio":
+            muxcmd.extend([f"-disposition:a:{audio_tracks}", "0"])
+            audio_tracks += 1
+
+    f_audio = audio_tracks
+
+    for j in range(1, len(audio_paths) + 1):
+        muxcmd.extend(["-map", f"{j}:a", f"-metadata:s:a:{audio_tracks}", f"title=Track {audio_tracks + 1} - tg@SUNRISES_24"])
+        audio_tracks += 1
+
+    muxcmd.extend([f"-disposition:s:a:{f_audio}", "default", "-map", "0:s:?", "-c:v", "copy", "-c:a", "copy", "-c:s", "copy"])
+    muxcmd.append(output_path)
+
+    subprocess.call(muxcmd)
+    return output_path
 
 # Function to unzip files
 def unzip_file(file_path, extract_path):
