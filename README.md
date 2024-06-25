@@ -5,7 +5,7 @@
  <b><a href="https://telegram.me/INFINITYSTARRENAME24BOT" target="/blank">🌟♾ 𝐈𝐍𝐅𝐈𝐍𝐈𝐓𝐘 𝐒𝐓𝐀𝐑 𝐑𝐄𝐍𝐀𝐌𝐄 𝟐𝟒 𝐁𝐎𝐓 ♾🌟</a> 
 </h1>
 
-<p align="center">🌟 𝙋𝙐𝘽𝙇𝙄𝘾 𝙍𝙀𝙋𝙊 🌟</p>
+<p align="center">🌟 PRIVATE REPO 🌟</p>
 
 ## Deploy to Heroku
 
