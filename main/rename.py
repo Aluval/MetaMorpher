@@ -895,7 +895,7 @@ async def start_merge_command(bot, msg):
         return await msg.reply_text("The merge feature is currently disabled.")
 
     user_id = msg.from_user.id
-    merge_state[user_id] = {"files": [], "thumbnail": None, "output_filename": None}
+    merge_state[user_id] = {"files": [], "mergethumbnail": None, "output_filename": None}
 
     await msg.reply_text("Send up to 10 video/document files one by one. Once done, send `/videomerge filename` and a thumbnail.")
 
@@ -931,7 +931,7 @@ async def merge_and_upload(bot, msg):
     files_to_merge = merge_state[user_id]["files"]
     output_filename = merge_state[user_id]["output_filename"] or "merged_output.mp4"  # Default output filename
     output_path = os.path.join(DOWNLOAD_LOCATION, output_filename)
-    thumbnail_path = merge_state[user_id]["thumbnail"]
+    thumbnail_path = merge_state[user_id]["mergethumbnail"]
 
     sts = await msg.reply_text("🚀 Starting merge process...")
 
