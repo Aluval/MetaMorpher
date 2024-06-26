@@ -1008,52 +1008,55 @@ async def merge_and_upload(bot, msg):
         await sts.delete()
 
 
-
 # Command to start merging subtitle files
 @Client.on_message(filters.command("mergesub") & filters.group)
-async def start_merge_sub_command(bot, msg):
+async def start_merge_sub_command(bot, msg: Message):
     global MERGE_ENABLED
     if not MERGE_ENABLED:
         return await msg.reply_text("The merge feature is currently disabled.")
 
     user_id = msg.from_user.id
-    merge_state_sub[user_id] = {"files": None, "subs": [], "output_filename": None}
+    merge_state[user_id] = {"video": None, "subs": [], "output_filename": None}
 
-    await msg.reply_text("Send the video file first, followed by subtitle files (.srt) one by one. Once done, send `/finalizesub filename`.")
+    await msg.reply_text("Send the video or document file first, followed by subtitle or audio files (.srt, .mka) one by one. Once done, send `/finalizesub filename`.")
+    await asyncio.sleep(1)  # Introduce a small delay to avoid flood wait
 
 # Command to finalize subtitle merging and start the process
 @Client.on_message(filters.command("finalizesub") & filters.group)
-async def finalize_sub_merge_command(bot, msg):
+async def finalize_sub_merge_command(bot, msg: Message):
     user_id = msg.from_user.id
-    if user_id not in merge_state_sub or not merge_state_sub[user_id]["video"] or not merge_state_sub[user_id]["subs"]:
-        return await msg.reply_text("No video/subtitle files received for merging. Please send files using /mergesub command first.")
+    if user_id not in merge_state or not merge_state[user_id]["video"] or not merge_state[user_id]["subs"]:
+        return await msg.reply_text("No video/subtitle/audio files received for merging. Please send files using /mergesub command first.")
 
     output_filename = msg.text.split(' ', 1)[1].strip()  # Extract output filename from command
-    merge_state_sub[user_id]["output_filename"] = output_filename
+    merge_state[user_id]["output_filename"] = output_filename
 
     await merge_and_upload_sub(bot, msg)
 
-# Handling video and subtitle files sent by users
+# Handling video and document files sent by users
 @Client.on_message((filters.video | filters.document) & filters.group)
-async def handle_video_sub_files(bot, msg):
+async def handle_video_files(bot, msg: Message):
     user_id = msg.from_user.id
-    if user_id in merge_state_sub:
-        if not merge_state_sub[user_id]["files"]:        
-            merge_state_sub[user_id]["files"] = msg
-            await msg.reply_text("Video file received. Now send subtitle files (.srt) one by one.")
-        elif msg.document and msg.document.file_name.endswith('.srt'):
-            if len(merge_state_sub[user_id]["subs"]) < 10:  # Adjust the limit as needed
-                merge_state_sub[user_id]["subs"].append(msg)
-                await msg.reply_text("Subtitle file received. Send another subtitle file or use `/finalizesub filename` to start merging.")
-            else:
-                await msg.reply_text("You have reached the maximum number of subtitle files. Please send `/finalizesub filename`.")
+    if user_id in merge_state and not merge_state[user_id]["video"]:
+        merge_state[user_id]["video"] = msg
+        await msg.reply_text("Video or document file received. Now send subtitle or audio files (.srt, .mka) one by one.")
 
-# Function to merge and upload subtitle files
-async def merge_and_upload_sub(bot, msg, thumbnail_msg=None):
+# Handling subtitle and audio files sent by users
+@Client.on_message(filters.document & filters.group)
+async def handle_sub_files(bot, msg: Message):
     user_id = msg.from_user.id
-    video_file = merge_state_sub[user_id]["files"]
-    sub_files = merge_state_sub[user_id]["subs"]
-    output_filename = merge_state_sub[user_id]["output_filename"] or "merged_output.mkv"  # Default output filename
+    if user_id in merge_state:
+        if msg.document.file_name.endswith('.srt') or msg.document.file_name.endswith('.mka'):
+            merge_state[user_id]["subs"].append(msg)
+            await msg.reply_text("Subtitle or audio file received. Send another file or use `/finalizesub filename` to start merging.")
+        else:
+            await msg.reply_text("Unsupported file format. Please send only subtitle files (.srt) or audio files (.mka).")
+
+async def merge_and_upload_sub(bot, msg: Message, thumbnail_msg=None):
+    user_id = msg.from_user.id
+    video_file = merge_state[user_id]["video"]
+    sub_files = merge_state[user_id]["subs"]
+    output_filename = merge_state[user_id]["output_filename"] or "merged_output.mkv"  # Default output filename
     output_path = os.path.join(DOWNLOAD_LOCATION, output_filename)
 
     sts = await msg.reply_text("🚀 Starting merge process...")
@@ -1068,8 +1071,8 @@ async def merge_and_upload_sub(bot, msg, thumbnail_msg=None):
             file_path = await download_subvideo(file_msg, sts)
             sub_paths.append(file_path)
 
-        await sts.edit("💠 Merging video and subtitle files... ⚡")
-        merged_file_path = merge_sub(video_path, sub_paths, output_path, user_id)
+        await sts.edit("💠 Merging video and subtitle/audio files... ⚡")
+        merged_file_path = merge_sub(video_path, sub_paths, output_path)
 
         filesize = os.path.getsize(merged_file_path)
         filesize_human = humanbytes(filesize)
@@ -1077,23 +1080,22 @@ async def merge_and_upload_sub(bot, msg, thumbnail_msg=None):
 
         await sts.edit("💠 Uploading... ⚡")
 
-        # Prepare thumbnail if provided
-        thumbnail_path = None
+        # Prepare thumbnail
+        thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
         file_thumb = None
-        if thumbnail_msg:
-            thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
-            if os.path.exists(thumbnail_path):
-                file_thumb = thumbnail_path
-            else:
-                try:
-                    file_thumb = await bot.download_media(thumbnail_msg.thumbs[0].file_id, file_name=thumbnail_path)
-                except Exception as e:
-                    print(f"Error downloading thumbnail: {e}")
+        if os.path.exists(thumbnail_path):
+            file_thumb = thumbnail_path
+        else:
+            # Logic to download the thumbnail if not provided
+            try:
+                file_thumb = await bot.download_media(msg.thumbs[0].file_id, file_name=thumbnail_path)
+            except Exception as e:
+                print(f"Error downloading thumbnail: {e}")
 
-        # Uploading the merged file with optional thumbnail
+        # Uploading the merged file
         c_time = time.time()
         await bot.send_document(
-            chat_id=user_id,
+            user_id,
             document=merged_file_path,
             thumb=file_thumb,
             caption=cap,
@@ -1106,7 +1108,7 @@ async def merge_and_upload_sub(bot, msg, thumbnail_msg=None):
         await msg.reply_text(
             f"┏📥 **File Name:** {output_filename}\n"
             f"┠💾 **Size:** {filesize_human}\n"
-            f"┠♻️ **Mode:** Merge\n"
+            f"┠♻️ **Mode:** Merge : Video/Document + Subtitle/Audio\n"
             f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
             f"❄ **File has been sent in Bot PM!**"
         )
@@ -1116,162 +1118,37 @@ async def merge_and_upload_sub(bot, msg, thumbnail_msg=None):
 
     finally:
         # Clean up temporary files
-        if os.path.exists(video_path):
-            os.remove(video_path)
         for file_path in sub_paths:
             if os.path.exists(file_path):
                 os.remove(file_path)
+        if os.path.exists(video_path):
+            os.remove(video_path)
         if os.path.exists(merged_file_path):
             os.remove(merged_file_path)
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
 
         # Clear merge state for the user
-        del merge_state_sub[user_id]
+        del merge_state[user_id]
 
         await sts.delete()
 
-    
 
-"""
-# Command to start merging subtitle files
-@Client.on_message(filters.command("mergesub") & filters.group)
-async def start_merge_sub_command(bot, msg):
-    global MERGE_ENABLED
-    if not MERGE_ENABLED:
-        return await msg.reply_text("The merge feature is currently disabled.")
-
-    user_id = msg.from_user.id
-    merge_state_sub[user_id] = {"video": None, "subs": [], "output_filename": None}
-
-    await msg.reply_text("Send the video file first, followed by subtitle files (.srt) one by one. Once done, send `/finalizesub filename`.")
-
-# Command to finalize subtitle merging and start the process
-@Client.on_message(filters.command("finalizesub") & filters.group)
-async def finalize_sub_merge_command(bot, msg):
-    user_id = msg.from_user.id
-    if user_id not in merge_state_sub or not merge_state_sub[user_id]["video"] or not merge_state_sub[user_id]["subs"]:
-        return await msg.reply_text("No video/subtitle files received for merging. Please send files using /mergesub command first.")
-
-    output_filename = msg.text.split(' ', 1)[1].strip()  # Extract output filename from command
-    merge_state_sub[user_id]["output_filename"] = output_filename
-
-    await merge_and_upload_sub(bot, msg)
-
-# Handling video and subtitle files sent by users
-@Client.on_message((filters.video | filters.document) & filters.group)
-async def handle_video_sub_files(bot, msg):
-    user_id = msg.from_user.id
-    if user_id in merge_state_sub:
-        if not merge_state_sub[user_id]["video"]:        
-            merge_state_sub[user_id]["video"] = msg
-            await msg.reply_text("Video file received. Now send subtitle files (.srt) one by one.")
-        elif msg.document and msg.document.file_name.endswith('.srt'):
-            if len(merge_state_sub[user_id]["subs"]) < 10:  # Adjust the limit as needed
-                merge_state_sub[user_id]["subs"].append(msg)
-                await msg.reply_text("Subtitle file received. Send another subtitle file or use `/finalizesub filename` to start merging.")
-            else:
-                await msg.reply_text("You have reached the maximum number of subtitle files. Please send `/finalizesub filename`.")
-                
-
-# Function to merge and upload subtitle files
-async def merge_and_upload_sub(bot, msg):
-    user_id = msg.from_user.id
-    video_file = merge_state_sub[user_id]["video"]
-    sub_files = merge_state_sub[user_id]["subs"]
-    output_filename = merge_state_sub[user_id]["output_filename"] or "merged_output.mkv"  # Default output filename
-    output_path = os.path.join(DOWNLOAD_LOCATION, output_filename)
-
-    sts = await msg.reply_text("🚀 Starting merge process...")
-
-    video_path = ""
-    sub_paths = []
-    merged_file_path = ""
-
-    try:
-        video_path = await download_subvideo(video_file, sts)
-        for file_msg in sub_files:
-            file_path = await download_subvideo(file_msg, sts)
-            sub_paths.append(file_path)
-
-        await sts.edit("💠 Merging video and subtitle files... ⚡")
-        merged_file_path = merge_sub(video_path, sub_paths, output_path, user_id)
-
-        filesize = os.path.getsize(merged_file_path)
-        filesize_human = humanbytes(filesize)
-        cap = f"{output_filename}\n\n🌟 Size: {filesize_human}"
-
-        await sts.edit("💠 Uploading... ⚡")
-
-        # Thumbnail handling
-        thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
-        file_thumb = None
-        if os.path.exists(thumbnail_path):
-            file_thumb = thumbnail_path
-        else:
-            # Logic to download the thumbnail if not provided
-            try:
-                file_thumb = await bot.download_subvideo(msg.thumbs[0].file_id, file_name=thumbnail_path)
-            except Exception as e:
-                print(f"Error downloading thumbnail: {e}")
-
-        # Uploading the merged file
-        c_time = time.time()
-        await bot.send_document(
-            user_id,
-            document=output_path,
-            thumb=file_thumb,
-            caption=cap,
-            progress=progress_message,
-            progress_args=("💠 Upload Started... ⚡", sts, c_time)
-        )
-
-        await sts.delete()
-
-        await msg.reply_text(
-            f"┏📥 **File Name:** {output_filename}\n"
-            f"┠💾 **Size:** {filesize_human}\n"
-            f"┠♻️ **Mode:** Merge : Video + Subtitle\n"
-            f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-            f"❄ **File has been sent in Bot PM!**"
-        )
-
-    except Exception as e:
-        await sts.edit(f"❌ Error: {e}")
-
-    finally:
-        # Clean up temporary files
-        if os.path.exists(video_path):
-            os.remove(video_path)
-        for file_path in sub_paths:
-            if os.path.exists(file_path):
-                os.remove(file_path)
-        if os.path.exists(merged_file_path):
-            os.remove(merged_file_path)
-        if file_thumb and os.path.exists(file_thumb):
-            os.remove(file_thumb)
-
-        # Clear merge state for the user
-        del merge_state_sub[user_id]
-
-        await sts.delete()"""
-
-# Command to start merging audio files
-# Command to start merging audio files
+# Command to start merging audio files with video or document
 @Client.on_message(filters.command("mergeaudio") & filters.group)
-async def start_merge_audio_command(bot, msg):
+async def start_merge_audio_command(bot, msg: Message):
     global MERGE_ENABLED
     if not MERGE_ENABLED:
         return await msg.reply_text("The merge feature is currently disabled.")
 
     user_id = msg.from_user.id
-    merge_state_audio[user_id] = {"files": None, "audios": [], "output_filename": None}
+    merge_state_audio[user_id] = {"video": None, "audios": [], "output_filename": None}
 
-    await msg.reply_text("Send the video file first, followed by up to 10 audio files one by one. Once done, send `/finalizeaudio filename`.")
+    await msg.reply_text("Send the video or document file first, followed by up to 10 audio files (.mka, .mp3, .opus, .eac3, .aac) one by one. Once done, send `/finalizeaudio filename`.")
 
 # Command to finalize audio merging and start the process
 @Client.on_message(filters.command("finalizeaudio") & filters.group)
-async def finalize_audio_merge_command(bot, msg):
+async def finalize_audio_merge_command(bot, msg: Message):
     user_id = msg.from_user.id
     if user_id not in merge_state_audio or not merge_state_audio[user_id]["video"] or not merge_state_audio[user_id]["audios"]:
         return await msg.reply_text("No video/audio files received for merging. Please send files using /mergeaudio command first.")
@@ -1282,102 +1159,21 @@ async def finalize_audio_merge_command(bot, msg):
     await merge_and_upload_audio(bot, msg)
 
 # Handling media files sent by users
-@Client.on_message((filters.document | filters.audio | filters.video) & filters.group)
-async def handle_audiovideo_files(bot, msg):
+@Client.on_message(filters.document | filters.video & filters.group)
+async def handle_videoaudio_files(bot, msg: Message):
     user_id = msg.from_user.id
     if user_id in merge_state_audio:
-        if not merge_state_audio[user_id]["files"]:
-            merge_state_audio[user_id]["files"] = msg
-            await msg.reply_text("Video file received. Now send up to 10 audio files one by one.")
+        if not merge_state_audio[user_id]["video"]:
+            merge_state_audio[user_id]["video"] = msg
+            await msg.reply_text("Video or document file received. Now send up to 10 audio files (.mka, .mp3, .opus, .eac3, .aac) one by one.")
         elif len(merge_state_audio[user_id]["audios"]) < 10:
-            merge_state_audio[user_id]["audios"].append(msg)
-            await msg.reply_text("Audio file received. Send another audio file or use `/finalizeaudio filename` to start merging.")
-
-async def merge_and_upload_audio(bot, msg, thumbnail_msg=None):
-    user_id = msg.from_user.id
-    video_file = merge_state_audio[user_id]["files"]
-    audio_files = merge_state_audio[user_id]["audios"]
-    output_filename = merge_state_audio[user_id]["output_filename"] or "merged_output.mkv"  # Default output filename
-    output_path = os.path.join(DOWNLOAD_LOCATION, output_filename)
-
-    sts = await msg.reply_text("🚀 Starting merge process...")
-
-    video_path = ""
-    audio_paths = []
-    merged_file_path = ""
-
-    try:
-        video_path = await download_media(video_file, sts)
-        for file_msg in audio_files:
-            file_path = await download_media(file_msg, sts)
-            audio_paths.append(file_path)
-
-        await sts.edit("💠 Merging video and audio files... ⚡")
-        merged_file_path = merge_audio(video_path, audio_paths, output_path)
-
-        filesize = os.path.getsize(merged_file_path)
-        filesize_human = humanbytes(filesize)
-        cap = f"{output_filename}\n\n🌟 Size: {filesize_human}"
-
-        await sts.edit("💠 Uploading... ⚡")
-
-        # Prepare thumbnail
-        thumbnail_path = None
-        file_thumb = None
-        if thumbnail_msg:
-            thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
-            if os.path.exists(thumbnail_path):
-                file_thumb = thumbnail_path
+            if msg.document and msg.document.file_name.endswith(('.mka', '.mp3', '.opus', '.eac3', '.aac')):
+                merge_state_audio[user_id]["audios"].append(msg)
+                await msg.reply_text("Audio file received. Send another audio file or use `/finalizeaudio filename` to start merging.")
             else:
-                try:
-                    file_thumb = await bot.download_media(thumbnail_msg.thumbs[0].file_id, file_name=thumbnail_path)
-                except Exception as e:
-                    print(f"Error downloading thumbnail: {e}")
+                await msg.reply_text("Unsupported file format. Please send only audio files (.mka, .mp3, .opus, .eac3, .aac).")
 
-        # Uploading the merged file with optional thumbnail
-        c_time = time.time()
-        await bot.send_document(
-            chat_id=user_id,
-            document=merged_file_path,
-            thumb=file_thumb,
-            caption=cap,
-            progress=progress_message,
-            progress_args=("💠 Upload Started... ⚡", sts, c_time)
-        )
-
-        await sts.delete()
-
-        await msg.reply_text(
-            f"┏📥 **File Name:** {output_filename}\n"
-            f"┠💾 **Size:** {filesize_human}\n"
-            f"┠♻️ **Mode:** Merge\n"
-            f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-            f"❄ **File has been sent in Bot PM!**"
-        )
-
-    except Exception as e:
-        await sts.edit(f"❌ Error: {e}")
-
-    finally:
-        # Clean up temporary files
-        if os.path.exists(video_path):
-            os.remove(video_path)
-        for file_path in audio_paths:
-            if os.path.exists(file_path):
-                os.remove(file_path)
-        if os.path.exists(merged_file_path):
-            os.remove(merged_file_path)
-        if file_thumb and os.path.exists(file_thumb):
-            os.remove(file_thumb)
-
-        # Clear merge state for the user
-        del merge_state_audio[user_id]
-
-        await sts.delete()
-
-"""
-# Function to merge and upload audio files
-async def merge_and_upload_audio(bot, msg):
+async def merge_and_upload_audio(bot, msg: Message, thumbnail_msg=None):
     user_id = msg.from_user.id
     video_file = merge_state_audio[user_id]["video"]
     audio_files = merge_state_audio[user_id]["audios"]
@@ -1386,19 +1182,15 @@ async def merge_and_upload_audio(bot, msg):
 
     sts = await msg.reply_text("🚀 Starting merge process...")
 
-    video_path = ""
-    audio_paths = []
-    merged_file_path = ""
-    thumbnail_msg = merge_state_audio[user_id].get("thumbnail_msg")
-
     try:
         video_path = await download_audiovideo(video_file, sts)
+        audio_paths = []
         for file_msg in audio_files:
             file_path = await download_audiovideo(file_msg, sts)
             audio_paths.append(file_path)
 
         await sts.edit("💠 Merging video and audio files... ⚡")
-        merged_file_path = merge_audio(video_path, audio_paths, output_path)
+        merged_file_path = merge_video_and_audio(video_path, audio_paths, output_path)
 
         filesize = os.path.getsize(merged_file_path)
         filesize_human = humanbytes(filesize)
@@ -1406,7 +1198,7 @@ async def merge_and_upload_audio(bot, msg):
 
         await sts.edit("💠 Uploading... ⚡")
 
-        # Thumbnail handling
+        # Prepare thumbnail
         thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
         file_thumb = None
         if os.path.exists(thumbnail_path):
@@ -1414,7 +1206,7 @@ async def merge_and_upload_audio(bot, msg):
         else:
             # Logic to download the thumbnail if not provided
             try:
-                file_thumb = await bot.download_audiovideo(msg.thumbs[0].file_id, file_name=thumbnail_path)
+                file_thumb = await bot.download_media(msg.thumbs[0].file_id, file_name=thumbnail_path)
             except Exception as e:
                 print(f"Error downloading thumbnail: {e}")
 
@@ -1422,7 +1214,7 @@ async def merge_and_upload_audio(bot, msg):
         c_time = time.time()
         await bot.send_document(
             user_id,
-            document=output_path,
+            document=merged_file_path,
             thumb=file_thumb,
             caption=cap,
             progress=progress_message,
@@ -1457,7 +1249,9 @@ async def merge_and_upload_audio(bot, msg):
         # Clear merge state for the user
         del merge_state_audio[user_id]
 
-        await sts.delete()"""
+        await sts.delete()
+
+
 
 
 @Client.on_message(filters.command("removetags") & filters.group)
