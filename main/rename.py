@@ -1065,9 +1065,9 @@ async def merge_and_upload_sub(bot, msg: Message):
     merged_file_path = ""
 
     try:
-        video_path = await download_media(video_file, sts)
+        video_path = await download_subvideo(video_file, sts)
         for file_msg in sub_files:
-            file_path = await download_media(file_msg, sts)
+            file_path = await download_subvideo(file_msg, sts)
             sub_paths.append(file_path)
 
         await sts.edit("💠 Merging video and subtitle files... ⚡")
