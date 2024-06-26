@@ -1007,7 +1007,6 @@ async def merge_and_upload(bot, msg):
 
         await sts.delete()
 
-
 # Command to start merging subtitle files
 @Client.on_message(filters.command("mergesub") & filters.group)
 async def start_merge_sub_command(bot, msg):
@@ -1019,7 +1018,6 @@ async def start_merge_sub_command(bot, msg):
     merge_state_sub[user_id] = {"video": None, "subs": [], "output_filename": None}
 
     await msg.reply_text("Send the video file first, followed by subtitle files (.srt) one by one. Once done, send `/finalizesub filename`.")
-    await asyncio.sleep(1)  # Introduce a small delay to avoid flood wait
 
 # Command to finalize subtitle merging and start the process
 @Client.on_message(filters.command("finalizesub") & filters.group)
@@ -1038,17 +1036,16 @@ async def finalize_sub_merge_command(bot, msg):
 async def handle_video_sub_files(bot, msg):
     user_id = msg.from_user.id
     if user_id in merge_state_sub:
-        if not merge_state_sub[user_id]["video"]:
+        if not merge_state_sub[user_id]["video"]:        
             merge_state_sub[user_id]["video"] = msg
             await msg.reply_text("Video file received. Now send subtitle files (.srt) one by one.")
         elif msg.document and msg.document.file_name.endswith('.srt'):
-            if len(merge_state_sub[user_id]["subs"]) < 10:  # Limiting to 10 subtitle files
+            if len(merge_state_sub[user_id]["subs"]) < 10:  # Adjust the limit as needed
                 merge_state_sub[user_id]["subs"].append(msg)
                 await msg.reply_text("Subtitle file received. Send another subtitle file or use `/finalizesub filename` to start merging.")
             else:
                 await msg.reply_text("You have reached the maximum number of subtitle files. Please send `/finalizesub filename`.")
-        else:
-            await msg.reply_text("Unsupported file format. Please send only video or subtitle files (.srt).")
+                
 
 # Function to merge and upload subtitle files
 async def merge_and_upload_sub(bot, msg):
