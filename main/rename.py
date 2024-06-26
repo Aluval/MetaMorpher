@@ -1017,7 +1017,7 @@ async def start_merge_sub_command(bot, msg):
         return await msg.reply_text("The merge feature is currently disabled.")
 
     user_id = msg.from_user.id
-    merge_state_sub[user_id] = {"video": None, "subs": [], "output_filename": None}
+    merge_state_sub[user_id] = {"files": None, "subs": [], "output_filename": None}
 
     await msg.reply_text("Send the video file first, followed by subtitle files (.srt) one by one. Once done, send `/finalizesub filename`.")
 
@@ -1038,8 +1038,8 @@ async def finalize_sub_merge_command(bot, msg):
 async def handle_video_sub_files(bot, msg):
     user_id = msg.from_user.id
     if user_id in merge_state_sub:
-        if not merge_state_sub[user_id]["video"]:        
-            merge_state_sub[user_id]["video"] = msg
+        if not merge_state_sub[user_id]["files"]:        
+            merge_state_sub[user_id]["files"] = msg
             await msg.reply_text("Video file received. Now send subtitle files (.srt) one by one.")
         elif msg.document and msg.document.file_name.endswith('.srt'):
             if len(merge_state_sub[user_id]["subs"]) < 10:  # Adjust the limit as needed
@@ -1051,7 +1051,7 @@ async def handle_video_sub_files(bot, msg):
 # Function to merge and upload subtitle files
 async def merge_and_upload_sub(bot, msg, thumbnail_msg=None):
     user_id = msg.from_user.id
-    video_file = merge_state_sub[user_id]["video"]
+    video_file = merge_state_sub[user_id]["files"]
     sub_files = merge_state_sub[user_id]["subs"]
     output_filename = merge_state_sub[user_id]["output_filename"] or "merged_output.mkv"  # Default output filename
     output_path = os.path.join(DOWNLOAD_LOCATION, output_filename)
@@ -1265,7 +1265,7 @@ async def start_merge_audio_command(bot, msg):
         return await msg.reply_text("The merge feature is currently disabled.")
 
     user_id = msg.from_user.id
-    merge_state_audio[user_id] = {"video": None, "audios": [], "output_filename": None}
+    merge_state_audio[user_id] = {"files": None, "audios": [], "output_filename": None}
 
     await msg.reply_text("Send the video file first, followed by up to 10 audio files one by one. Once done, send `/finalizeaudio filename`.")
 
@@ -1286,8 +1286,8 @@ async def finalize_audio_merge_command(bot, msg):
 async def handle_audiovideo_files(bot, msg):
     user_id = msg.from_user.id
     if user_id in merge_state_audio:
-        if not merge_state_audio[user_id]["video"]:
-            merge_state_audio[user_id]["video"] = msg
+        if not merge_state_audio[user_id]["files"]:
+            merge_state_audio[user_id]["files"] = msg
             await msg.reply_text("Video file received. Now send up to 10 audio files one by one.")
         elif len(merge_state_audio[user_id]["audios"]) < 10:
             merge_state_audio[user_id]["audios"].append(msg)
@@ -1295,7 +1295,7 @@ async def handle_audiovideo_files(bot, msg):
 
 async def merge_and_upload_audio(bot, msg, thumbnail_msg=None):
     user_id = msg.from_user.id
-    video_file = merge_state_audio[user_id]["video"]
+    video_file = merge_state_audio[user_id]["files"]
     audio_files = merge_state_audio[user_id]["audios"]
     output_filename = merge_state_audio[user_id]["output_filename"] or "merged_output.mkv"  # Default output filename
     output_path = os.path.join(DOWNLOAD_LOCATION, output_filename)
