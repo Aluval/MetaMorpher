@@ -1037,9 +1037,11 @@ async def finalize_sub_merge_command(bot, msg: Message):
 @Client.on_message((filters.video | filters.document) & filters.group)
 async def handle_video_files(bot, msg: Message):
     user_id = msg.from_user.id
-    if user_id in merge_state and not merge_state[user_id]["video"]:
+    if user_id in merge_state and len(merge_state[user_id]["video"])<1:
         merge_state[user_id]["video"] = msg
         await msg.reply_text("Video or document file received. Now send subtitle or audio files (.srt, .mka) one by one.")
+
+
 
 # Handling subtitle and audio files sent by users
 @Client.on_message(filters.document & filters.group)
