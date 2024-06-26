@@ -1007,17 +1007,6 @@ async def merge_and_upload(bot, msg):
 
         await sts.delete()
 
-import os
-import time
-import asyncio
-import subprocess
-from pyrogram import Client, filters
-from pyrogram.types import Message
-
-# Global variables
-MERGE_ENABLED = True
-merge_state_sub = {}
-DOWNLOAD_LOCATION = "./downloads"  # Change to your actual download location
 
 # Command to start merging video with subtitles
 @Client.on_message(filters.command("mergesub") & filters.group)
@@ -1031,6 +1020,8 @@ async def start_merge_sub_command(bot, msg: Message):
 
     await msg.reply_text("Send the video file first, followed by subtitle files (.srt) one by one. Once done, send `/finalizesub filename`.")
 
+
+
 # Command to finalize subtitle merging and start the process
 @Client.on_message(filters.command("finalizesub") & filters.group)
 async def finalize_sub_merge_command(bot, msg: Message):
@@ -1043,15 +1034,22 @@ async def finalize_sub_merge_command(bot, msg: Message):
 
     await merge_and_upload_sub(bot, msg)
 
+
 # Handling video and subtitle files sent by users
 @Client.on_message((filters.video | filters.document) & filters.group)
 async def handle_video_sub_files(bot, msg: Message):
     user_id = msg.from_user.id
-    if user_id in merge_state_sub:
+    if user_id not in merge_state_sub:
+        merge_state_sub[user_id] = {"video": None, "subs": [], "output_filename": None}
+
+    if msg.video:
         if not merge_state_sub[user_id]["video"]:
             merge_state_sub[user_id]["video"] = msg
             await msg.reply_text("Video file received. Now send subtitle files (.srt) one by one.")
-        elif msg.document and msg.document.file_name.endswith('.srt'):
+        else:
+            await msg.reply_text("You've already sent a video file.")
+    elif msg.document:
+        if msg.document.file_name.endswith('.srt'):
             if len(merge_state_sub[user_id]["subs"]) < 10:  # Limiting to 10 subtitle files
                 merge_state_sub[user_id]["subs"].append(msg)
                 await msg.reply_text("Subtitle file received. Send another subtitle file or use `/finalizesub filename` to start merging.")
@@ -1059,6 +1057,7 @@ async def handle_video_sub_files(bot, msg: Message):
                 await msg.reply_text("You have reached the maximum number of subtitle files. Please send `/finalizesub filename`.")
         else:
             await msg.reply_text("Unsupported file format. Please send only video or subtitle files (.srt).")
+
 
 async def merge_and_upload_sub(bot, msg: Message):
     user_id = msg.from_user.id
