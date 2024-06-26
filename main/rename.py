@@ -1079,21 +1079,23 @@ async def merge_and_upload_sub(bot, msg):
 
         await sts.edit("💠 Uploading... ⚡")
 
-        # Prepare thumbnail if available
-        thumbnail_path = None
+        # Thumbnail handling
+        thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
         file_thumb = None
-        if merge_state_sub[user_id].get("thumbnail_msg"):
-            thumbnail_path = os.path.join(DOWNLOAD_LOCATION, f"thumbnail_{user_id}.jpg")
+        if os.path.exists(thumbnail_path):
+            file_thumb = thumbnail_path
+        else:
+            # Logic to download the thumbnail if not provided
             try:
-                file_thumb = await bot.download_media(merge_state_sub[user_id]["thumbnail_msg"].thumbnail.file_id, file_name=thumbnail_path)
+                file_thumb = await bot.download_subvideo(msg.thumbs[0].file_id, file_name=thumbnail_path)
             except Exception as e:
                 print(f"Error downloading thumbnail: {e}")
 
-        # Uploading the merged file with optional thumbnail
+        # Uploading the merged file
         c_time = time.time()
         await bot.send_document(
-            chat_id=user_id,
-            document=merged_file_path,
+            user_id,
+            document=output_path,
             thumb=file_thumb,
             caption=cap,
             progress=progress_message,
@@ -1198,21 +1200,23 @@ async def merge_and_upload_audio(bot, msg):
 
         await sts.edit("💠 Uploading... ⚡")
 
-        # Prepare thumbnail
-        thumbnail_path = None
+        # Thumbnail handling
+        thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
         file_thumb = None
-        if thumbnail_msg:
-            thumbnail_path = os.path.join(DOWNLOAD_LOCATION, f"thumbnail_{user_id}.jpg")
+        if os.path.exists(thumbnail_path):
+            file_thumb = thumbnail_path
+        else:
+            # Logic to download the thumbnail if not provided
             try:
-                file_thumb = await bot.download_media(thumbnail_msg.thumbs[0].file_id, file_name=thumbnail_path)
+                file_thumb = await bot.download_audiovideo(msg.thumbs[0].file_id, file_name=thumbnail_path)
             except Exception as e:
                 print(f"Error downloading thumbnail: {e}")
 
-        # Uploading the merged file with optional thumbnail
+        # Uploading the merged file
         c_time = time.time()
         await bot.send_document(
-            chat_id=user_id,
-            document=merged_file_path,
+            user_id,
+            document=output_path,
             thumb=file_thumb,
             caption=cap,
             progress=progress_message,
