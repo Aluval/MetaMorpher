@@ -103,27 +103,6 @@ async def download_media(msg, sts):
         await sts.edit(f"❌ Error downloading media: {e}")
         raise
 
-# For downloading video + subitles
-async def download_subvideo(msg, sts):
-    c_time = time.time()
-    try:
-        file_path = await msg.download(progress=progress_message, progress_args=("🚀 Downloading media... ⚡", sts, c_time))
-        await msg.reply_text(f"✅ Media downloaded successfully: {os.path.basename(file_path)}")
-        return file_path
-    except Exception as e:
-        await sts.edit(f"❌ Error downloading media: {e}")
-        raise
-
-# For downloading video + audio
-async def download_audiovideo(msg, sts):
-    c_time = time.time()
-    try:
-        file_path = await msg.download(progress=progress_message, progress_args=("🚀 Downloading media... ⚡", sts, c_time))
-        await msg.reply_text(f"✅ Media downloaded successfully: {os.path.basename(file_path)}")
-        return file_path
-    except Exception as e:
-        await sts.edit(f"❌ Error downloading media: {e}")
-        raise
         
 # Recursive function to upload files
 async def upload_files(bot, chat_id, directory, base_path=""):
