@@ -1235,25 +1235,26 @@ async def sample_video(bot, msg):
     os.remove(output_file)
     await sts.delete()
   
-@Client.on_message(filters.command("linktofile") & filters.chat(AUTH_USERS))
+@Client.on_message(filters.command("leech") & filters.chat(AUTH_USERS))
 async def linktofile(bot, msg: Message):
     reply = msg.reply_to_message
     if len(msg.command) < 2 or not reply:
         return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
 
     new_name = msg.text.split(" ", 1)[1]
+    if not new_name.endswith(".mkv"):
+        return await msg.reply_text("Please specify a filename ending with .mkv.")
 
     media = reply.document or reply.audio or reply.video
     if not media and not reply.text:
         return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
 
     if reply.text and ("seedr" in reply.text or "workers" in reply.text):
-        await handle_link_download(bot, msg, reply.text, new_name)
+        await handle_link_download(bot, msg, reply.text, new_name, media)
     else:
         if not media:
             return await msg.reply_text("Please Reply To A Valid File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
 
-        og_media = getattr(reply, reply.media.value)
         sts = await msg.reply_text("🚀 Downloading...")
         c_time = time.time()
         try:
@@ -1261,24 +1262,26 @@ async def linktofile(bot, msg: Message):
         except RPCError as e:
             return await sts.edit(f"Download failed: {e}")
 
-        filesize = humanbytes(og_media.file_size)
+        filesize = humanbytes(media.file_size)
 
         if CAPTION:
             try:
                 cap = CAPTION.format(file_name=new_name, file_size=filesize)
             except Exception as e:
-                return await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
+                return await sts.edit(text=f"Your caption has an error: unexpected keyword ({e})")
         else:
             cap = f"{new_name}\n\n🌟 Size: {filesize}"
 
         # Thumbnail handling
-        file_thumb = None
-        if og_media.thumbs:
+        thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
+        if not os.path.exists(thumbnail_path):
             try:
-                file_thumb = await bot.download_media(og_media.thumbs[0].file_id, file_name=f"{DOWNLOAD_LOCATION}/{new_name}_thumb.jpg")
+                file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
             except Exception as e:
                 print(f"Error downloading thumbnail: {e}")
                 file_thumb = None
+        else:
+            file_thumb = thumbnail_path
 
         await sts.edit("💠 Uploading...")
         c_time = time.time()
@@ -1291,20 +1294,33 @@ async def linktofile(bot, msg: Message):
                 progress=progress_message, 
                 progress_args=("💠 Upload Started...", sts, c_time)
             )
+
+            # Prepare and send response message
+            filesize = os.path.getsize(new_name)
+            filesize_human = humanbytes(filesize)
+            await msg.reply_text(
+                f"┏📥 **File Name:** {os.path.basename(new_name)}\n"
+                f"┠💾 **Size:** {filesize_human}\n"
+                f"┠♻️ **Mode:** Link Download\n"
+                f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
+                f"❄ **File has been sent to your PM in the bot!**"
+            )
+
         except RPCError as e:
             await sts.edit(f"Upload failed: {e}")
         except TimeoutError as e:
             await sts.edit(f"Upload timed out: {e}")
         finally:
             try:
-                if file_thumb:
+                if file_thumb and os.path.exists(file_thumb):
                     os.remove(file_thumb)
-                os.remove(downloaded)
+                if os.path.exists(downloaded):
+                    os.remove(downloaded)
             except Exception as e:
                 print(f"Error deleting files: {e}")
             await sts.delete()
-          
-async def handle_link_download(bot, msg: Message, link: str, new_name: str):
+
+async def handle_link_download(bot, msg: Message, link: str, new_name: str, media):
     sts = await msg.reply_text("🚀 Downloading from link...")
     c_time = time.time()
 
@@ -1325,28 +1341,34 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str):
         await sts.edit("File not found after download. Please check the link and try again.")
         return
 
+    # Assuming CAPTION and other necessary constants are defined properly
     filesize = os.path.getsize(new_name)
-    filesize = humanbytes(filesize)
+    filesize_human = humanbytes(filesize)
+    cap = f"{new_name}\n\n🌟 Size: {filesize_human}"
 
-    if CAPTION:
+    # Thumbnail handling
+    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
+    if not os.path.exists(thumbnail_path):
         try:
-            cap = CAPTION.format(file_name=new_name, file_size=filesize)
+            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
         except Exception as e:
-            await sts.edit(text=f"Your caption has an error: unexpected keyword ●> ({e})")
-            return
+            print(f"Error downloading thumbnail: {e}")
+            file_thumb = None
     else:
-        cap = f"{new_name}\n\n🌟 Size: {filesize}"
+        file_thumb = thumbnail_path
 
     await sts.edit("💠 Uploading...")
     c_time = time.time()
     try:
-        await bot.send_document(msg.chat.id, document=new_name, caption=cap, progress=progress_message, progress_args=("💠 Upload Started...", sts, c_time))
+        await bot.send_document(msg.chat.id, document=new_name, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started...", sts, c_time))
     except RPCError as e:
         await sts.edit(f"Upload failed: {e}")
     except TimeoutError as e:
         await sts.edit(f"Upload timed out: {e}")
     finally:
         try:
+            if file_thumb:
+                os.remove(file_thumb)
             os.remove(new_name)
         except Exception as e:
             print(f"Error deleting file: {e}")
