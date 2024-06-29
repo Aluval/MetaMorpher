@@ -1046,16 +1046,15 @@ async def remove_tags(bot, msg):
     await sts.edit("💠 Removing all tags... ⚡")
     try:
         remove_all_tags(downloaded, cleaned_file)
-
     except Exception as e:
         await sts.edit(f"Error removing all tags: {e}")
         os.remove(downloaded)
         return
 
-    file_thumb = f"{DOWNLOAD_LOCATION}/thumbnail.jpg"
+    file_thumb = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
     if not os.path.exists(file_thumb):
         try:
-            file_thumb = await bot.download_media(media.thumbs[0].file_id)
+            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=file_thumb)
         except Exception as e:
             print(e)
             file_thumb = None
@@ -1080,9 +1079,9 @@ async def remove_tags(bot, msg):
             f"┠💾 **Size:** {filesize_human}\n"
             f"┠♻️ **Mode:** Remove Tags\n"
             f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-            f"❄**File has been sent to your PM in the bot!**"            
+            f"❄**File has been sent to your PM in the bot!**"
         )
-        
+
         await sts.delete()
     except Exception as e:
         await sts.edit(f"Error uploading cleaned file: {e}")
@@ -1091,7 +1090,6 @@ async def remove_tags(bot, msg):
         os.remove(cleaned_file)
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
-
 
 @Client.on_message(filters.private & filters.command("screenshots"))
 async def screenshots_command(client, message: Message):
