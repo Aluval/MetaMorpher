@@ -12,7 +12,7 @@ from pyrogram.errors import MessageNotModified
 from config import DOWNLOAD_LOCATION, CAPTION
 from main.utils import progress_message, humanbytes
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup,CallbackQuery
-from config import GROUP, AUTH_USERS, ADMIN
+from config import AUTH_USERS, ADMIN
 from main.utils import heroku_restart, upload_files, download_media
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
@@ -204,7 +204,7 @@ async def sample_video_option(client, callback_query: CallbackQuery):
 async def back_to_settings(client, callback_query: CallbackQuery):
     await display_user_settings(client, callback_query.message, edit=True)
 
-@Client.on_message(filters.command("usersettings") & filters.group)
+@Client.on_message(filters.private & filters.command("usersettings"))
 async def display_user_settings(client, msg, edit=False):
     user_id = msg.from_user.id
     current_duration = user_settings.get(user_id, {}).get("sample_video_duration", "Not set")
@@ -379,7 +379,7 @@ async def inline_thumbnail_settings(client, callback_query: CallbackQuery):
 
 
 # Command to set a permanent thumbnail
-@Client.on_message(filters.command("setthumbnail") & filters.group)
+@Client.on_message(filters.private & filters.command("setthumbnail"))
 async def set_thumbnail_command(client, message):
     user_id = message.from_user.id
     thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
@@ -391,7 +391,7 @@ async def set_thumbnail_command(client, message):
         await message.reply("Send a photo to set as your permanent thumbnail.")
 
 # Handler for setting the thumbnail
-@Client.on_message(filters.photo & filters.group)
+@Client.on_message(filters.photo & filters.private)
 async def set_thumbnail_handler(client, message):
     user_id = message.from_user.id
     thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
@@ -439,7 +439,7 @@ async def back_to_settings_callback(client, callback_query: CallbackQuery):
     await display_user_settings(client, callback_query.message)
 
 # Command to set metadata titles
-@Client.on_message(filters.command("setmetadata") & filters.group)
+@Client.on_message(filters.private & filters.command("setmetadata"))
 async def set_metadata_command(client, msg):
     global user_settings  # Ensure we're modifying the global user_settings
 
@@ -464,7 +464,7 @@ async def set_metadata_command(client, msg):
     await msg.reply_text("Metadata titles set successfully ✅.")
 
 #Rename Command
-@Client.on_message(filters.command("rename") & filters.group)
+@Client.on_message(filters.private & filters.command("rename"))
 async def rename_file(bot, msg):
     global RENAME_ENABLED
     if not RENAME_ENABLED:
@@ -527,7 +527,7 @@ async def rename_file(bot, msg):
     await sts.delete()
 
 #MultiTask Command 
-@Client.on_message(filters.command("multitask") & filters.group)
+@Client.on_message(filters.private & filters.command("multitask"))
 async def multitask_command(bot, msg):
     global MULTITASK_ENABLED
 
@@ -620,7 +620,7 @@ async def multitask_command(bot, msg):
             os.remove(og_thumbnail)
         await sts.delete()
 
-@Client.on_message(filters.command("changemetadata") & filters.group)
+@Client.on_message(filters.private & filters.command("changemetadata"))
 async def change_metadata(bot, msg):
     global METADATA_ENABLED, user_settings
 
@@ -702,10 +702,7 @@ async def change_metadata(bot, msg):
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
 
-
-
-
-@Client.on_message(filters.command("attachphoto") & filters.group)
+@Client.on_message(filters.private & filters.command("attachphoto"))
 async def attach_photo(bot, msg):
     global PHOTO_ATTACH_ENABLED
 
@@ -774,7 +771,7 @@ async def attach_photo(bot, msg):
         os.remove(output_file)
         await sts.delete()
 
-@Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
+@Client.on_message(filters.private & filters.command("changeindex"))
 async def change_index(bot, msg):
     global CHANGE_INDEX_ENABLED
 
@@ -894,7 +891,7 @@ async def change_index(bot, msg):
 
 
 # Command to start merging files
-@Client.on_message(filters.command("merge") & filters.group)
+@Client.on_message(filters.private & filters.command("merge"))
 async def start_merge_command(bot, msg):
     global MERGE_ENABLED
     if not MERGE_ENABLED:
@@ -906,7 +903,7 @@ async def start_merge_command(bot, msg):
     await msg.reply_text("Send up to 10 video/document files one by one. Once done, send `/videomerge filename`.")
 
 # Command to finalize merging and start process
-@Client.on_message(filters.command("videomerge") & filters.group)
+@Client.on_message(filters.private & filters.command("videomerge"))
 async def start_video_merge_command(bot, msg):
     user_id = msg.from_user.id
     if user_id not in merge_state or not merge_state[user_id]["files"]:
@@ -918,7 +915,7 @@ async def start_video_merge_command(bot, msg):
     await merge_and_upload(bot, msg)
 
 # Handling media files sent by users
-@Client.on_message(filters.document | filters.video & filters.group)
+@Client.on_message(filters.document | filters.video & filters.private)
 async def handle_media_files(bot, msg):
     user_id = msg.from_user.id
     if user_id in merge_state and len(merge_state[user_id]["files"]) < 10:
@@ -1007,8 +1004,7 @@ async def merge_and_upload(bot, msg):
 
         await sts.delete()
 
-
-@Client.on_message(filters.command("removetags") & filters.group)
+@Client.on_message(filters.private & filters.command("removetags"))
 async def remove_tags(bot, msg):
     global REMOVETAGS_ENABLED
     if not REMOVETAGS_ENABLED:
@@ -1097,8 +1093,7 @@ async def remove_tags(bot, msg):
             os.remove(file_thumb)
 
 
-
-@Client.on_message(filters.command("screenshots") & filters.group)
+@Client.on_message(filters.private & filters.command("screenshots"))
 async def screenshots_command(client, message: Message):
     user_id = message.from_user.id
     num_screenshots = user_settings.get(user_id, {}).get("screenshots", 5)  # Default to 5 if not set
@@ -1177,7 +1172,7 @@ async def screenshots_command(client, message: Message):
         print(f"Failed to send notification: {e}")
     await sts.delete()
 
-@Client.on_message(filters.command("SampleVideo") & filters.chat(GROUP))
+@Client.on_message(filters.private & filters.command("samplevideo"))
 async def sample_video(bot, msg):
     user_id = msg.from_user.id
     duration = user_settings.get(user_id, {}).get("sample_video_duration", 0)
@@ -1353,7 +1348,7 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str):
         await sts.delete()
  
  # Define restart_app command
-@Client.on_message(filters.command("restart") & filters.chat(GROUP))
+@Client.on_message(filters.command("restart") & filters.chat(AUTH_USERS))
 async def restart_app(bot, msg):
     if not f'{msg.from_user.id}' == f'{int(AUTH_USERS)}':
         return await msg.reply_text("Only authorized user can restart!")
@@ -1368,7 +1363,7 @@ async def restart_app(bot, msg):
         
 
 # Unzip file command handler
-@Client.on_message(filters.command("unzip") & filters.chat(GROUP))
+@Client.on_message(filters.private & filters.command("unzip"))
 async def unzip(bot, msg):
     if not msg.reply_to_message:
         return await msg.reply_text("Please reply to a zip file to unzip.")
@@ -1403,7 +1398,7 @@ async def unzip(bot, msg):
     shutil.rmtree(extract_path)
   
 # Handler for setting the photo with user ID
-@Client.on_message(filters.command("setphoto"))
+@Client.on_message(filters.private & filters.command("setphoto"))
 async def set_photo(bot, msg):
     reply = msg.reply_to_message
     if not reply or not reply.photo:
