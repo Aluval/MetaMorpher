@@ -32,11 +32,7 @@
         "AUTH_USERS": { 
             "description": "For Restart OWNER ID", 
             "required": true 
-        },
-        "GROUP": { 
-            "description": "GROUP ID", 
-            "required": true 
-        }, 
+        },       
         "ADMIN": { 
             "description": "Your telegram ID,Run the Bot", 
             "required": true 
