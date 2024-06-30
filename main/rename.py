@@ -774,8 +774,8 @@ async def attach_photo(bot, msg):
         os.remove(output_file)
         await sts.delete()
 
-@Client.on_message(filters.command("changeindex") & filters.chat(GROUP))
-async def change_index(bot, msg):
+@Client.on_message(filters.command("changeindexaudio") & filters.chat(GROUP))
+async def change_index_audio(bot, msg):
     global CHANGE_INDEX_ENABLED
 
     if not CHANGE_INDEX_ENABLED:
@@ -783,10 +783,10 @@ async def change_index(bot, msg):
 
     reply = msg.reply_to_message
     if not reply:
-        return await msg.reply_text("Please reply to a media file with the index command\nFormat: `/changeindex a-3 -n filename.mkv` (Audio)")
+        return await msg.reply_text("Please reply to a media file with the index command\nFormat: `/changeindexaudio a-3 -n filename.mkv` (Audio)")
 
     if len(msg.command) < 3:
-        return await msg.reply_text("Please provide the index command with a filename\nFormat: `/changeindex a-3 -n filename.mkv` (Audio)")
+        return await msg.reply_text("Please provide the index command with a filename\nFormat: `/changeindexaudio a-3 -n filename.mkv` (Audio)")
 
     index_cmd = None
     output_filename = None
@@ -803,7 +803,7 @@ async def change_index(bot, msg):
         return await msg.reply_text("Please provide a filename using the `-n` flag.")
 
     if not index_cmd or not index_cmd.startswith("a-"):
-        return await msg.reply_text("Invalid format. Use `/changeindex a-3 -n filename.mkv` for audio.")
+        return await msg.reply_text("Invalid format. Use `/changeindexaudio a-3 -n filename.mkv` for audio.")
 
     media = reply.document or reply.audio or reply.video
     if not media:
@@ -835,7 +835,7 @@ async def change_index(bot, msg):
 
     ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
 
-    await sts.edit("💠 Changing indexing... ⚡")
+    await sts.edit("💠 Changing audio indexing... ⚡")
     process = await asyncio.create_subprocess_exec(*ffmpeg_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     stdout, stderr = await process.communicate()
 
@@ -873,7 +873,7 @@ async def change_index(bot, msg):
         await msg.reply_text(          
             f"┏📥 **File Name:** {output_filename}\n"
             f"┠💾 **Size:** {filesize_human}\n"
-            f"┠♻️ **Mode:** Change Index\n"
+            f"┠♻️ **Mode:** Change Audio Index\n"
             f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
             f"❄**File have been Sent in Bot PM!**"            
         )
@@ -891,6 +891,121 @@ async def change_index(bot, msg):
             print(f"Error deleting files: {e}")
 
 
+
+@Client.on_message(filters.command("changeindexsub") & filters.chat(GROUP))
+async def change_index_sub(bot, msg):
+    global CHANGE_INDEX_ENABLED
+
+    if not CHANGE_INDEX_ENABLED:
+        return await msg.reply_text("The changeindexsub feature is currently disabled.")
+
+    reply = msg.reply_to_message
+    if not reply:
+        return await msg.reply_text("Please reply to a media file with the index command\nFormat: `/changeindexsub s-3 -n filename.mkv` (Subtitles)")
+
+    if len(msg.command) < 3:
+        return await msg.reply_text("Please provide the index command with a filename\nFormat: `/changeindexsub s-3 -n filename.mkv` (Subtitles)")
+
+    index_cmd = None
+    output_filename = None
+
+    # Extract index command and output filename from the command
+    for i in range(1, len(msg.command)):
+        if msg.command[i] == "-n":
+            output_filename = " ".join(msg.command[i + 1:])  # Join all the parts after the flag
+            break
+
+    index_cmd = " ".join(msg.command[1:i])  # Get the index command before the flag
+
+    if not output_filename:
+        return await msg.reply_text("Please provide a filename using the `-n` flag.")
+
+    if not index_cmd or not index_cmd.startswith("s-"):
+        return await msg.reply_text("Invalid format. Use `/changeindexsub s-3 -n filename.mkv` for subtitles.")
+
+    media = reply.document or reply.audio or reply.video
+    if not media:
+        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the index command.")
+
+    sts = await msg.reply_text("🚀 Downloading media... ⚡")
+    c_time = time.time()
+    try:
+        # Download the media file
+        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
+    except Exception as e:
+        await sts.edit(f"Error downloading media: {e}")
+        return
+
+    output_file = os.path.join(DOWNLOAD_LOCATION, output_filename)
+
+    index_params = index_cmd.split('-')
+    stream_type = index_params[0]
+    indexes = [int(i) - 1 for i in index_params[1:]]
+
+    # Construct the FFmpeg command to modify subtitle indexes
+    ffmpeg_cmd = ['ffmpeg', '-i', downloaded]
+
+    # Add subtitle stream mapping
+    for idx in indexes:
+        ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
+
+    # Include only subtitle streams
+    ffmpeg_cmd.extend(['-c:s', 'copy', output_file, '-y'])
+
+    await sts.edit("💠 Changing subtitle indexing... ⚡")
+    process = await asyncio.create_subprocess_exec(*ffmpeg_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    stdout, stderr = await process.communicate()
+
+    if process.returncode != 0:
+        await sts.edit(f"❗ FFmpeg error: {stderr.decode('utf-8')}")
+        os.remove(downloaded)
+        return
+
+    # Thumbnail handling
+    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
+
+    if os.path.exists(thumbnail_path):
+        file_thumb = thumbnail_path
+    else:
+        try:
+            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
+        except Exception as e:
+            file_thumb = None
+
+    filesize = os.path.getsize(output_file)
+    filesize_human = humanbytes(filesize)
+    cap = f"{output_filename}\n\n🌟 Size: {filesize_human}"
+
+    await sts.edit("💠 Uploading... ⚡")
+    try:
+        await bot.send_document(
+            msg.from_user.id,
+            document=output_file,
+            thumb=file_thumb,
+            caption=cap,
+            progress=progress_message,
+            progress_args=("💠 Upload Started... ⚡️", sts, c_time)
+        )
+        await sts.delete()
+        await msg.reply_text(          
+            f"┏📥 **File Name:** {output_filename}\n"
+            f"┠💾 **Size:** {filesize_human}\n"
+            f"┠♻️ **Mode:** Change Subtitle Index\n"
+            f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
+            f"❄ **File has been Sent in Bot PM!**"            
+        )
+    except RPCError as e:
+        await sts.edit(f"Upload failed: {e}")
+    except TimeoutError as e:
+        await sts.edit(f"Upload timed out: {e}")
+    finally:
+        try:
+            if file_thumb and os.path.exists(file_thumb):
+                os.remove(file_thumb)
+            os.remove(downloaded)
+            os.remove(output_file)
+        except Exception as e:
+            print(f"Error deleting files: {e}")
 
 
 # Command to start merging files
