@@ -1,7 +1,7 @@
 services:
   - type: web
     plan: free
-    name: indexx
+    name: advance Rename 24 Bot 
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: python bot.py
