@@ -1,0 +1,14 @@
+services:
+  - type: worker
+    plan: free
+    name: 𝐌𝐞𝐭𝐚𝐌𝐨𝐫𝐩𝐡𝐞𝐫
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    repo: https://github.com/Aluval/MetaMorpher.git
+    branch: SH24BOTS-PVT
+    autoDeploy: true
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      
