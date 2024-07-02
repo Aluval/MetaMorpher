@@ -13,6 +13,19 @@ Press Below Button to Deploy!
 
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/Aluval/ADVANCERENAME24BOT)
 
+### **BOT INFO**
+
+- `Rename: It can rename files.`
+- `Metadata: Manages and updates metadata.`
+- `Change index audio: Adjusts metadata or index information for audio files.`
+- `Change Index Subtitles: Manages and updates index or metadata for subtitle files.`
+- `Attach photo attachment.jpg: Attaches specific photos like attachment.jpg.`
+- `Remove tags in files: Cleans and removes tags or metadata from files.`
+- `Merge: Merges files and data [Video + Video].`
+- `Unzip files only support extension .zip: Unzips files specifically supporting .zip extension.`
+- `Screenshots: Captures screenshots.`
+- `Sample Video: Generates sample videos.`
+
 ###  **𝑅𝐸𝑄𝑈𝐼𝑅𝐸𝐷 𝑉𝐴𝑅𝐼𝐴𝐵𝐿𝐸𝑆** 
 
 * `BOT_TOKEN`  - Get bot token from @BotFather
