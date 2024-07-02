@@ -1,7 +1,7 @@
 { 
-    "name": "ADVANCERENAME24BOT", 
-    "description": "A SIMPLE RENAME BOT WITH THUMBNAIL,CAPTION & HIGH SPEED ⚡️",
-    "logo":"https://telegra.ph/file/9ab6d71f68a43dd426a11.jpg",
+    "name": "MetaMorpher", 
+    "description": "ADVANCE RENAME BOT WITH THUMBNAIL,CAPTION & HIGH SPEED ⚡️",
+    "logo":"https://graph.org/file/bd91761f6e938e2e6d23a.jpg",
     "repository": "https://github.com/Aluval/ADVANCERENAME24BOT",   
     "keywords": ["Rename-bot", "Telegram", "ADVANCE RENAME 24 BOT"], 
     "env": { 
@@ -30,7 +30,7 @@
             "required": true 
         }, 
         "AUTH_USERS": { 
-            "description": "For Restart OWNER ID", 
+            "description": "For Restart OWNER ID & Leech support", 
             "required": true 
         },       
         "ADMIN": { 
