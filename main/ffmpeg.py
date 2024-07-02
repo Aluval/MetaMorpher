@@ -1,3 +1,5 @@
+#TG:@Sunrises_24
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 import subprocess
 import zipfile
 import asyncio
@@ -97,6 +99,7 @@ def add_photo_attachment(input_path, attachment_path, output_path):
     if process.returncode != 0:
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
 
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Function to merge videos 
 async def merge_videos(input_file, output_file):
     file_generator_command = [
@@ -128,6 +131,7 @@ async def merge_videos(input_file, output_file):
         raise RuntimeError(f"Error merging videos: {e}")
 
 
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Function to unzip files
 def unzip_file(file_path, extract_path):
     extracted_files = []
