@@ -1,3 +1,4 @@
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 import subprocess
 import os
 import time, datetime
@@ -36,7 +37,7 @@ CHANGE_INDEX_ENABLED = True
 MERGE_ENABLED = True
 
 
-
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Command handler to start the interaction (only in admin)
 @Client.on_message(filters.command("bsettings") & filters.chat(ADMIN))
 async def bot_settings_command(_, msg):
@@ -231,7 +232,7 @@ async def display_user_settings(client, msg, edit=False):
     else:
         await msg.reply(f"User Settings\nCurrent sample video duration: {current_duration}\nCurrent screenshots setting: {current_screenshots}", reply_markup=keyboard)
 
-
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 @Client.on_callback_query(filters.regex("^screenshots_option$"))
 async def screenshots_option(client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
@@ -263,7 +264,7 @@ async def set_screenshots(client, callback_query: CallbackQuery):
     await display_user_settings(client, callback_query.message, edit=True)
 
 
-
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Inline query handler for previewing metadata titles
 @Client.on_callback_query(filters.regex("^preview_metadata$"))
 async def inline_preview_metadata_callback(_, callback_query):
@@ -361,7 +362,7 @@ async def inline_preview_change_index_task_callback(_, callback_query):
     status_text = "Change Index is enabled." if CHANGE_INDEX_ENABLED else "Change Index is disabled."
     await callback_query.message.reply_text(status_text)
 
-
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Inline query handler for thumbnail settings
 @Client.on_callback_query(filters.regex("^thumbnail_settings$"))
 async def inline_thumbnail_settings(client, callback_query: CallbackQuery):
@@ -618,6 +619,7 @@ async def multitask_command(bot, msg):
             os.remove(og_thumbnail)
         await sts.delete()
 
+#Change Metadata Command 
 @Client.on_message(filters.command("changemetadata") & filters.group)
 async def change_metadata(bot, msg):
     global METADATA_ENABLED, user_settings
@@ -700,9 +702,8 @@ async def change_metadata(bot, msg):
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
 
-
-
-
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+#Attcah Photo Command 
 @Client.on_message(filters.command("attachphoto") & filters.group)
 async def attach_photo(bot, msg):
     global PHOTO_ATTACH_ENABLED
@@ -724,7 +725,7 @@ async def attach_photo(bot, msg):
     if not output_filename:
         return await msg.reply_text("Please provide a valid filename\nFormat: `attachphoto -n filename.mkv`")
 
-    media = reply.document or reply.audio or reply.video
+    media = repy.document or reply.audio or reply.video
     if not media:
         return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the attach photo command.")
 
@@ -772,6 +773,7 @@ async def attach_photo(bot, msg):
         os.remove(output_file)
         await sts.delete()
 
+#Change Index Audio Command 
 @Client.on_message(filters.command("changeindexaudio") & filters.chat(GROUP))
 async def change_index_audio(bot, msg):
     global CHANGE_INDEX_ENABLED
@@ -889,7 +891,7 @@ async def change_index_audio(bot, msg):
             print(f"Error deleting files: {e}")
 
 
-
+#ChangeIndex Subtitle Command
 @Client.on_message(filters.command("changeindexsub") & filters.chat(GROUP))
 async def change_index_sub(bot, msg):
     global CHANGE_INDEX_ENABLED
@@ -1005,7 +1007,7 @@ async def change_index_sub(bot, msg):
         except Exception as e:
             print(f"Error deleting files: {e}")
 
-
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Command to start merging files
 @Client.on_message(filters.command("merge") & filters.group)
 async def start_merge_command(bot, msg):
@@ -1120,7 +1122,7 @@ async def merge_and_upload(bot, msg):
 
         await sts.delete()
 
-
+#Remove Tags Command 
 @Client.on_message(filters.command("removetags") & filters.group)
 async def remove_tags(bot, msg):
     global REMOVETAGS_ENABLED
@@ -1209,8 +1211,7 @@ async def remove_tags(bot, msg):
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
 
-
-
+#Screenshots Command
 @Client.on_message(filters.command("screenshots") & filters.group)
 async def screenshots_command(client, message: Message):
     user_id = message.from_user.id
@@ -1290,6 +1291,7 @@ async def screenshots_command(client, message: Message):
         print(f"Failed to send notification: {e}")
     await sts.delete()
 
+#Sample Video Command 
 @Client.on_message(filters.command("SampleVideo") & filters.chat(GROUP))
 async def sample_video(bot, msg):
     user_id = msg.from_user.id
@@ -1347,7 +1349,9 @@ async def sample_video(bot, msg):
     os.remove(input_path)
     os.remove(output_file)
     await sts.delete()
-  
+
+ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+#Leech Command Only Auth Users
 @Client.on_message(filters.command("leech") & filters.chat(AUTH_USERS))
 async def linktofile(bot, msg: Message):
     reply = msg.reply_to_message
@@ -1557,119 +1561,6 @@ async def set_photo(bot, msg):
         await msg.reply_text(f"Photo saved successfully as `{attachment_path}`.")
     except Exception as e:
         await msg.reply_text(f"Error saving photo: {e}")
-
-@Client.on_message(filters.command("changeindexsub") & filters.chat(GROUP))
-async def change_index_sub(bot, msg):
-    global CHANGE_INDEX_ENABLED
-
-    if not CHANGE_INDEX_ENABLED:
-        return await msg.reply_text("The changeindex feature is currently disabled.")
-
-    reply = msg.reply_to_message
-    if not reply:
-        return await msg.reply_text("Please reply to a media file with the index command\nFormat: `/changeindexsub s-3 -n filename.mkv` (Subtitle)")
-
-    if len(msg.command) < 4:  # Increased the length check to 4 to account for the "-n" flag and filename
-        return await msg.reply_text("Please provide the index command with a filename\nFormat: `/changeindexsub s-3 -n filename.mkv` (Subtitle)")
-
-    index_cmd = None
-    output_filename = None
-
-    # Extract index command and output filename from the command
-    for i in range(1, len(msg.command)):
-        if msg.command[i] == "-n":
-            output_filename = " ".join(msg.command[i + 1:])  # Join all the parts after the flag
-            break
-
-    index_cmd = " ".join(msg.command[1:i])  # Get the index command before the flag
-
-    if not output_filename:
-        return await msg.reply_text("Please provide a filename using the `-n` flag.")
-
-    if not index_cmd or not index_cmd.startswith("s-"):
-        return await msg.reply_text("Invalid format. Use `/changeindexsub s-3 -n filename.mkv` for subtitles.")
-
-    media = reply.document or reply.audio or reply.video
-    if not media:
-        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the index command.")
-
-    sts = await msg.reply_text("🚀 Downloading media... ⚡")
-    c_time = time.time()
-    try:
-        # Download the media file
-        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
-    except Exception as e:
-        await sts.edit(f"Error downloading media: {e}")
-        return
-
-    output_file = os.path.join(DOWNLOAD_LOCATION, output_filename)
-
-    index_params = index_cmd.split('-')
-    stream_type = index_params[0]
-    indexes = [int(i) - 1 for i in index_params[1:]]
-
-    # Construct the FFmpeg command to modify subtitle indexes
-    ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v', '-map', '0:a?']  # Map video and audio streams
-
-    for idx in indexes:
-        ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
-
-    ffmpeg_cmd.extend(['-c', 'copy', output_file, '-y'])
-
-    await sts.edit("💠 Changing indexing Subitles... ⚡")
-    process = await asyncio.create_subprocess_exec(*ffmpeg_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    stdout, stderr = await process.communicate()
-
-    if process.returncode != 0:
-        await sts.edit(f"❗ FFmpeg error: {stderr.decode('utf-8')}")
-        os.remove(downloaded)
-        return
-
-    # Thumbnail handling
-    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
-
-    if os.path.exists(thumbnail_path):
-        file_thumb = thumbnail_path
-    else:
-        try:
-            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
-        except Exception as e:
-            file_thumb = None
-
-    filesize = os.path.getsize(output_file)
-    filesize_human = humanbytes(filesize)
-    cap = f"{output_filename}\n\n🌟 Size: {filesize_human}"
-
-    await sts.edit("💠 Uploading... ⚡")
-    try:
-        await bot.send_document(
-            msg.from_user.id,
-            document=output_file,
-            thumb=file_thumb,
-            caption=cap,
-            progress=progress_message,
-            progress_args=("💠 Upload Started... ⚡️", sts, c_time)
-        )
-        await sts.delete()
-        await msg.reply_text(          
-            f"┏📥 **File Name:** {output_filename}\n"
-            f"┠💾 **Size:** {filesize_human}\n"
-            f"┠♻️ **Mode:** Change Index Subtitles\n"
-            f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-            f"❄**File have been Sent in Bot PM!**"            
-        )
-    except RPCError as e:
-        await sts.edit(f"Upload failed: {e}")
-    except TimeoutError as e:
-        await sts.edit(f"Upload timed out: {e}")
-    finally:
-        try:
-            if file_thumb and os.path.exists(file_thumb):
-                os.remove(file_thumb)
-            os.remove(downloaded)
-            os.remove(output_file)
-        except Exception as e:
-            print(f"Error deleting files: {e}")
 
 
 
