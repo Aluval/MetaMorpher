@@ -378,7 +378,7 @@ async def inline_thumbnail_settings(client, callback_query: CallbackQuery):
 
 
 # Command to set a permanent thumbnail
-@Client.on_message(filters.command("setthumbnail") & filters.group)
+@Client.on_message(filters.command("setthumbnail") & filters.chat(GROUP))
 async def set_thumbnail_command(client, message):
     user_id = message.from_user.id
     thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
@@ -390,7 +390,7 @@ async def set_thumbnail_command(client, message):
         await message.reply("Send a photo to set as your permanent thumbnail.")
 
 # Handler for setting the thumbnail
-@Client.on_message(filters.photo & filters.group)
+@Client.on_message(filters.photo & filters.chat(GROUP))
 async def set_thumbnail_handler(client, message):
     user_id = message.from_user.id
     thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
@@ -438,7 +438,7 @@ async def back_to_settings_callback(client, callback_query: CallbackQuery):
     await display_user_settings(client, callback_query.message)
 
 # Command to set metadata titles
-@Client.on_message(filters.command("setmetadata") & filters.group)
+@Client.on_message(filters.command("setmetadata") & filters.chat(GROUP))
 async def set_metadata_command(client, msg):
     global user_settings  # Ensure we're modifying the global user_settings
 
@@ -463,7 +463,7 @@ async def set_metadata_command(client, msg):
     await msg.reply_text("Metadata titles set successfully ✅.")
 
 #Rename Command
-@Client.on_message(filters.command("rename") & filters.group)
+@Client.on_message(filters.command("rename") & filters.chat(GROUP))
 async def rename_file(bot, msg):
     global RENAME_ENABLED
     if not RENAME_ENABLED:
@@ -526,7 +526,7 @@ async def rename_file(bot, msg):
     await sts.delete()
 
 #MultiTask Command 
-@Client.on_message(filters.command("multitask") & filters.group)
+@Client.on_message(filters.command("multitask") & filters.chat(GROUP))
 async def multitask_command(bot, msg):
     global MULTITASK_ENABLED
 
@@ -620,7 +620,7 @@ async def multitask_command(bot, msg):
         await sts.delete()
 
 #Change Metadata Command 
-@Client.on_message(filters.command("changemetadata") & filters.group)
+@Client.on_message(filters.command("changemetadata") & filters.chat(GROUP))
 async def change_metadata(bot, msg):
     global METADATA_ENABLED, user_settings
 
@@ -704,7 +704,7 @@ async def change_metadata(bot, msg):
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 #Attcah Photo Command 
-@Client.on_message(filters.command("attachphoto") & filters.group)
+@Client.on_message(filters.command("attachphoto") & filters.chat(GROUP))
 async def attach_photo(bot, msg):
     global PHOTO_ATTACH_ENABLED
 
@@ -1009,7 +1009,7 @@ async def change_index_sub(bot, msg):
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Command to start merging files
-@Client.on_message(filters.command("merge") & filters.group)
+@Client.on_message(filters.command("merge") & filters.chat(GROUP))
 async def start_merge_command(bot, msg):
     global MERGE_ENABLED
     if not MERGE_ENABLED:
@@ -1021,7 +1021,7 @@ async def start_merge_command(bot, msg):
     await msg.reply_text("Send up to 10 video/document files one by one. Once done, send `/videomerge filename`.")
 
 # Command to finalize merging and start process
-@Client.on_message(filters.command("videomerge") & filters.group)
+@Client.on_message(filters.command("videomerge") & filters.chat(GROUP))
 async def start_video_merge_command(bot, msg):
     user_id = msg.from_user.id
     if user_id not in merge_state or not merge_state[user_id]["files"]:
@@ -1033,7 +1033,7 @@ async def start_video_merge_command(bot, msg):
     await merge_and_upload(bot, msg)
 
 # Handling media files sent by users
-@Client.on_message(filters.document | filters.video & filters.group)
+@Client.on_message(filters.document | filters.video & filters.chat(GROUP))
 async def handle_media_files(bot, msg):
     user_id = msg.from_user.id
     if user_id in merge_state and len(merge_state[user_id]["files"]) < 10:
@@ -1123,7 +1123,7 @@ async def merge_and_upload(bot, msg):
         await sts.delete()
 
 #Remove Tags Command 
-@Client.on_message(filters.command("removetags") & filters.group)
+@Client.on_message(filters.command("removetags") & filters.chat(GROUP))
 async def remove_tags(bot, msg):
     global REMOVETAGS_ENABLED
     if not REMOVETAGS_ENABLED:
@@ -1212,7 +1212,7 @@ async def remove_tags(bot, msg):
             os.remove(file_thumb)
 
 #Screenshots Command
-@Client.on_message(filters.command("screenshots") & filters.group)
+@Client.on_message(filters.command("screenshots") & filters.chat(GROUP))
 async def screenshots_command(client, message: Message):
     user_id = message.from_user.id
     num_screenshots = user_settings.get(user_id, {}).get("screenshots", 5)  # Default to 5 if not set
@@ -1292,7 +1292,7 @@ async def screenshots_command(client, message: Message):
     await sts.delete()
 
 #Sample Video Command 
-@Client.on_message(filters.command("SampleVideo") & filters.chat(GROUP))
+@Client.on_message(filters.command("samplevideo") & filters.chat(GROUP))
 async def sample_video(bot, msg):
     user_id = msg.from_user.id
     duration = user_settings.get(user_id, {}).get("sample_video_duration", 0)
@@ -1547,7 +1547,7 @@ async def unzip(bot, msg):
     shutil.rmtree(extract_path)
   
 # Handler for setting the photo with user ID
-@Client.on_message(filters.command("setphoto"))
+@Client.on_message(filters.command("setphoto") & filters.chat(GROUP))
 async def set_photo(bot, msg):
     reply = msg.reply_to_message
     if not reply or not reply.photo:
