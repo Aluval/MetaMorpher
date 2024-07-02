@@ -7,7 +7,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     level=logging.INFO)
 
 UPSTREAM_REPO = 'https://github.com/Aluval/AdvanceRename24Bot'
-UPSTREAM_BRANCH = 'SH24BOTS'
+UPSTREAM_BRANCH = 'SH24BOTS-PVT'
 
 if UPSTREAM_REPO is not None:
     if ospath.exists('.git'):
