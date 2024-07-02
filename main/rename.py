@@ -27,8 +27,7 @@ DOWNLOAD_LOCATION1 = "./screenshots"
 
 # Global dictionary to store user settings
 merge_state = {}
-merge_state_sub = {}
-merge_state_audio = {}
+
 user_settings = {}
 
 # Initialize global settings variables
