@@ -6,7 +6,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     handlers=[logging.FileHandler('log.txt'), logging.StreamHandler()],
                     level=logging.INFO)
 
-UPSTREAM_REPO = 'https://github.com/Strelizia-007/index'
+UPSTREAM_REPO = 'https://github.com/Aluval/AdvanceRename24Bot'
 UPSTREAM_BRANCH = 'SH24BOTS'
 
 if UPSTREAM_REPO is not None:
@@ -14,8 +14,8 @@ if UPSTREAM_REPO is not None:
         srun(["rm", "-rf", ".git"])
 
     update = srun([f"git init -q \
-                     && git config --global user.email iamstrelizia07@gmail.com \
-                     && git config --global user.name strelizia-007 \
+                     && git config --global user.email sunriseseditsoffical249@gmail.com\
+                     && git config --global user.name Sunrises_24\
                      && git add . \
                      && git commit -sm update -q \
                      && git remote add origin {UPSTREAM_REPO} \
