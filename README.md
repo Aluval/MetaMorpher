@@ -1,11 +1,11 @@
 ![Typing SVG](https://readme-typing-svg.herokuapp.com/?lines=𝐖𝐄𝐋𝐂𝐎𝐌𝐄+𝐓𝐎+🌟♾𝐈𝐍𝐅𝐈𝐍𝐈𝐓𝐘+𝐒𝐓𝐀𝐑+𝐑𝐄𝐍𝐀𝐌𝐄+𝟐𝟒+𝐁𝐎𝐓+🌟♾;𝗖𝗥𝗘𝗔𝗧𝗘𝗗+𝗕𝗬+𝗧𝗘𝗔𝗠+𝐒𝐔𝐍𝐑𝐈𝐒𝐄𝐒+𝐇𝐀𝐑𝐒𝐇𝐀+𝟐𝟒✨!;🌟♾𝐈𝐍𝐅𝐈𝐍𝐈𝐓𝐘+𝐒𝐓𝐀𝐑+𝐑𝐄𝐍𝐀𝐌𝐄+𝟐𝟒+𝐁𝐎𝐓🌟♾!)</p>
-<img src="https://graph.org/file/b7ee484cc94a9a353bffa.jpg" alt="logo" target="/blank">
+<img src="https://graph.org/file/fd26a26c9efa46493bb63.jpg" alt="logo" target="/blank">
 
 <h1 align="center">
  <b><a href="https://telegram.me/INFINITYSTARRENAME24BOT" target="/blank">🌟♾ 𝐈𝐍𝐅𝐈𝐍𝐈𝐓𝐘 𝐒𝐓𝐀𝐑 𝐑𝐄𝐍𝐀𝐌𝐄 𝟐𝟒 𝐁𝐎𝐓 ♾🌟</a> 
 </h1>
 
-<p align="center">🌟 PRIVATE REPO 🌟</p>
+<p align="center">🌟 PUBLIC REPO 🌟</p>
 
 ## Deploy to Heroku
 
