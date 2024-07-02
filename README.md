@@ -1,8 +1,8 @@
-![Typing SVG](https://readme-typing-svg.herokuapp.com/?lines=𝐖𝐄𝐋𝐂𝐎𝐌𝐄+𝐓𝐎+🌟♾𝐈𝐍𝐅𝐈𝐍𝐈𝐓𝐘+𝐒𝐓𝐀𝐑+𝐑𝐄𝐍𝐀𝐌𝐄+𝟐𝟒+𝐁𝐎𝐓+🌟♾;𝗖𝗥𝗘𝗔𝗧𝗘𝗗+𝗕𝗬+𝗧𝗘𝗔𝗠+𝐒𝐔𝐍𝐑𝐈𝐒𝐄𝐒+𝐇𝐀𝐑𝐒𝐇𝐀+𝟐𝟒✨!;🌟♾𝐈𝐍𝐅𝐈𝐍𝐈𝐓𝐘+𝐒𝐓𝐀𝐑+𝐑𝐄𝐍𝐀𝐌𝐄+𝟐𝟒+𝐁𝐎𝐓🌟♾!)</p>
+![Typing SVG](https://readme-typing-svg.herokuapp.com/?lines=𝐖𝐄𝐋𝐂𝐎𝐌𝐄+𝐓𝐎+🌟+𝐌𝐞𝐭𝐚𝐌𝐨𝐫𝐩𝐡𝐞𝐫+🌟♾;𝗖𝗥𝗘𝗔𝗧𝗘𝗗+𝗕𝗬+𝗧𝗘𝗔𝗠+𝐒𝐔𝐍𝐑𝐈𝐒𝐄𝐒+𝐇𝐀𝐑𝐒𝐇𝐀+𝟐𝟒✨!;🌟𝐌𝐞𝐭𝐚𝐌𝐨𝐫𝐩𝐡𝐞𝐫🌟!)</p>
 <img src="https://graph.org/file/fd26a26c9efa46493bb63.jpg" alt="logo" target="/blank">
 
 <h1 align="center">
- <b><a href="https://telegram.me/INFINITYSTARRENAME24BOT" target="/blank">🌟♾ 𝐈𝐍𝐅𝐈𝐍𝐈𝐓𝐘 𝐒𝐓𝐀𝐑 𝐑𝐄𝐍𝐀𝐌𝐄 𝟐𝟒 𝐁𝐎𝐓 ♾🌟</a> 
+ <b><a href="https://telegram.me/MetaMorpher24Bot" target="/blank">🌟♾ 𝐌𝐞𝐭𝐚𝐌𝐨𝐫𝐩𝐡𝐞𝐫 ♾🌟</a> 
 </h1>
 
 <p align="center">🌟 PUBLIC REPO 🌟</p>
