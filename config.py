@@ -15,7 +15,7 @@ FSUB_GROUP = os.environ.get("FSUB_GROUP", "Sunrises24BotSupport")
 CAPTION = os.environ.get("CAPTION", "")
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 DOWNLOAD_LOCATION = "./DOWNLOADS"
-SUNRISES_PIC= "https://graph.org/file/5966e801852b2bba18afb.jpg"  # Replace with your Telegraph link
+SUNRISES_PIC= "https://graph.org/file/bd91761f6e938e2e6d23a.jpg"  # Replace with your Telegraph link
 AUTH_USERS = int(os.environ.get("AUTH_USERS", '6469754522'))
 
 
