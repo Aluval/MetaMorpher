@@ -1,0 +1,14 @@
+services:
+  - type: web
+    plan: free
+    name: indexx
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    repo: https://github.com/Strelizia-007/index.git
+    branch: SH24BOTS
+    autoDeploy: true
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      
