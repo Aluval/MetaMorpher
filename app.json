@@ -1,8 +1,8 @@
 { 
-    "name": "ADVANCERENAME24BOT", 
-    "description": "A SIMPLE RENAME BOT WITH THUMBNAIL,CAPTION & HIGH SPEED ⚡️",
-    "logo":"https://telegra.ph/file/9ab6d71f68a43dd426a11.jpg",
-    "repository": "https://github.com/Aluval/ADVANCERENAME24BOT",   
+    "name": "MetaMorpher", 
+    "description": "ADVANCE RENAME BOT WITH THUMBNAIL,CAPTION & HIGH SPEED ⚡️",
+    "logo":"https://graph.org/file/fd26a26c9efa46493bb63.jpg",
+    "repository": "https://github.com/Aluval/MetaMorpher",   
     "keywords": ["Rename-bot", "Telegram", "ADVANCE RENAME 24 BOT"], 
     "env": { 
         "BOT_TOKEN": { 
