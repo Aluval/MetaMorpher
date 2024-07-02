@@ -1350,7 +1350,7 @@ async def sample_video(bot, msg):
     os.remove(output_file)
     await sts.delete()
 
-ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 #Leech Command Only Auth Users
 @Client.on_message(filters.command("leech") & filters.chat(AUTH_USERS))
 async def linktofile(bot, msg: Message):
