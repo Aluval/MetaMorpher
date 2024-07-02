@@ -6,7 +6,7 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python bot.py
     repo: https://github.com/Aluval/AdvanceRename24Bot.git
-    branch: SH24BOTS
+    branch: SH24BOTS-PVT
     autoDeploy: true
     envVars:
       - key: BOT_TOKEN
