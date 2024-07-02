@@ -1,4 +1,5 @@
 #TG : @Sunrises_24
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 import subprocess
 import os
 import time, datetime
@@ -40,7 +41,7 @@ CHANGE_INDEX_ENABLED = True
 MERGE_ENABLED = True
 VIDEO_COMPRESS_ENABLED = True
 
-
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Command handler to start the interaction (only in admin)
 @Client.on_message(filters.command("bsettings") & filters.chat(ADMIN))
 async def bot_settings_command(_, msg):
@@ -292,6 +293,7 @@ async def inline_attach_photo_callback(_, callback_query):
     user_settings[user_id]["attach_photo"] = True
     await callback_query.message.edit_text("Please send a photo to be attached using the setphoto command.")
 
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 
 # Inline query handler for previewing attached photo
 @Client.on_callback_query(filters.regex("^preview_photo$"))
@@ -365,7 +367,7 @@ async def inline_preview_change_index_task_callback(_, callback_query):
     status_text = "Change Index is enabled." if CHANGE_INDEX_ENABLED else "Change Index is disabled."
     await callback_query.message.reply_text(status_text)
 
-
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Inline query handler for thumbnail settings
 @Client.on_callback_query(filters.regex("^thumbnail_settings$"))
 async def inline_thumbnail_settings(client, callback_query: CallbackQuery):
@@ -407,6 +409,7 @@ async def set_thumbnail_handler(client, message):
     await client.download_media(message=message, file_name=thumbnail_path)
     await message.reply("Your permanent thumbnail is updated. If the bot is restarted, the new thumbnail will be preserved.")
 
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 @Client.on_callback_query(filters.regex("^view_thumbnail$"))
 async def view_thumbnail(client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
@@ -432,9 +435,7 @@ async def delete_thumbnail(client, callback_query: CallbackQuery):
     except Exception as e:
         await callback_query.message.reply_text("An error occurred while trying to remove your thumbnail. Please try again later.")
       
-
-
-
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Inline query handler to return to user settings
 @Client.on_callback_query(filters.regex("^back_to_settings$"))
 async def back_to_settings_callback(client, callback_query: CallbackQuery):
@@ -620,6 +621,7 @@ async def multitask_command(bot, msg):
             os.remove(og_thumbnail)
         await sts.delete()
 
+#Changemetadata command 
 @Client.on_message(filters.private & filters.command("changemetadata"))
 async def change_metadata(bot, msg):
     global METADATA_ENABLED, user_settings
@@ -701,6 +703,8 @@ async def change_metadata(bot, msg):
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
 
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+#Attach Photo Command 
 @Client.on_message(filters.private & filters.command("attachphoto"))
 async def attach_photo(bot, msg):
     global PHOTO_ATTACH_ENABLED
@@ -772,6 +776,7 @@ async def attach_photo(bot, msg):
         os.remove(output_file)
         await sts.delete()
 
+#Change Index Audio Command 
 @Client.on_message(filters.private & filters.command("changeindexaudio"))
 async def change_index_audio(bot, msg):
     global CHANGE_INDEX_ENABLED
@@ -888,6 +893,7 @@ async def change_index_audio(bot, msg):
         except Exception as e:
             print(f"Error deleting files: {e}")
 
+#ChangeIndex Audio Command 
 @Client.on_message(filters.private & filters.command("changeindexsub"))
 async def change_index_subtitle(bot, msg):
     global CHANGE_INDEX_ENABLED
@@ -1123,6 +1129,8 @@ async def merge_and_upload(bot, msg):
 
         await sts.delete()
 
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+#Remove Tags Command 
 @Client.on_message(filters.private & filters.command("removetags"))
 async def remove_tags(bot, msg):
     global REMOVETAGS_ENABLED
@@ -1210,7 +1218,7 @@ async def remove_tags(bot, msg):
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
 
-
+#Screenshots Command
 @Client.on_message(filters.private & filters.command("screenshots"))
 async def screenshots_command(client, message: Message):
     user_id = message.from_user.id
@@ -1290,6 +1298,7 @@ async def screenshots_command(client, message: Message):
         print(f"Failed to send notification: {e}")
     await sts.delete()
 
+#Sample Video Command
 @Client.on_message(filters.private & filters.command("samplevideo"))
 async def sample_video(bot, msg):
     user_id = msg.from_user.id
@@ -1348,145 +1357,7 @@ async def sample_video(bot, msg):
     os.remove(output_file)
     await sts.delete()
 
-"""
-@Client.on_message(filters.command("leech") & filters.chat(AUTH_USERS))
-async def linktofile(bot, msg: Message):
-    reply = msg.reply_to_message
-    if len(msg.command) < 2 or not reply:
-        return await msg.reply_text("Please reply to a file, video, audio, or link with the desired filename and extension (e.g., `.mkv`, `.mp4`, `.zip`).")
-
-    new_name = msg.text.split(" ", 1)[1]
-    if not new_name.endswith(".mkv"):
-        return await msg.reply_text("Please specify a filename ending with .mkv.")
-
-    media = reply.document or reply.audio or reply.video
-    if not media and not reply.text:
-        return await msg.reply_text("Please reply to a valid file, video, audio, or link with the desired filename and extension (e.g., `.mkv`, `.mp4`, `.zip`).")
-
-    if reply.text and ("seedr" in reply.text or "workers" in reply.text):
-        await handle_link_download(bot, msg, reply.text, new_name, media)
-    else:
-        if not media:
-            return await msg.reply_text("Please reply to a valid file, video, audio, or link with the desired filename and extension (e.g., `.mkv`, `.mp4`, `.zip`).")
-
-        sts = await msg.reply_text("🚀 Downloading...")
-        c_time = time.time()
-        try:
-            downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀 Download Started...", sts, c_time))
-        except RPCError as e:
-            return await sts.edit(f"Download failed: {e}")
-
-        filesize = humanbytes(media.file_size)
-
-        if CAPTION:
-            try:
-                cap = CAPTION.format(file_name=new_name, file_size=filesize)
-            except Exception as e:
-                return await sts.edit(text=f"Your caption has an error: unexpected keyword ({e})")
-        else:
-            cap = f"{new_name}\n\n🌟 Size: {filesize}"
-
-        # Thumbnail handling
-        thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
-        if not os.path.exists(thumbnail_path):
-            try:
-                file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
-            except Exception as e:
-                print(f"Error downloading thumbnail: {e}")
-                file_thumb = None
-        else:
-            file_thumb = thumbnail_path
-
-        await sts.edit("💠 Uploading...")
-        c_time = time.time()
-        try:
-            await bot.send_document(
-                msg.chat.id, 
-                document=downloaded, 
-                thumb=file_thumb, 
-                caption=cap, 
-                progress=progress_message, 
-                progress_args=("💠 Upload Started...", sts, c_time)
-            )
-
-            filesize = os.path.getsize(downloaded)
-            filesize_human = humanbytes(filesize)
-            await msg.reply_text(
-                f"┏📥 **File Name:** {os.path.basename(new_name)}\n"
-                f"┠💾 **Size:** {filesize_human}\n"
-                f"┠♻️ **Mode:** Link Download\n"
-                f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
-                f"❄ **File has been sent to your PM in the bot!**"
-            )
-
-        except RPCError as e:
-            await sts.edit(f"Upload failed: {e}")
-        except TimeoutError as e:
-            await sts.edit(f"Upload timed out: {e}")
-        finally:
-            try:
-                if file_thumb and os.path.exists(file_thumb):
-                    os.remove(file_thumb)
-                if os.path.exists(downloaded):
-                    os.remove(downloaded)
-            except Exception as e:
-                print(f"Error deleting files: {e}")
-            await sts.delete()
-
-async def handle_link_download(bot, msg: Message, link: str, new_name: str, media):
-    sts = await msg.reply_text("🚀 Downloading from link...")
-    c_time = time.time()
-
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(link) as resp:
-                if resp.status == 200:
-                    with open(new_name, 'wb') as f:
-                        f.write(await resp.read())
-                else:
-                    await sts.edit(f"Failed to download file from link. Status code: {resp.status}")
-                    return
-    except Exception as e:
-        await sts.edit(f"Error during download: {e}")
-        return
-
-    if not os.path.exists(new_name):
-        await sts.edit("File not found after download. Please check the link and try again.")
-        return
-
-    filesize = os.path.getsize(new_name)
-    filesize_human = humanbytes(filesize)
-    cap = f"{new_name}\n\n🌟 Size: {filesize_human}"
-
-    # Thumbnail handling
-    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
-    if not os.path.exists(thumbnail_path):
-        try:
-            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
-        except Exception as e:
-            print(f"Error downloading thumbnail: {e}")
-            file_thumb = None
-    else:
-        file_thumb = thumbnail_path
-
-    await sts.edit("💠 Uploading...")
-    c_time = time.time()
-    try:
-        await bot.send_document(msg.chat.id, document=new_name, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started...", sts, c_time))
-    except RPCError as e:
-        await sts.edit(f"Upload failed: {e}")
-    except TimeoutError as e:
-        await sts.edit(f"Upload timed out: {e}")
-    finally:
-        try:
-            if file_thumb:
-                os.remove(file_thumb)
-            os.remove(new_name)
-        except Exception as e:
-            print(f"Error deleting file: {e}")
-        await sts.delete()"""
-
-
+#Leech Handler Only Auth Users 
 @Client.on_message(filters.command("leech") & filters.chat(AUTH_USERS))
 async def linktofile(bot, msg: Message):
     reply = msg.reply_to_message
@@ -1552,7 +1423,7 @@ async def linktofile(bot, msg: Message):
             await msg.reply_text(
                 f"┏📥 **File Name:** {os.path.basename(new_name)}\n"
                 f"┠💾 **Size:** {filesize_human}\n"
-                f"┠♻️ **Mode:** Link Download\n"
+                f"┠♻️ **Mode:** Leech\n"
                 f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
                 f"❄ **File has been sent to your PM in the bot!**"
             )
