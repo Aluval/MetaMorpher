@@ -24,8 +24,6 @@ DOWNLOAD_LOCATION1 = "./screenshots"
 
 # Global dictionary to store user settings
 merge_state = {}
-merge_state_sub = {}
-merge_state_audio = {}
 user_settings = {}
 
 # Initialize global settings variables
@@ -1354,7 +1352,7 @@ async def sample_video(bot, msg):
 async def linktofile(bot, msg: Message):
     reply = msg.reply_to_message
     if len(msg.command) < 2 or not reply:
-        return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+        return await msg.reply_text("Please reply to a file, video, audio, or link with the desired filename and extension (e.g., `.mkv`, `.mp4`, `.zip`).")
 
     new_name = msg.text.split(" ", 1)[1]
     if not new_name.endswith(".mkv"):
@@ -1362,13 +1360,13 @@ async def linktofile(bot, msg: Message):
 
     media = reply.document or reply.audio or reply.video
     if not media and not reply.text:
-        return await msg.reply_text("Please Reply To A File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+        return await msg.reply_text("Please reply to a valid file, video, audio, or link with the desired filename and extension (e.g., `.mkv`, `.mp4`, `.zip`).")
 
     if reply.text and ("seedr" in reply.text or "workers" in reply.text):
         await handle_link_download(bot, msg, reply.text, new_name, media)
     else:
         if not media:
-            return await msg.reply_text("Please Reply To A Valid File, Video, Audio, or Link With filename + .extension (e.g., `.mkv`, `.mp4`, or `.zip`)")
+            return await msg.reply_text("Please reply to a valid file, video, audio, or link with the desired filename and extension (e.g., `.mkv`, `.mp4`, `.zip`).")
 
         sts = await msg.reply_text("🚀 Downloading...")
         c_time = time.time()
@@ -1398,7 +1396,7 @@ async def linktofile(bot, msg: Message):
         else:
             file_thumb = thumbnail_path
 
-        await sts.edit("💠 Uploading...")
+        await edit_message(sts, "💠 Uploading...")
         c_time = time.time()
         try:
             await bot.send_document(
@@ -1410,13 +1408,12 @@ async def linktofile(bot, msg: Message):
                 progress_args=("💠 Upload Started...", sts, c_time)
             )
 
-            # Prepare and send response message
-            filesize = os.path.getsize(new_name)
+            filesize = os.path.getsize(downloaded)
             filesize_human = humanbytes(filesize)
             await msg.reply_text(
                 f"┏📥 **File Name:** {os.path.basename(new_name)}\n"
                 f"┠💾 **Size:** {filesize_human}\n"
-                f"┠♻️ **Mode:** Link Download\n"
+                f"┠♻️ **Mode:** Leech\n"
                 f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
                 f"❄ **File has been sent to your PM in the bot!**"
             )
@@ -1456,7 +1453,6 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str, medi
         await sts.edit("File not found after download. Please check the link and try again.")
         return
 
-    # Assuming CAPTION and other necessary constants are defined properly
     filesize = os.path.getsize(new_name)
     filesize_human = humanbytes(filesize)
     cap = f"{new_name}\n\n🌟 Size: {filesize_human}"
@@ -1472,7 +1468,7 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str, medi
     else:
         file_thumb = thumbnail_path
 
-    await sts.edit("💠 Uploading...")
+    await edit_message(sts, "💠 Uploading...")
     c_time = time.time()
     try:
         await bot.send_document(msg.chat.id, document=new_name, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started...", sts, c_time))
@@ -1488,6 +1484,13 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str, medi
         except Exception as e:
             print(f"Error deleting file: {e}")
         await sts.delete()
+
+async def edit_message(message, new_text):
+    try:
+        if message.text != new_text:
+            await message.edit(new_text)
+    except MessageNotModified:
+        pass
  
  # Define restart_app command
 @Client.on_message(filters.command("restart") & filters.chat(GROUP))
@@ -1651,7 +1654,7 @@ async def change_index_sub(bot, msg):
         await msg.reply_text(          
             f"┏📥 **File Name:** {output_filename}\n"
             f"┠💾 **Size:** {filesize_human}\n"
-            f"┠♻️ **Mode:** Change Index\n"
+            f"┠♻️ **Mode:** Change Index Subtitles\n"
             f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
             f"❄**File have been Sent in Bot PM!**"            
         )
