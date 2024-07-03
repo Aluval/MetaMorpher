@@ -75,7 +75,8 @@ ping - 𝑇𝑜 𝐶ℎ𝑒𝑐𝑘 𝑇ℎ𝑒 𝑃𝑖𝑛𝑔 𝑂𝑓 𝑇�
 - [ ᴏᴡɴᴇʀ ᴏꜰ ᴛʜɪꜱ ʀᴇᴩᴏ](https://telegram.me/Sunrises_24)
 - [ᴄʜᴀɴɴᴇʟ](https://telegram.me/sunriseseditsoffical6)
 - [ᴜᴘᴅᴀᴛᴇs](https://telegram.me/Sunrises24BotUpdates)
-
+- [Sᴜᴘᴘᴏʀᴛ](https://telegram.me/Sunrises24BotSupport)
+  
 ### Copyright ©️ [𝗦ᴜɴʀɪ𝘀ᴇ𝘀 𝗛ᴀʀ𝘀ʜᴀ 𝟸𝟺 🇮🇳 ᵀᴱᴸ](https://telegram.me/Sunrises_24)
 
 <b>Selling This Repo For Money Is Strictly Prohibited 🚫</b>
@@ -83,15 +84,4 @@ ping - 𝑇𝑜 𝐶ℎ𝑒𝑐𝑘 𝑇ℎ𝑒 𝑃𝑖𝑛𝑔 𝑂𝑓 𝑇�
 #### THANK YOU ALL FOR THE SUPPORT 💫
 #### 𝗧𝗛𝗔𝗡𝗞𝗦 𝗧𝗢 𝗠𝗬 𝗧𝗘𝗟𝗨𝗚𝗨 𝗔𝗗𝗠𝗜𝗡𝗦 𝗙𝗢𝗥 𝗦𝗨𝗣𝗣𝗢𝗥𝗧 ❤️
 
-
-- [ ᴏᴡɴᴇʀ ᴏꜰ ᴛʜɪꜱ ʀᴇᴩᴏ](https://telegram.me/Sunrises_24)
-- [ᴄʜᴀɴɴᴇʟ](https://telegram.me/sunriseseditsoffical6)
-- [ᴜᴘᴅᴀᴛᴇs](https://telegram.me/Sunrises24BotUpdates)
-
-### Copyright ©️ [𝗦ᴜɴʀɪ𝘀ᴇ𝘀 𝗛ᴀʀ𝘀ʜᴀ 𝟸𝟺 🇮🇳 ᵀᴱᴸ](https://telegram.me/Sunrises_24)
-
-<b>Selling This Repo For Money Is Strictly Prohibited 🚫</b>
-
-#### THANK YOU ALL FOR THE SUPPORT 💫
-#### 𝗧𝗛𝗔𝗡𝗞𝗦 𝗧𝗢 𝗠𝗬 𝗧𝗘𝗟𝗨𝗚𝗨 𝗔𝗗𝗠𝗜𝗡𝗦 𝗙𝗢𝗥 𝗦𝗨𝗣𝗣𝗢𝗥𝗧 ❤️
 
