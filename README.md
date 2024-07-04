@@ -19,7 +19,7 @@ Press Below Button to Deploy!
 
 - `Rename`: It can rename files.
 - `Metadata`: Manages and updates metadata.
-- `Gᴏғɪʟᴇ` - Tʜᴇ Fɪʟᴇs Uᴘʟᴏᴀᴅ Tᴏ Gᴏғɪʟᴇ Lɪɴᴋ 🔗.
+- `Gofile` : The Files Upload To Gofile Link.
 - `Change index audio`: Adjusts metadata or index information for audio files.
 - `Change Index Subtitles`: Manages and updates index or metadata for subtitle files.
 - `Attach photo attachment.jpg`: Attaches specific photos like attachment.jpg.
