@@ -286,6 +286,7 @@ async def inline_preview_metadata_callback(_, callback_query):
     await callback_query.message.reply_text(f"Current Metadata Titles:\n\n{preview_text}")
 
 
+# Inline query handler to preview the Gofile API key
 @Client.on_callback_query(filters.regex("^preview_gofilekey$"))
 async def inline_preview_gofile_api_key(bot, callback_query):
     global user_gofile_api_keys
@@ -298,6 +299,7 @@ async def inline_preview_gofile_api_key(bot, callback_query):
     # Reply with the current API key for the user
     await callback_query.message.reply_text(f"Current Gofile API Key for user `{user_id}`: {user_gofile_api_keys[user_id]}")
     
+
 # Inline query handler for attaching photo
 @Client.on_callback_query(filters.regex("^attach_photo$"))
 async def inline_attach_photo_callback(_, callback_query):
@@ -480,7 +482,7 @@ async def set_metadata_command(client, msg):
     
     await msg.reply_text("Metadata titles set successfully ✅.")
 
-# Command to set up Gofile API key
+
 @Client.on_message(filters.private & filters.command("gofilesetup"))
 async def gofile_setup(bot, msg: Message):
     global user_gofile_api_keys  # Use global to modify the dictionary
@@ -495,9 +497,7 @@ async def gofile_setup(bot, msg: Message):
     # Set the API key for the user and confirm
     user_gofile_api_keys[user_id] = new_api_key
     await msg.reply_text(f"Gofile API key set successfully for user `{user_id}`✅!")
-
-
-
+    
 #Rename Command
 @Client.on_message(filters.command("rename") & filters.chat(GROUP))
 async def rename_file(bot, msg):
