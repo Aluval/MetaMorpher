@@ -485,13 +485,14 @@ async def gofile_setup(bot, msg: Message):
     if len(msg.command) < 2:
         return await msg.reply_text("Please provide your Gofile API key.")
 
+    user_id = msg.from_user.id
     # Extract the API key from the command
     new_api_key = msg.command[1]
 
     # Set the API key and confirm
     GOFILE_API_KEY = new_api_key
-    await msg.reply_text("Gofile API key set successfully!")
-    
+    await msg.reply_text(f"Gofile API key set successfully for user `{user_id}`✅!")
+
 #Rename Command
 @Client.on_message(filters.command("rename") & filters.chat(GROUP))
 async def rename_file(bot, msg):
