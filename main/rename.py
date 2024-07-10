@@ -292,14 +292,15 @@ async def inline_preview_metadata_callback(_, callback_query):
 @Client.on_callback_query(filters.regex("^preview_gofilekey$"))
 async def inline_preview_gofile_api_key(bot, callback_query):
     global GOFILE_API_KEY
+    user_id = callback_query.from_user.id
     
     # Check if the API key is set
     if not GOFILE_API_KEY:
-        return await callback_query.message.reply_text("Gofile API key is not set. Use /gofilesetup {your_api_key} to set it.")
+        return await callback_query.message.reply_text(f"Gofile API key is not set for user `{user_id}`. Use /gofilesetup {{your_api_key}} to set it.")
     
     # Reply with the current API key
-    await callback_query.message.reply_text(f"Current Gofile API Key: {GOFILE_API_KEY}")
-    
+    await callback_query.message.reply_text(f"Current Gofile API Key for user `{user_id}`: {GOFILE_API_KEY}")
+
 # Inline query handler for attaching photo
 @Client.on_callback_query(filters.regex("^attach_photo$"))
 async def inline_attach_photo_callback(_, callback_query):
