@@ -483,6 +483,7 @@ async def set_metadata_command(client, msg):
     await msg.reply_text("Metadata titles set successfully ✅.")
 
 # Command to set up Gofile API key
+
 @Client.on_message(filters.private & filters.command("gofilesetup"))
 async def gofile_setup(bot, msg: Message):
     global GOFILE_API_KEY  # Use global to modify the variable outside the function scope
@@ -490,13 +491,13 @@ async def gofile_setup(bot, msg: Message):
     if len(msg.command) < 2:
         return await msg.reply_text("Please provide your Gofile API key.")
 
+    user_id = msg.from_user.id
     # Extract the API key from the command
     new_api_key = msg.command[1]
 
     # Set the API key and confirm
     GOFILE_API_KEY = new_api_key
-    await msg.reply_text("Gofile API key set successfully✅!")
-    
+    await msg.reply_text(f"Gofile API key set successfully for user `{user_id}`✅!")
 
 #Rename Command
 @Client.on_message(filters.private & filters.command("rename"))
