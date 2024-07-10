@@ -1601,7 +1601,7 @@ async def set_photo(bot, msg):
 # Command to upload to Gofile
 @Client.on_message(filters.command("gofile") & filters.chat(GROUP))
 async def gofile_upload(bot, msg: Message):
-    global GOFILE_API_KEY,user_gofile_api_keys
+    global GOFILE_API_KEY
 
     reply = msg.reply_to_message
     if not reply:
