@@ -43,7 +43,6 @@ RENAME_ENABLED = True
 REMOVETAGS_ENABLED = True
 CHANGE_INDEX_ENABLED = True 
 MERGE_ENABLED = True
-VIDEO_COMPRESS_ENABLED = True
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Command handler to start the interaction (only in admin)
@@ -302,6 +301,7 @@ async def inline_preview_gofile_api_key(bot, callback_query):
     
     # Reply with the current API key for the user
     await callback_query.message.reply_text(f"Current Gofile API Key for user `{user_id}`: {user_gofile_api_keys[user_id]}")
+    
 
 # Inline query handler for attaching photo
 @Client.on_callback_query(filters.regex("^attach_photo$"))
@@ -486,7 +486,6 @@ async def set_metadata_command(client, msg):
     await msg.reply_text("Metadata titles set successfully ✅.")
 
 # Command to set up Gofile API key
-
 @Client.on_message(filters.private & filters.command("gofilesetup"))
 async def gofile_setup(bot, msg: Message):
     global user_gofile_api_keys  # Use global to modify the dictionary
@@ -501,8 +500,7 @@ async def gofile_setup(bot, msg: Message):
     # Set the API key for the user and confirm
     user_gofile_api_keys[user_id] = new_api_key
     await msg.reply_text(f"Gofile API key set successfully for user `{user_id}`✅!")
-
-
+    
 
 #Rename Command
 @Client.on_message(filters.private & filters.command("rename"))
