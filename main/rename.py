@@ -22,11 +22,11 @@ from main.ffmpeg import remove_all_tags, change_video_metadata, generate_sample_
 
 DOWNLOAD_LOCATION1 = "./screenshots"
 
-
+GOFILE_API_KEY = ""
 
 # Global dictionary to store user settings
 merge_state = {}
-GOFILE_API_KEY = {}  # Dictionary to store Gofile API keys for each user
+user_gofile_api_keys = {}  # Dictionary to store Gofile API keys for each user
 
 user_settings = {}
 
@@ -255,6 +255,7 @@ async def screenshots_option(client, callback_query: CallbackQuery):
         [InlineKeyboardButton("Back", callback_data="back_to_settings")]
     ])
     await callback_query.message.edit_text(f"Screenshots Settings\nCurrent number: {current_screenshots}", reply_markup=keyboard)
+    
 @Client.on_callback_query(filters.regex("^set_screenshots_"))
 async def set_screenshots(client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
@@ -287,15 +288,15 @@ async def inline_preview_metadata_callback(_, callback_query):
 
 @Client.on_callback_query(filters.regex("^preview_gofilekey$"))
 async def inline_preview_gofile_api_key(bot, callback_query):
-    global GOFILE_API_KEY
+    global user_gofile_api_keys
     user_id = callback_query.from_user.id
     
     # Check if the API key is set for the user
-    if user_id not in GOFILE_API_KEY:
+    if user_id not in user_gofile_api_keys:
         return await callback_query.message.reply_text(f"Gofile API key is not set for user `{user_id}`. Use /gofilesetup {{your_api_key}} to set it.")
     
     # Reply with the current API key for the user
-    await callback_query.message.reply_text(f"Current Gofile API Key for user `{user_id}`: {GOFILE_API_KEY[user_id]}")
+    await callback_query.message.reply_text(f"Current Gofile API Key for user `{user_id}`: {user_gofile_api_keys[user_id]}")
     
 # Inline query handler for attaching photo
 @Client.on_callback_query(filters.regex("^attach_photo$"))
@@ -482,7 +483,7 @@ async def set_metadata_command(client, msg):
 # Command to set up Gofile API key
 @Client.on_message(filters.private & filters.command("gofilesetup"))
 async def gofile_setup(bot, msg: Message):
-    global GOFILE_API_KEY  # Use global to modify the dictionary
+    global user_gofile_api_keys  # Use global to modify the dictionary
 
     if len(msg.command) < 2:
         return await msg.reply_text("Please provide your Gofile API key.")
@@ -492,7 +493,7 @@ async def gofile_setup(bot, msg: Message):
     new_api_key = msg.command[1]
 
     # Set the API key for the user and confirm
-    GOFILE_API_KEY[user_id] = new_api_key
+    user_gofile_api_keys[user_id] = new_api_key
     await msg.reply_text(f"Gofile API key set successfully for user `{user_id}`✅!")
 
 
@@ -1600,7 +1601,7 @@ async def set_photo(bot, msg):
 # Command to upload to Gofile
 @Client.on_message(filters.command("gofile") & filters.chat(GROUP))
 async def gofile_upload(bot, msg: Message):
-    global GOFILE_API_KEY
+    global GOFILE_API_KEY,user_gofile_api_keys
 
     reply = msg.reply_to_message
     if not reply:
