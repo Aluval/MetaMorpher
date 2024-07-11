@@ -1749,7 +1749,7 @@ async def clone_file(bot, msg: Message):
     except Exception as e:
         await sts.edit(f"Error: {e}")
 
-
+#safe edit message 
 async def safe_edit_message(message, new_text):
     try:
         if message.text != new_text:
@@ -1757,7 +1757,7 @@ async def safe_edit_message(message, new_text):
     except Exception as e:
         print(f"Failed to edit message: {e}")
 
-
+#extract audio command 
 @Client.on_message(filters.command("extractaudios") & filters.chat(GROUP))
 async def extract_audios(bot, msg):
     global EXTRACT_ENABLED
@@ -1816,33 +1816,8 @@ async def extract_audios(bot, msg):
         for file, _ in extracted_files:
             os.remove(file)
 
-def extract_audio_stream(input_path, output_path, stream_index):
-    command = [
-        'ffmpeg',
-        '-i', input_path,
-        '-map', f'0:{stream_index}',
-        '-c', 'copy',
-        output_path,
-        '-y'
-    ]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
 
-def extract_audios_from_file(input_path):
-    video_streams_data = ffmpeg.probe(input_path)
-    audios = [stream for stream in video_streams_data.get("streams") if stream.get("codec_type") == "audio"]
-
-    extracted_files = []
-    for audio in audios:
-        codec_name = audio.get('codec_name', 'aac')
-        output_file = os.path.join(os.path.dirname(input_path), f"{audio['index']}.{codec_name}")
-        extract_audio_stream(input_path, output_file, audio['index'])
-        extracted_files.append((output_file, audio))
-
-    return extracted_files
-
+#extract subtitles command 
 @Client.on_message(filters.command("extractsubtitles") & filters.chat(GROUP))
 async def extract_subtitles(bot, msg):
     global EXTRACT_ENABLED
@@ -1901,33 +1876,7 @@ async def extract_subtitles(bot, msg):
         for file, _ in extracted_files:
             os.remove(file)
 
-def extract_subtitle_stream(input_path, output_path, stream_index):
-    command = [
-        'ffmpeg',
-        '-i', input_path,
-        '-map', f'0:{stream_index}',
-        '-c', 'copy',
-        output_path,
-        '-y'
-    ]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
-
-def extract_subtitles_from_file(input_path):
-    video_streams_data = ffmpeg.probe(input_path)
-    subtitles = [stream for stream in video_streams_data.get("streams") if stream.get("codec_type") == "subtitle"]
-
-    extracted_files = []
-    for subtitle in subtitles:
-        output_file = os.path.join(os.path.dirname(input_path), f"{subtitle['index']}.{subtitle['codec_type']}.srt")
-        extract_subtitle_stream(input_path, output_file, subtitle['index'])
-        extracted_files.append((output_file, subtitle))
-
-    return extracted_files
-
-
+##extract video command 
 @Client.on_message(filters.command("extractvideo") & filters.chat(GROUP))
 async def extract_video(bot, msg: Message):
     global EXTRACT_ENABLED
@@ -1984,65 +1933,6 @@ async def extract_video(bot, msg: Message):
         os.remove(downloaded)
         if os.path.exists(output_file):
             os.remove(output_file)
-
-def extract_video_stream(input_path, output_path, stream_index, codec_name):
-    temp_output = f"{output_path}.{codec_name}"  # Temporary output file
-    command = [
-        'ffmpeg',
-        '-i', input_path,
-        '-map', f'0:{stream_index}',
-        '-c', 'copy',
-        temp_output,
-        '-y'
-    ]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
-
-    # Convert to .mkv or .mp4
-    mkv_output = f"{output_path}.mkv"
-    mp4_output = f"{output_path}.mp4"
-    command_mkv = [
-        'ffmpeg',
-        '-i', temp_output,
-        '-c', 'copy',
-        mkv_output,
-        '-y'
-    ]
-    command_mp4 = [
-        'ffmpeg',
-        '-i', temp_output,
-        '-c', 'copy',
-        mp4_output,
-        '-y'
-    ]
-
-    process_mkv = subprocess.Popen(command_mkv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout_mkv, stderr_mkv = process_mkv.communicate()
-    process_mp4 = subprocess.Popen(command_mp4, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout_mp4, stderr_mp4 = process_mp4.communicate()
-
-    if process_mkv.returncode != 0 and process_mp4.returncode != 0:
-        raise Exception(f"FFmpeg error during conversion: {stderr_mkv.decode('utf-8')} {stderr_mp4.decode('utf-8')}")
-
-    os.remove(temp_output)  # Remove temporary file
-    return mkv_output if process_mkv.returncode == 0 else mp4_output
-
-def extract_video_from_file(input_path):
-    video_streams_data = ffmpeg.probe(input_path)
-    video_streams = [stream for stream in video_streams_data.get("streams") if stream.get("codec_type") == "video"]
-
-    if not video_streams:
-        return None
-
-    video_stream = video_streams[0]  # Assuming we extract the first video stream found
-    codec_name = video_stream['codec_name']
-    output_file = os.path.join(os.path.dirname(input_path), f"{video_stream['index']}")
-    output_file = extract_video_stream(input_path, output_file, video_stream['index'], codec_name)
-
-    return output_file
-
 
 # Command handler for /list
 @Client.on_message(filters.command("list") & filters.chat(GROUP))
