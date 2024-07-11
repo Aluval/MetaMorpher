@@ -131,6 +131,85 @@ async def merge_videos(input_file, output_file):
         raise RuntimeError(f"Error merging videos: {e}")
 
 
+#Extract the audio 
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+def extract_audio_stream(input_path, output_path, stream_index):
+    command = [
+        'ffmpeg',
+        '-i', input_path,
+        '-map', f'0:{stream_index}',
+        '-c', 'copy',
+        output_path,
+        '-y'
+    ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+
+#Extract the subtitles 
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+def extract_subtitle_stream(input_path, output_path, stream_index):
+    command = [
+        'ffmpeg',
+        '-i', input_path,
+        '-map', f'0:{stream_index}',
+        '-c', 'copy',
+        output_path,
+        '-y'
+    ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+        
+
+#Extract the video 
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+def extract_video_stream(input_path, output_path, stream_index, codec_name):
+    temp_output = f"{output_path}.{codec_name}"  # Temporary output file
+    command = [
+        'ffmpeg',
+        '-i', input_path,
+        '-map', f'0:{stream_index}',
+        '-c', 'copy',
+        temp_output,
+        '-y'
+    ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+
+    # Convert to .mkv or .mp4
+    mkv_output = f"{output_path}.mkv"
+    mp4_output = f"{output_path}.mp4"
+    command_mkv = [
+        'ffmpeg',
+        '-i', temp_output,
+        '-c', 'copy',
+        mkv_output,
+        '-y'
+    ]
+    command_mp4 = [
+        'ffmpeg',
+        '-i', temp_output,
+        '-c', 'copy',
+        mp4_output,
+        '-y'
+    ]
+
+    process_mkv = subprocess.Popen(command_mkv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout_mkv, stderr_mkv = process_mkv.communicate()
+    process_mp4 = subprocess.Popen(command_mp4, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout_mp4, stderr_mp4 = process_mp4.communicate()
+
+    if process_mkv.returncode != 0 and process_mp4.returncode != 0:
+        raise Exception(f"FFmpeg error during conversion: {stderr_mkv.decode('utf-8')} {stderr_mp4.decode('utf-8')}")
+
+    os.remove(temp_output)  # Remove temporary file
+    return mkv_output if process_mkv.returncode == 0 else mp4_output
+
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Function to unzip files
 def unzip_file(file_path, extract_path):
