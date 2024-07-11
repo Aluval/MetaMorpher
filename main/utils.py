@@ -133,4 +133,48 @@ async def upload_files(bot, chat_id, directory, base_path=""):
                 print(f"Error uploading {item}: {e}")
         elif os.path.isdir(item_path):
             await upload_files(bot, chat_id, item_path, base_path=os.path.join(base_path, item))
-            
+
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24        
+# Recursive function to extract audio
+def extract_audios_from_file(input_path):
+    video_streams_data = ffmpeg.probe(input_path)
+    audios = [stream for stream in video_streams_data.get("streams") if stream.get("codec_type") == "audio"]
+
+    extracted_files = []
+    for audio in audios:
+        codec_name = audio.get('codec_name', 'aac')
+        output_file = os.path.join(os.path.dirname(input_path), f"{audio['index']}.{codec_name}")
+        extract_audio_stream(input_path, output_file, audio['index'])
+        extracted_files.append((output_file, audio))
+
+    return extracted_files
+
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24        
+# Recursive function to extract subtitles 
+def extract_subtitles_from_file(input_path):
+    video_streams_data = ffmpeg.probe(input_path)
+    subtitles = [stream for stream in video_streams_data.get("streams") if stream.get("codec_type") == "subtitle"]
+
+    extracted_files = []
+    for subtitle in subtitles:
+        output_file = os.path.join(os.path.dirname(input_path), f"{subtitle['index']}.{subtitle['codec_type']}.srt")
+        extract_subtitle_stream(input_path, output_file, subtitle['index'])
+        extracted_files.append((output_file, subtitle))
+
+    return extracted_files
+
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24        
+# Recursive function to extract  Video
+def extract_video_from_file(input_path):
+    video_streams_data = ffmpeg.probe(input_path)
+    video_streams = [stream for stream in video_streams_data.get("streams") if stream.get("codec_type") == "video"]
+
+    if not video_streams:
+        return None
+
+    video_stream = video_streams[0]  # Assuming we extract the first video stream found
+    codec_name = video_stream['codec_name']
+    output_file = os.path.join(os.path.dirname(input_path), f"{video_stream['index']}")
+    output_file = extract_video_stream(input_path, output_file, video_stream['index'], codec_name)
+
+    return output_file
