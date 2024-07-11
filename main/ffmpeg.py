@@ -3,6 +3,7 @@ import subprocess
 import zipfile
 import asyncio
 
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 def remove_all_tags(input_path, output_path):
     command = [
         'ffmpeg',
