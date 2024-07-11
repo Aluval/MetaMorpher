@@ -189,39 +189,13 @@ Hᴇʀᴇ Is Tʜᴇ Hᴇʟᴘ Fᴏʀ Mʏ Cᴏᴍᴍᴀɴᴅs.
 #FUNCTION CALLBACK HELP
 @Client.on_callback_query(filters.regex("help"))
 async def help(bot, msg):
-    txt1 = "Sᴇɴᴅ ᴀ ғɪʟᴇ ᴀɴᴅ /rename <new name> ᴡɪᴛʜ ʀᴇᴘʟᴀʏᴇᴅ ʏᴏᴜʀ ғɪʟᴇ\n\n"
-    txt1 += "Rᴇɴᴀᴍᴇ [#2GB] - Rᴇɴᴀᴍᴇ ғɪʟᴇꜱ\n\n"
-    txt1 += "Mᴇᴛᴀᴅᴀᴛᴀ - Mᴏᴅɪғʏ ᴍᴇᴛᴀᴅᴀᴛᴀ\n\nFᴏʀᴍᴀᴛ: ᴄʜᴀɴɢᴇᴍᴇᴛᴀᴅᴀᴛᴀ ᴠɪᴅᴇᴏ_ᴛɪᴛʟᴇ | ᴀᴜᴅɪᴏ_ᴛɪᴛʟᴇ | ꜱᴜʙᴛɪᴛʟᴇ_ᴛɪᴛʟᴇ\n\n"
-    txt1 += "Gᴏғɪʟᴇ - Tʜᴇ Fɪʟᴇs Uᴘʟᴏᴀᴅ Tᴏ Gᴏғɪʟᴇ Lɪɴᴋ 🔗\n\n"
-    txt1 += "ɢᴏғɪʟᴇsᴇᴛᴜᴘ - Sᴇᴛᴜᴘ Tʜᴇ Gᴏғɪʟᴇ API KEY ғʀᴏᴍ Gᴏғɪʟᴇ.ɪᴏ ⚙️\n\n"
-    txt1 += "ɢᴅʀɪᴠᴇɪᴅ - Tʜᴇ Gᴏᴏɢʟᴇ Dʀɪᴠᴇ Fᴏʟᴅᴇʀ ID Sᴇᴛᴜᴘ 📁.\n\n"
-    txt2 += "Mɪʀʀᴏʀ - Mɪʀʀᴏʀ ғɪʟᴇs ᴛᴏ ᴀ Gᴏᴏɢʟᴇ Dʀɪᴠᴇ ʟɪɴᴋ.\n\n"
-    txt2 += "Cʟᴏɴᴇ -  Cʟᴏɴᴇ ᴀ Gᴏᴏɢʟᴇ Dʀɪᴠᴇ ʟɪɴᴋ.\n\n"
-    txt2 += "Lɪsᴛ - Cʜᴇᴄᴋ ᴛʜᴇ ғɪʟᴇs ɪɴ Gᴏᴏɢʟᴇ Dʀɪᴠᴇ ᴠɪᴀ ᴛʜᴇ ʙᴏᴛ.\n\n"
-    txt2 += "Cʟᴇᴀɴ - Dᴇʟᴇᴛᴇ ғɪʟᴇs ɪɴ Gᴏᴏɢʟᴇ Dʀɪᴠᴇ ʙʏ ғɪʟᴇ ɴᴀᴍᴇ.\n\n"
-    txt2 += "ʟᴇᴇᴄʜ - ʟᴇᴇᴄʜ ᴛʜᴇ Sᴇᴇᴅʀ & Wᴏʀᴋᴇʀs' Lɪɴᴋs ᴛᴏ Fɪʟᴇ ᴏʀ Gᴅʀɪᴠᴇ.\n\n"
-    txt2 += "Exᴛʀᴀᴄᴛ Aᴜᴅɪᴏs - Exᴛʀᴀᴄᴛ ᴀᴜᴅɪᴏ ғʀᴏᴍ ғɪʟᴇs.\n\n"
-    txt2 += "Exᴛʀᴀᴄᴛ Sᴜʙᴛɪᴛʟᴇs - Exᴛʀᴀᴄᴛ sᴜʙᴛɪᴛʟᴇs ғʀᴏᴍ ғɪʟᴇs.\n\n"
-    txt2 += "Exᴛʀᴀᴄᴛ Vɪᴅᴇᴏs - Exᴛʀᴀᴄᴛ ᴠɪᴅᴇᴏ ғʀᴏᴍ ғɪʟᴇs.\n\n"
-    txt3 += "Cʜᴀɴɢᴇɪɴᴅᴇxᴀᴜᴅɪᴏ - Rᴇᴀʀʀᴀɴɢᴇ ᴛʜᴇ ɪɴᴅᴇx\n\nFᴏʀᴍᴀᴛ:1)a-𝟷 ғᴏʀ ʀᴇᴍᴏᴠᴇ ᴀᴜᴅɪᴏ\n2)a-𝟸-𝟷-𝟹-𝟺 ғᴏʀ ꜱᴡᴀᴘ ᴀᴜᴅɪᴏ\n\n"
-    txt3 += "Cʜᴀɴɢᴇɪɴᴅᴇxsᴜʙ - Rᴇᴏʀᴅᴇʀ ᴛʜᴇ sᴇǫᴜᴇɴᴄᴇ [s-𝟷  ғᴏʀ ʀᴇᴍᴏᴠᴇ sᴜʙᴛɪᴛʟᴇ, s-𝟸-𝟷-𝟹-𝟺 ғᴏʀ sᴡᴀᴘ sᴜʙᴛɪᴛʟᴇ]\n\n"
-    txt3 += "Gᴇɴᴇʀᴀᴛᴇ Sᴀᴍᴘʟᴇ Vɪᴅᴇᴏ - Cʀᴇᴀᴛᴇ ꜱᴀᴍᴘʟᴇ ᴠɪᴅᴇᴏꜱ (𝟹𝟶ꜱ, 𝟼𝟶ꜱ, 𝟿𝟶ꜱ, 𝟷𝟸𝟶ꜱ, 𝟷𝟻𝟶ꜱ)\n\n"
-    txt3 += "Sᴄʀᴇᴇɴꜱʜᴏᴛꜱ - Tᴀᴋᴇ ꜱᴄʀᴇᴇɴꜱʜᴏᴛꜱ (ᴇxᴀᴍᴘʟᴇ: /ꜱᴄʀᴇᴇɴꜱʜᴏᴛꜱ 𝟷𝟶)\n\n"
-    txt3 += "Uɴᴢɪᴘ ᴛʜᴇ Fɪʟᴇꜱ ᴏɴʟʏ ᴢɪᴘ Fᴏʀᴍᴀᴛ ᴏɴʟʏ - Exᴛʀᴀᴄᴛ ZIP ғɪʟᴇꜱ ᴏɴʟʏ\n\n"
-    txt3 += "Aᴛᴛᴀᴄʜ Pʜᴏᴛᴏ ɪꜱ ᴜꜱᴇᴅ ᴀᴛᴛᴀᴄʜᴍᴇɴᴛ.ɪᴘɢ ᴛᴏ ᴀ ғɪʟᴇ\n\n"
-    txt3 += "ꜱᴇᴛᴘʜᴏᴛᴏ -  Tᴏ ᴀᴅᴅ ᴀ ᴘʜᴏᴛᴏ ᴛᴏ ᴀ ғɪʟᴇ  ᴀᴛᴛᴀᴄʜᴍᴇɴᴛ.ɪᴘɢ ғᴏʀ ꜱᴇɴᴅɪɴɢ ᴛʜᴇ ᴘʜᴏᴛᴏ ᴀꜱ ᴀɴ ᴀᴛᴛᴀᴄʜᴍᴇɴᴛ.\n\n"
-    txt4 += "ᴍᴇʀɢᴇ  - Sᴇɴᴅ ᴜᴘ ᴛᴏ 𝟷𝟶 ᴠɪᴅᴇᴏ/ᴅᴏᴄᴜᴍᴇɴᴛ ғɪʟᴇs ᴏɴᴇ ʙʏ ᴏɴᴇ.\n\n"
-    txt4 += "ᴠɪᴅᴇᴏᴍᴇʀɢᴇ - Vɪᴅᴇᴏᴍᴇʀɢᴇ ᴡɪᴛʜ ғɪʟᴇɴᴀᴍᴇ.ᴍᴋᴠ ᴛᴏ sᴛᴀʀᴛ ᴍᴇʀɢɪɴɢ\n\n"   
-    txt4 += "RᴇᴍᴏᴠᴇTᴀɢs - Tᴏ Rᴇᴍᴏᴠᴇ Aʟʟ Mᴇᴛᴀᴅᴀᴛᴀ Tᴀɢs\n\n"
-    txt4 += "ꜱᴇɴᴅ ᴘʜᴏᴛᴏ ᴛᴏ ꜱᴇᴛ ᴛʜᴜᴍʙɴᴀɪʟ ᴀᴜᴛᴏᴍᴀᴛɪᴄ🌟\n\n"
-    txt4 += "/view ᴛᴏ ꜱᴇᴇ ʏᴏᴜʀ ᴛʜᴜᴍʙɴᴀɪʟ 👀\n\n"
-    txt4 += "/del ᴛᴏ ᴅᴇʟᴇᴛᴇ ʏᴏᴜʀ ᴛʜᴜᴍʙɴᴀɪʟ❌\n\n"
-    txt4 += "Jᴏɪɴ : @Sunrises24BotUpdates"
+    txt =  "**Fᴏʀ ᴀssɪsᴛᴀɴᴄᴇ, ᴄʟɪᴄᴋ ᴛʜᴇ "Hᴇʟᴘ" ʙᴜᴛᴛᴏɴ ᴏʀ ᴛʏᴘᴇ ᴛʜᴇ `/help` ᴄᴏᴍᴍᴀɴᴅ ғᴏʀ ᴅᴇᴛᴀɪʟᴇᴅ ɪɴsᴛʀᴜᴄᴛɪᴏɴs ᴀɴᴅ sᴜᴘᴘᴏʀᴛ.**\n\n"
+    txt += "**Jᴏɪɴ : @Sunrises24BotUpdates**"
     button= [[        
         InlineKeyboardButton("Cʟᴏꜱᴇ ❌", callback_data="del")   
     ]] 
     await msg.message.edit(text=txt, reply_markup=InlineKeyboardMarkup(button), disable_web_page_preview = True)
-
+ 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 #FUNCTION CALL BACK ABOUT
 @Client.on_callback_query(filters.regex("about"))
