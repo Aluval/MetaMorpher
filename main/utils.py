@@ -3,8 +3,6 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 import heroku3
 import os
 import ffmpeg
-from main.ffmpeg import extract_audios_from_file, extract_subtitle_stream, extract_video_stream
-
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 PROGRESS_BAR = """
