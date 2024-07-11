@@ -4,6 +4,7 @@ import heroku3
 import os
 import ffmpeg
 
+
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 PROGRESS_BAR = """
 ╭───[**•PROGRESS BAR•**]───⍟
@@ -123,7 +124,7 @@ async def download_media(msg, sts):
         raise
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24        
-# Recursive function to upload files
+# Recursive function to upload file
 async def upload_files(bot, chat_id, directory, base_path=""):
     for item in os.listdir(directory):
         item_path = os.path.join(directory, item)
