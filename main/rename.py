@@ -6,7 +6,6 @@ import time, datetime
 import shutil
 import zipfile
 import tarfile
-import ffmpeg
 from pyrogram.types import Message
 from pyrogram.types import Document, Video
 from pyrogram import Client, filters
@@ -1714,9 +1713,10 @@ async def gofile_upload(bot, msg: Message):
 
 @Client.on_message(filters.private & filters.command("clone"))
 async def clone_file(bot, msg: Message):
-    global GDRIVE_FOLDER_ID
+    user_id = msg.from_user.id
+    gdrive_folder_id = user_gdrive_folder_ids.get(user_id)
 
-    if not GDRIVE_FOLDER_ID:
+    if not gdrive_folder_id:
         return await msg.reply_text("Google Drive folder ID is not set. Please use the /gdriveid command to set it.")
 
     if len(msg.command) < 2:
@@ -1731,7 +1731,7 @@ async def clone_file(bot, msg: Message):
     sts = await msg.reply_text("Starting cloning process...")
 
     try:
-        copied_file_info = await copy_file(src_id, GDRIVE_FOLDER_ID)
+        copied_file_info = await copy_file(src_id, gdrive_folder_id)
         if copied_file_info:
             file_link = f"https://drive.google.com/file/d/{copied_file_info['id']}/view"
             button = [
