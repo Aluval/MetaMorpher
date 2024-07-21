@@ -2,42 +2,44 @@
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 import subprocess
 import os
-import time, datetime
+import time
 import shutil
 import zipfile
 import tarfile
+import ffmpeg
 from pyrogram.types import Message
 from pyrogram.types import Document, Video
 from pyrogram import Client, filters
 from pyrogram.enums import MessageMediaType
 from pyrogram.errors import MessageNotModified
-from config import DOWNLOAD_LOCATION, CAPTION
 from main.utils import progress_message, humanbytes
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup,CallbackQuery
-from config import AUTH_USERS, ADMIN
+from config import AUTH_USERS, ADMIN, CAPTION
 from main.utils import heroku_restart, upload_files, download_media
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 import asyncio
-from main.ffmpeg import remove_all_tags, change_video_metadata, generate_sample_video, add_photo_attachment, merge_videos, unzip_file, extract_audio_stream, extract_subtitle_stream, extract_video_stream,extract_audios_from_file, extract_subtitles_from_file, extract_video_from_file
+from main.ffmpeg import remove_all_tags, change_video_metadata, generate_sample_video, add_photo_attachment, merge_videos, unzip_file, extract_audio_stream, extract_subtitle_stream, extract_video_stream, extract_audios_from_file, extract_subtitles_from_file, extract_video_from_file, get_mediainfo
 from googleapiclient.http import MediaFileUpload
 from main.gdrive import upload_to_google_drive, extract_id_from_url, copy_file, get_files_in_folder, drive_service
 from googleapiclient.errors import HttpError
+from Database.database import db
+import datetime
+from datetime import timedelta
+import psutil
+from pymongo.errors import PyMongoError
+from yt_dlp import YoutubeDL
+from html_telegraph_poster import TelegraphPoster
+
+# Initialize Telegraph
+telegraph = TelegraphPoster(use_api=True)
+telegraph.create_api_token("MediaInfoBot")
 
 
-DOWNLOAD_LOCATION1 = "./screenshots"
+# Global variables
+START_TIME = datetime.datetime.now()
 
-
-# Global dictionary to store user settings
 merge_state = {}
-user_gofile_api_keys = {}  # Dictionary to store Gofile API keys for each user
-user_settings = {}
-
-# Initialize Gofile API key variable
-GOFILE_API_KEY = ""
-
-# Dictionary to store user-specific Google Drive folder IDs
-user_gdrive_folder_ids = {}
 
 FILE_SIZE_LIMIT = 2000 * 1024 * 1024  # 2000 MB in bytes
 
@@ -50,6 +52,7 @@ REMOVETAGS_ENABLED = True
 CHANGE_INDEX_ENABLED = True 
 MERGE_ENABLED = True
 EXTRACT_ENABLED = True
+
 
 
 
@@ -184,26 +187,27 @@ async def update_settings_message(message):
     )
 
     await message.edit_text("Use inline buttons to manage your settings:", reply_markup=keyboard)
+    
+    
 
-
-
-
-# Callback query handler for setting sample video duration
 @Client.on_callback_query(filters.regex("^set_sample_video_duration_"))
 async def set_sample_video_duration(client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     duration_str = callback_query.data.split("_")[-1]
     duration = int(duration_str)
-    user_settings[user_id] = user_settings.get(user_id, {})
-    user_settings[user_id]["sample_video_duration"] = duration
+    
+    # Save sample video duration to database
+    await db.save_sample_video_settings(user_id, duration, "screenshots setting")  # Adjusted the parameter from 'duration' to 'duration_str'
+    
     await callback_query.answer(f"Sample video duration set to {duration} seconds.")
     await display_user_settings(client, callback_query.message, edit=True)
-  
-# Callback query handler for selecting sample video option
+
+
 @Client.on_callback_query(filters.regex("^sample_video_option$"))
 async def sample_video_option(client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
-    current_duration = user_settings.get(user_id, {}).get("sample_video_duration", "Not set")
+    current_duration = await db.get_sample_video_settings(user_id)
+    
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton(f"Sample Video 150s {'✅' if current_duration == 150 else ''}", callback_data="set_sample_video_duration_150")],
         [InlineKeyboardButton(f"Sample Video 120s {'✅' if current_duration == 120 else ''}", callback_data="set_sample_video_duration_120")],
@@ -212,8 +216,10 @@ async def sample_video_option(client, callback_query: CallbackQuery):
         [InlineKeyboardButton(f"Sample Video 30s {'✅' if current_duration == 30 else ''}", callback_data="set_sample_video_duration_30")],
         [InlineKeyboardButton("Back", callback_data="back_to_settings")]
     ])
+    
     await callback_query.message.edit_text(f"Sample Video Duration Settings\nCurrent duration: {current_duration}", reply_markup=keyboard)
   
+
 # Callback query handler for returning to user settings
 @Client.on_callback_query(filters.regex("^back_to_settings$"))
 async def back_to_settings(client, callback_query: CallbackQuery):
@@ -222,8 +228,9 @@ async def back_to_settings(client, callback_query: CallbackQuery):
 @Client.on_message(filters.private & filters.command("usersettings"))
 async def display_user_settings(client, msg, edit=False):
     user_id = msg.from_user.id
-    current_duration = user_settings.get(user_id, {}).get("sample_video_duration", "Not set")
-    current_screenshots = user_settings.get(user_id, {}).get("screenshots", "Not set")
+    
+    current_duration = await db.get_sample_video_duration(user_id)
+    current_screenshots = await db.get_screenshots_count(user_id)
 
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("💠", callback_data="sunrises24_bot_updates")],
@@ -238,16 +245,17 @@ async def display_user_settings(client, msg, edit=False):
         [InlineKeyboardButton("💠", callback_data="sunrises24_bot_updates")],
         [InlineKeyboardButton("Close ❌", callback_data="del")]
     ])
+    
     if edit:
         await msg.edit_text(f"User Settings\nCurrent sample video duration: {current_duration}\nCurrent screenshots setting: {current_screenshots}", reply_markup=keyboard)
     else:
         await msg.reply(f"User Settings\nCurrent sample video duration: {current_duration}\nCurrent screenshots setting: {current_screenshots}", reply_markup=keyboard)
 
-
 @Client.on_callback_query(filters.regex("^screenshots_option$"))
 async def screenshots_option(client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
-    current_screenshots = user_settings.get(user_id, {}).get("screenshots", 5)  # Default to 5 if not set
+    current_screenshots = await db.get_screenshots_count(user_id)  # Default to 5 if not set
+    
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton(f"Screenshots 1 {'✅' if current_screenshots == 1 else ''}", callback_data="set_screenshots_1")],
         [InlineKeyboardButton(f"Screenshots 2 {'✅' if current_screenshots == 2 else ''}", callback_data="set_screenshots_2")],
@@ -261,6 +269,7 @@ async def screenshots_option(client, callback_query: CallbackQuery):
         [InlineKeyboardButton(f"Screenshots 10 {'✅' if current_screenshots == 10 else ''}", callback_data="set_screenshots_10")],
         [InlineKeyboardButton("Back", callback_data="back_to_settings")]
     ])
+    
     await callback_query.message.edit_text(f"Screenshots Settings\nCurrent number: {current_screenshots}", reply_markup=keyboard)
     
 @Client.on_callback_query(filters.regex("^set_screenshots_"))
@@ -269,81 +278,56 @@ async def set_screenshots(client, callback_query: CallbackQuery):
     num_str = callback_query.data.split("_")[-1]
     num_screenshots = int(num_str)
     
-    user_settings[user_id] = user_settings.get(user_id, {})
-    user_settings[user_id]["screenshots"] = num_screenshots
+    # Save screenshots count to database
+    await db.save_screenshots_count(user_id, num_screenshots)
     
     await callback_query.answer(f"Number of screenshots set to {num_screenshots}.")
     await display_user_settings(client, callback_query.message, edit=True)
 
 
 
-# Inline query handler for previewing metadata titles
-@Client.on_callback_query(filters.regex("^preview_metadata$"))
-async def inline_preview_metadata_callback(_, callback_query):
-    await callback_query.answer()
-    user_id = callback_query.from_user.id
-    titles = user_settings.get(user_id, {})
-    if not titles or not any(titles.values()):
-        await callback_query.message.reply_text("Metadata titles are not fully set. Please set all titles first.")
-        return
-    
-    preview_text = f"Video Title: {titles.get('video_title', '')}\n" \
-                   f"Audio Title: {titles.get('audio_title', '')}\n" \
-                   f"Subtitle Title: {titles.get('subtitle_title', '')}"
-    await callback_query.message.reply_text(f"Current Metadata Titles:\n\n{preview_text}")
-
-# Inline query handler to preview the Gofile API key
-@Client.on_callback_query(filters.regex("^preview_gofilekey$"))
-async def inline_preview_gofile_api_key(bot, callback_query):
-    user_id = callback_query.from_user.id
-    
-    # Check if the API key is set for the user
-    if user_id not in user_gofile_api_keys:
-        return await callback_query.message.reply_text(f"Gofile API key is not set for user `{user_id}`. Use /gofilesetup {{your_api_key}} to set it.")
-    
-    # Reply with the current API key for the user
-    await callback_query.message.reply_text(f"Current Gofile API Key for user `{user_id}`: {user_gofile_api_keys[user_id]}")
-    
-# Inline query handler to preview the Google Drive folder ID
-@Client.on_callback_query(filters.regex("^preview_gdrive$"))
-async def inline_preview_gdrive(bot, callback_query):
-    user_id = callback_query.from_user.id
-    
-    # Check if the Google Drive folder ID is set for the user
-    if user_id not in user_gdrive_folder_ids:
-        return await callback_query.message.reply_text(f"Google Drive Folder ID is not set for user `{user_id}`. Use /gdriveid {{your_gdrive_folder_id}} to set it.")
-    
-    # Reply with the current Google Drive folder ID for the user
-    await callback_query.message.reply_text(f"Current Google Drive Folder ID for user `{user_id}`: {user_gdrive_folder_ids[user_id]}")
-    
-# Inline query handler for attaching photo
 @Client.on_callback_query(filters.regex("^attach_photo$"))
 async def inline_attach_photo_callback(_, callback_query):
     await callback_query.answer()
     user_id = callback_query.from_user.id
-    user_settings[user_id] = user_settings.get(user_id, {})
-    user_settings[user_id]["attach_photo"] = True
+    
+    # Update user settings to indicate attachment request
+    await db.update_user_settings(user_id, {"attach_photo": True})
+    
     await callback_query.message.edit_text("Please send a photo to be attached using the setphoto command.")
 
-#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+@Client.on_message(filters.private & filters.command("setphoto"))
+async def set_photo(bot, msg):
+    reply = msg.reply_to_message
+    if not reply or not reply.photo:
+        return await msg.reply_text("Please reply to a photo with the setphoto command")
 
-# Inline query handler for previewing attached photo
+    user_id = msg.from_user.id
+    photo_file_id = reply.photo.file_id
+
+    try:
+        await db.save_attach_photo(user_id, photo_file_id)
+        await msg.reply_text("Photo saved successfully.")
+    except Exception as e:
+        await msg.reply_text(f"Error saving photo: {e}")
+
 @Client.on_callback_query(filters.regex("^preview_photo$"))
 async def inline_preview_photo_callback(client, callback_query):
     await callback_query.answer()
     user_id = callback_query.from_user.id
-    attachment_path = os.path.join(DOWNLOAD_LOCATION, f"attachment_{user_id}.jpg")
     
-    if not os.path.exists(attachment_path):
+    # Retrieve the attachment path from the database
+    attachment_file_id = await db.get_attach_photo(user_id)
+    
+    if not attachment_file_id:
         await callback_query.message.reply_text("No photo has been attached yet.")
         return
     
-    await callback_query.message.reply_photo(photo=attachment_path, caption="Attached Photo")
+    try:
+        await callback_query.message.reply_photo(photo=attachment_file_id, caption="Attached Photo")
+    except Exception as e:
+        await callback_query.message.reply_text(f"Failed to send photo: {str(e)}")
 
-
-
-#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
-# Inline query handler for thumbnail settings
 @Client.on_callback_query(filters.regex("^thumbnail_settings$"))
 async def inline_thumbnail_settings(client, callback_query: CallbackQuery):
     keyboard = InlineKeyboardMarkup(
@@ -355,72 +339,72 @@ async def inline_thumbnail_settings(client, callback_query: CallbackQuery):
     )
     await callback_query.message.edit_text("Thumbnail Settings:", reply_markup=keyboard)
 
-
-
-# Command to set a permanent thumbnail
 @Client.on_message(filters.private & filters.command("setthumbnail"))
 async def set_thumbnail_command(client, message):
     user_id = message.from_user.id
-    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
 
     # Check if thumbnail already exists
-    if os.path.isfile(thumbnail_path):
+    thumbnail_file_id = await db.get_thumbnail(user_id)
+    if thumbnail_file_id:
         await message.reply("You already have a permanent thumbnail set. Send a new photo to update it.")
     else:
         await message.reply("Send a photo to set as your permanent thumbnail.")
 
-# Handler for setting the thumbnail
 @Client.on_message(filters.photo & filters.private)
 async def set_thumbnail_handler(client, message):
     user_id = message.from_user.id
-    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
+    photo_file_id = message.photo.file_id
 
-    # Check if thumbnail already exists
-    if os.path.isfile(thumbnail_path):
-        # Thumbnail exists, delete the old one
-        os.remove(thumbnail_path)
-
-    # Download the photo and save as thumbnail_{user_id}.jpg
-    await client.download_media(message=message, file_name=thumbnail_path)
+    # Save thumbnail file ID to database
+    await db.save_thumbnail(user_id, photo_file_id)
+    
     await message.reply("Your permanent thumbnail is updated. If the bot is restarted, the new thumbnail will be preserved.")
-
-#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+    
 @Client.on_callback_query(filters.regex("^view_thumbnail$"))
 async def view_thumbnail(client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
-    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
+    thumbnail_file_id = await db.get_thumbnail(user_id)
+
+    if not thumbnail_file_id:
+        await callback_query.message.reply_text("You don't have any thumbnail.")
+        return
 
     try:
-        await callback_query.message.reply_photo(photo=thumbnail_path, caption="This is your current thumbnail")
+        await callback_query.message.reply_photo(photo=thumbnail_file_id, caption="This is your current thumbnail")
     except Exception as e:
-        await callback_query.message.reply_text("You don't have any thumbnail.")
-
+        await callback_query.message.reply_text("An error occurred while trying to view your thumbnail.")
 
 @Client.on_callback_query(filters.regex("^delete_thumbnail$"))
 async def delete_thumbnail(client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
-    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
+    thumbnail_file_id = await db.get_thumbnail(user_id)
 
     try:
-        if os.path.exists(thumbnail_path):
-            os.remove(thumbnail_path)
+        if thumbnail_file_id:
+            await db.delete_thumbnail(user_id)
             await callback_query.message.reply_text("Your thumbnail was removed ❌")
         else:
             await callback_query.message.reply_text("You don't have any thumbnail ‼️")
     except Exception as e:
         await callback_query.message.reply_text("An error occurred while trying to remove your thumbnail. Please try again later.")
-      
-#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
-# Inline query handler to return to user settings
-@Client.on_callback_query(filters.regex("^back_to_settings$"))
-async def back_to_settings_callback(client, callback_query: CallbackQuery):
-    await display_user_settings(client, callback_query.message)
 
-# Command to set metadata titles
+
+
+@Client.on_callback_query(filters.regex("^preview_gdrive$"))
+async def inline_preview_gdrive(bot, callback_query):
+    user_id = callback_query.from_user.id
+    
+    # Retrieve Google Drive folder ID from the database
+    gdrive_folder_id = await db.get_gdrive_folder_id(user_id)
+    
+    if not gdrive_folder_id:
+        return await callback_query.message.reply_text(f"Google Drive Folder ID is not set for user `{user_id}`. Use /gdriveid {{your_gdrive_folder_id}} to set it.")
+    
+    await callback_query.message.reply_text(f"Current Google Drive Folder ID for user `{user_id}`: {gdrive_folder_id}")
+
+
 @Client.on_message(filters.private & filters.command("setmetadata"))
 async def set_metadata_command(client, msg):
-    global user_settings  # Ensure we're modifying the global user_settings
-
     # Extract titles from the command message
     if len(msg.command) < 2:
         await msg.reply_text("Invalid command format. Use: setmetadata video_title | audio_title | subtitle_title")
@@ -431,17 +415,12 @@ async def set_metadata_command(client, msg):
         await msg.reply_text("Invalid number of titles. Use: setmetadata video_title | audio_title | subtitle_title")
         return
     
-    # Store the titles in user_settings
+    # Store the titles in the database
     user_id = msg.from_user.id
-    user_settings[user_id] = {
-        "video_title": titles[0].strip(),
-        "audio_title": titles[1].strip(),
-        "subtitle_title": titles[2].strip()
-    }
+    await db.save_metadata_titles(user_id, titles[0].strip(), titles[1].strip(), titles[2].strip())
     
     await msg.reply_text("Metadata titles set successfully ✅.")
 
-# Command to set Gofile API key for a user
 @Client.on_message(filters.command("gofilesetup") & filters.private)
 async def set_gofile_api_key(bot, msg):
     user_id = msg.from_user.id
@@ -450,10 +429,12 @@ async def set_gofile_api_key(bot, msg):
         return await msg.reply_text("Usage: /gofilesetup {your_api_key}")
     
     api_key = args[1].strip()
-    user_gofile_api_keys[user_id] = api_key
+    
+    # Save Gofile API key to the database
+    await db.save_gofile_api_key(user_id, api_key)
+    
     await msg.reply_text("Your Gofile API key has been set successfully.✅")
 
-# Command handler for /gdriveid setup
 @Client.on_message(filters.private & filters.command("gdriveid"))
 async def setup_gdrive_id(bot, msg: Message):
     user_id = msg.from_user.id
@@ -462,10 +443,46 @@ async def setup_gdrive_id(bot, msg: Message):
         return await msg.reply_text("Usage: /gdriveid {your_gdrive_folder_id}")
     
     gdrive_folder_id = args[1].strip()
-    user_gdrive_folder_ids[user_id] = gdrive_folder_id
-    await msg.reply_text(f"Google Drive folder ID set to: {gdrive_folder_id} for user `{user_id}`\n\nGoogle Drive folder ID set successfully✅!")
     
+    # Save Google Drive folder ID to the database
+    await db.save_gdrive_folder_id(user_id, gdrive_folder_id)
+    
+    await msg.reply_text(f"Google Drive folder ID set to: {gdrive_folder_id} for user `{user_id}`\n\nGoogle Drive folder ID set successfully✅!")
 
+@Client.on_callback_query(filters.regex("^preview_metadata$"))
+async def inline_preview_metadata_callback(_, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    
+    # Fetch metadata titles from the database
+    titles = await db.get_metadata_titles(user_id)
+    
+    if not titles or not any(titles.values()):
+        await callback_query.message.reply_text("Metadata titles are not fully set. Please set all titles first.")
+        return
+    
+    preview_text = f"Video Title: {titles.get('video_title', '')}\n" \
+                   f"Audio Title: {titles.get('audio_title', '')}\n" \
+                   f"Subtitle Title: {titles.get('subtitle_title', '')}"
+    
+    await callback_query.message.reply_text(f"Current Metadata Titles:\n\n{preview_text}")
+
+@Client.on_callback_query(filters.regex("^preview_gofilekey$"))
+async def inline_preview_gofile_api_key(bot, callback_query):
+    user_id = callback_query.from_user.id
+    
+    # Fetch Gofile API key from the database
+    api_key = await db.get_gofile_api_key(user_id)
+    
+    if not api_key:
+        return await callback_query.message.reply_text(f"Gofile API key is not set for user `{user_id}`. Use /gofilesetup {{your_api_key}} to set it.")
+    
+    await callback_query.message.reply_text(f"Current Gofile API Key for user `{user_id}`: {api_key}")
+
+
+
+    
+  
 
 # Command handler for /mirror
 @Client.on_message(filters.private & filters.command("mirror"))
@@ -478,7 +495,7 @@ async def mirror_to_google_drive(bot, msg: Message):
     user_id = msg.from_user.id
     
     # Retrieve the user's Google Drive folder ID
-    gdrive_folder_id = user_gdrive_folder_ids.get(user_id)
+    gdrive_folder_id = await db.get_gdrive_folder_id(user_id)
     
     if not gdrive_folder_id:
         return await msg.reply_text("Google Drive folder ID is not set. Please use the /gdriveid command to set it.")
@@ -492,14 +509,13 @@ async def mirror_to_google_drive(bot, msg: Message):
         return await msg.reply_text("Please reply to a file with the new filename and extension.")
 
     new_name = msg.text.split(" ", 1)[1]
-    download_path = os.path.join(DOWNLOAD_LOCATION, new_name)
 
     try:
         # Show progress message for downloading
         sts = await msg.reply_text("🚀 Downloading...")
         
         # Download the file
-        downloaded_file = await bot.download_media(message=reply, file_name=download_path, progress=progress_message, progress_args=("Downloading", sts, time.time()))
+        downloaded_file = await bot.download_media(message=reply, file_name=new_name, progress=progress_message, progress_args=("Downloading", sts, time.time()))
         filesize = os.path.getsize(downloaded_file)
         
         # Once downloaded, update the message to indicate uploading
@@ -534,7 +550,7 @@ async def mirror_to_google_drive(bot, msg: Message):
             [InlineKeyboardButton("☁️ CloudUrl ☁️", url=f"{file_link}")]
         ]
         await msg.reply_text(
-            f"File successfully Mirror and Uploaded to Google Drive!\n\n"
+            f"File successfully mirrored and uploaded to Google Drive!\n\n"
             f"Google Drive Link: [View File]({file_link})\n\n"
             f"Uploaded File: {new_name}\n"
             f"Size: {humanbytes(filesize)}",
@@ -572,14 +588,18 @@ async def rename_file(bot, msg):
     else:
         cap = f"{new_name}\n\n🌟 Size: {filesize}"
 
-    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
+    # Retrieve thumbnail from the database
+    thumbnail_file_id = await db.get_thumbnail(msg.from_user.id)
     og_thumbnail = None
-    if os.path.exists(thumbnail_path):
-        og_thumbnail = thumbnail_path
+    if thumbnail_file_id:
+        try:
+            og_thumbnail = await bot.download_media(thumbnail_file_id)
+        except Exception:
+            pass
     else:
         if hasattr(media, 'thumbs') and media.thumbs:
             try:
-                og_thumbnail = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
+                og_thumbnail = await bot.download_media(media.thumbs[0].file_id)
             except Exception:
                 pass
 
@@ -596,22 +616,25 @@ async def rename_file(bot, msg):
             return await sts.edit(f"Error: {e}")
 
     os.remove(downloaded)
-    if og_thumbnail and os.path.exists(og_thumbnail):
-        os.remove(og_thumbnail)
     await sts.delete()
 
 #Change Metadata Code
-
-
 @Client.on_message(filters.private & filters.command("changemetadata"))
-async def change_metadata(bot, msg):
-    global METADATA_ENABLED, user_settings
+async def change_metadata(bot, msg: Message):
+    global METADATA_ENABLED
 
     if not METADATA_ENABLED:
         return await msg.reply_text("Metadata changing feature is currently disabled.")
 
     user_id = msg.from_user.id
-    if user_id not in user_settings or not any(user_settings[user_id].values()):
+   
+    # Fetch metadata titles from the database
+    metadata_titles = await db.get_metadata_titles(user_id)
+    video_title = metadata_titles.get('video_title', '')
+    audio_title = metadata_titles.get('audio_title', '')
+    subtitle_title = metadata_titles.get('subtitle_title', '')
+
+    if not any([video_title, audio_title, subtitle_title]):
         return await msg.reply_text("Metadata titles are not set. Please set metadata titles using `/setmetadata video_title audio_title subtitle_title`.")
 
     reply = msg.reply_to_message
@@ -626,10 +649,6 @@ async def change_metadata(bot, msg):
     if not output_filename.lower().endswith(('.mkv', '.mp4', '.avi')):
         return await msg.reply_text("Invalid file extension. Please use a valid video file extension (e.g., .mkv, .mp4, .avi).")
 
-    video_title = user_settings[user_id]['video_title']
-    audio_title = user_settings[user_id]['audio_title']
-    subtitle_title = user_settings[user_id]['subtitle_title']
-
     media = reply.document or reply.audio or reply.video
     if not media:
         return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the metadata command.")
@@ -642,7 +661,7 @@ async def change_metadata(bot, msg):
         await safe_edit_message(sts, f"Error downloading media: {e}")
         return
 
-    output_file = os.path.join(DOWNLOAD_LOCATION, output_filename)
+    output_file = output_filename
 
     await safe_edit_message(sts, "💠 Changing metadata... ⚡")
     try:
@@ -652,14 +671,20 @@ async def change_metadata(bot, msg):
         os.remove(downloaded)
         return
 
-    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
-    if not os.path.exists(thumbnail_path):
+    # Retrieve thumbnail from the database
+    thumbnail_file_id = await db.get_thumbnail(user_id)
+    file_thumb = None
+    if thumbnail_file_id:
         try:
-            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
-        except Exception as e:
-            file_thumb = None
+            file_thumb = await bot.download_media(thumbnail_file_id)
+        except Exception:
+            pass
     else:
-        file_thumb = thumbnail_path
+        if hasattr(media, 'thumbs') and media.thumbs:
+            try:
+                file_thumb = await bot.download_media(media.thumbs[0].file_id)
+            except Exception as e:
+                file_thumb = None
 
     filesize = os.path.getsize(output_file)
     filesize_human = humanbytes(filesize)
@@ -691,10 +716,11 @@ async def change_metadata(bot, msg):
         os.remove(file_thumb)
     await sts.delete()
 
-#attach photo
+   
 
+#attach photo
 @Client.on_message(filters.private & filters.command("attachphoto"))
-async def attach_photo(bot, msg):
+async def attach_photo(bot, msg: Message):
     global PHOTO_ATTACH_ENABLED
 
     if not PHOTO_ATTACH_ENABLED:
@@ -729,13 +755,16 @@ async def attach_photo(bot, msg):
         await safe_edit_message(sts, f"Error downloading media: {e}")
         return
 
-    attachment_path = f"{DOWNLOAD_LOCATION}/attachment_{msg.from_user.id}.jpg"
-    if not os.path.exists(attachment_path):
+    # Retrieve attachment from the database
+    attachment_file_id = await db.get_attach_photo(msg.from_user.id)
+    if not attachment_file_id:
         await safe_edit_message(sts, "Please send a photo to be attached using the `setphoto` command.")
         os.remove(downloaded)
         return
 
-    output_file = os.path.join(DOWNLOAD_LOCATION, output_filename)
+    attachment_path = await bot.download_media(attachment_file_id)
+
+    output_file = output_filename
 
     await safe_edit_message(sts, "💠 Adding photo attachment... ⚡")
     try:
@@ -745,13 +774,21 @@ async def attach_photo(bot, msg):
         os.remove(downloaded)
         return
 
-    file_thumb = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
-    if not os.path.exists(file_thumb):
+    # Retrieve thumbnail from the database
+    thumbnail_file_id = await db.get_thumbnail(msg.from_user.id)
+    file_thumb = None
+    if thumbnail_file_id:
         try:
-            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=file_thumb)
-        except Exception as e:
-            print(e)
-            file_thumb = None
+            file_thumb = await bot.download_media(thumbnail_file_id)
+        except Exception:
+            pass
+    else:
+        if hasattr(media, 'thumbs') and media.thumbs:
+            try:
+                file_thumb = await bot.download_media(media.thumbs[0].file_id)
+            except Exception as e:
+                print(e)
+                file_thumb = None
 
     filesize = os.path.getsize(output_file)
 
@@ -796,10 +833,15 @@ async def attach_photo(bot, msg):
         os.remove(downloaded)
         os.remove(output_file)
         if file_thumb and os.path.exists(file_thumb):
-            os.remove(file_thumb) 
+            os.remove(file_thumb)
+        if os.path.exists(attachment_path):
+            os.remove(attachment_path)
 
-#changeindexaudio
-# Command to change index audio
+
+
+
+# Command handler
+# Command handler for changing audio index
 @Client.on_message(filters.private & filters.command("changeindexaudio"))
 async def change_index_audio(bot, msg):
     global CHANGE_INDEX_ENABLED
@@ -844,14 +886,15 @@ async def change_index_audio(bot, msg):
         await sts.edit(f"Error downloading media: {e}")
         return
 
-    output_file = os.path.join(DOWNLOAD_LOCATION, output_filename)
+    # Output file path (temporary file)
+    output_file = os.path.splitext(downloaded)[0] + "_indexed" + os.path.splitext(downloaded)[1]
 
     index_params = index_cmd.split('-')
     stream_type = index_params[0]
     indexes = [int(i) - 1 for i in index_params[1:]]
 
     # Construct the FFmpeg command to modify indexes
-    ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']  # Always map video stream
+    ffmpeg_cmd = ['ffmpeg', '-i', downloaded]
 
     for idx in indexes:
         ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
@@ -868,18 +911,20 @@ async def change_index_audio(bot, msg):
     if process.returncode != 0:
         await sts.edit(f"❗ FFmpeg error: {stderr.decode('utf-8')}")
         os.remove(downloaded)
+        if os.path.exists(output_file):
+            os.remove(output_file)
         return
 
     # Thumbnail handling
-    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
+    thumbnail_file_id = await db.get_thumbnail(msg.from_user.id)
 
-    if os.path.exists(thumbnail_path):
-        file_thumb = thumbnail_path
-    else:
+    if thumbnail_file_id:
         try:
-            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
+            file_thumb = await bot.download_media(thumbnail_file_id)
         except Exception as e:
             file_thumb = None
+    else:
+        file_thumb = None
 
     filesize = os.path.getsize(output_file)
     filesize_human = humanbytes(filesize)
@@ -912,15 +957,17 @@ async def change_index_audio(bot, msg):
         except Exception as e:
             return await sts.edit(f"Error: {e}")
 
+    # Clean up downloaded and temporary files
     os.remove(downloaded)
     os.remove(output_file)
     if file_thumb and os.path.exists(file_thumb):
         os.remove(file_thumb)
     await sts.delete()
 
+
 #changeindex subtitles 
 # Command to change index subtitle
-
+# Command handler for changing subtitle index
 @Client.on_message(filters.private & filters.command("changeindexsub"))
 async def change_index_subtitle(bot, msg):
     global CHANGE_INDEX_ENABLED
@@ -965,7 +1012,8 @@ async def change_index_subtitle(bot, msg):
         await safe_edit_message(sts, f"Error downloading media: {e}")
         return
 
-    output_file = os.path.join(DOWNLOAD_LOCATION, output_filename)
+    # Output file path (temporary file)
+    output_file = os.path.splitext(downloaded)[0] + "_indexed" + os.path.splitext(downloaded)[1]
 
     index_params = index_cmd.split('-')
     stream_type = index_params[0]
@@ -990,15 +1038,15 @@ async def change_index_subtitle(bot, msg):
         return
 
     # Thumbnail handling
-    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
+    thumbnail_file_id = await db.get_thumbnail(msg.from_user.id)
 
-    if os.path.exists(thumbnail_path):
-        file_thumb = thumbnail_path
-    else:
+    if thumbnail_file_id:
         try:
-            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
+            file_thumb = await bot.download_media(thumbnail_file_id)
         except Exception as e:
             file_thumb = None
+    else:
+        file_thumb = None
 
     filesize = os.path.getsize(output_file)
     filesize_human = humanbytes(filesize)
@@ -1032,7 +1080,6 @@ async def change_index_subtitle(bot, msg):
 
 
 
-
 #merge command 
 # Command to start merging files
 @Client.on_message(filters.private & filters.command("merge"))
@@ -1046,7 +1093,6 @@ async def start_merge_command(bot, msg: Message):
 
     await msg.reply_text("Send up to 10 video/document files one by one. Once done, send `/videomerge filename`.")
 
-# Command to finalize merging and start the process
 @Client.on_message(filters.private & filters.command("videomerge"))
 async def start_video_merge_command(bot, msg: Message):
     user_id = msg.from_user.id
@@ -1058,16 +1104,13 @@ async def start_video_merge_command(bot, msg: Message):
 
     await merge_and_upload(bot, msg)
 
-# Handling media files sent by users
 @Client.on_message(filters.document | filters.video & filters.private)
 async def handle_media_files(bot, msg: Message):
     user_id = msg.from_user.id
     if user_id in merge_state and len(merge_state[user_id]["files"]) < 10:
         merge_state[user_id]["files"].append(msg)
         await msg.reply_text("File received. Send another file or use `/videomerge filename` to start merging.")
-
-
-# Function to merge and upload files
+        
 async def merge_and_upload(bot, msg: Message):
     user_id = msg.from_user.id
     if user_id not in merge_state:
@@ -1075,7 +1118,7 @@ async def merge_and_upload(bot, msg: Message):
 
     files_to_merge = merge_state[user_id]["files"]
     output_filename = merge_state[user_id].get("output_filename", "merged_output.mp4")  # Default output filename
-    output_path = os.path.join(DOWNLOAD_LOCATION, output_filename)
+    output_path = f"{output_filename}"
 
     sts = await msg.reply_text("🚀 Starting merge process...")
 
@@ -1085,7 +1128,7 @@ async def merge_and_upload(bot, msg: Message):
             file_path = await download_media(file_msg, sts)
             file_paths.append(file_path)
 
-        input_file = os.path.join(DOWNLOAD_LOCATION, "input.txt")
+        input_file = "input.txt"
         with open(input_file, "w") as f:
             for file_path in file_paths:
                 f.write(f"file '{file_path}'\n")
@@ -1100,14 +1143,11 @@ async def merge_and_upload(bot, msg: Message):
         await sts.edit("💠 Uploading... ⚡")
 
         # Thumbnail handling
-        thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{user_id}.jpg"
+        thumbnail_file_id = await db.get_thumbnail(user_id)
         file_thumb = None
-        if os.path.exists(thumbnail_path):
-            file_thumb = thumbnail_path
-        else:
+        if thumbnail_file_id:
             try:
-                if "thumbs" in msg and msg.thumbs:
-                    file_thumb = await bot.download_media(msg.thumbs[0].file_id, file_name=thumbnail_path)
+                file_thumb = await bot.download_media(thumbnail_file_id)
             except Exception as e:
                 print(f"Error downloading thumbnail: {e}")
 
@@ -1163,91 +1203,84 @@ async def merge_and_upload(bot, msg: Message):
 
         await sts.delete()
 
-#leech command 
-# Leech Handler Only Auth Users
+
+# Leech command handler
 @Client.on_message(filters.command("leech") & filters.chat(AUTH_USERS))
 async def linktofile(bot, msg: Message):
-    reply = msg.reply_to_message
-    if len(msg.command) < 2 or not reply:
+    if len(msg.command) < 2 or not msg.reply_to_message:
         return await msg.reply_text("Please reply to a file, video, audio, or link with the desired filename and extension (e.g., `.mkv`, `.mp4`, `.zip`).")
 
+    reply = msg.reply_to_message
     new_name = msg.text.split(" ", 1)[1]
-    if not new_name.endswith(".mkv"):
-        return await msg.reply_text("Please specify a filename ending with .mkv.")
+    
+    if not new_name.endswith((".mkv", ".mp4", ".zip")):
+        return await msg.reply_text("Please specify a filename ending with .mkv, .mp4, or .zip.")
 
-    media = reply.document or reply.audio or reply.video
-    if not media and not reply.text:
-        return await msg.reply_text("Please reply to a valid file, video, audio, or link with the desired filename and extension (e.g., `.mkv`, `.mp4`, `.zip`).")
+    media = reply.document or reply.audio or reply.video or reply.text
+
+    sts = await msg.reply_text("🚀 Downloading... ⚡")
+    c_time = time.time()
 
     if reply.text and ("seedr" in reply.text or "workers" in reply.text):
-        await handle_link_download(bot, msg, reply.text, new_name, media)
+        await handle_link_download(bot, msg, reply.text, new_name, media, sts, c_time)
     else:
         if not media:
             return await msg.reply_text("Please reply to a valid file, video, audio, or link with the desired filename and extension (e.g., `.mkv`, `.mp4`, `.zip`).")
 
-        sts = await msg.reply_text("🚀 Downloading...")
-        c_time = time.time()
         try:
-            downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀 Download Started...", sts, c_time))
+            downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
         except RPCError as e:
             return await sts.edit(f"Download failed: {e}")
 
-        filesize = os.path.getsize(downloaded)
-        filesize_human = humanbytes(filesize)
+        filesize = humanbytes(os.path.getsize(downloaded))
 
         if CAPTION:
             try:
-                cap = CAPTION.format(file_name=new_name, file_size=filesize_human)
-            except Exception as e:
-                return await sts.edit(text=f"Your caption has an error: unexpected keyword ({e})")
+                cap = CAPTION.format(file_name=new_name, file_size=filesize)
+            except KeyError as e:
+                return await sts.edit(text=f"Caption error: unexpected keyword ({e})")
         else:
-            cap = f"{new_name}\n\n🌟 Size: {filesize_human}"
+            cap = f"{new_name}\n\n🌟 Size: {filesize}"
 
         # Thumbnail handling
-        thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
-        file_thumb = None
-        if media and media.thumbs:
-            if not os.path.exists(thumbnail_path):
+        thumbnail_file_id = await db.get_thumbnail(msg.from_user.id)
+        og_thumbnail = None
+        if thumbnail_file_id:
+            try:
+                og_thumbnail = await bot.download_media(thumbnail_file_id)
+            except Exception:
+                pass
+        else:
+            if hasattr(media, 'thumbs') and media.thumbs:
                 try:
-                    file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
-                except Exception as e:
-                    print(f"Error downloading thumbnail: {e}")
+                    og_thumbnail = await bot.download_media(media.thumbs[0].file_id)
+                except Exception:
+                    pass
 
-        await edit_message(sts, "💠 Uploading...")
+        await sts.edit("💠 Uploading... ⚡")
         c_time = time.time()
 
-        if filesize > FILE_SIZE_LIMIT:
+        if os.path.getsize(downloaded) > FILE_SIZE_LIMIT:
             file_link = await upload_to_google_drive(downloaded, new_name, sts)
-            button = [[InlineKeyboardButton("☁️ CloudUrl ☁️", url=f"{file_link}")]]
-            await msg.reply_text(
-                f"**File successfully uploaded to Google Drive!**\n\n"
-                f"**Google Drive Link**: [View File]({file_link})\n\n"
-                f"**Uploaded File**: {new_name}\n"
-                f"**Request User:** {msg.from_user.mention}\n\n"
-                f"**Size**: {filesize_human}",
-                reply_markup=InlineKeyboardMarkup(button)
-            )
+            await msg.reply_text(f"File uploaded to Google Drive!\n\n📁 **File Name:** {new_name}\n💾 **Size:** {filesize}\n🔗 **Link:** {file_link}")
         else:
             try:
-                await bot.send_document(msg.chat.id, document=downloaded, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started...", sts, c_time))
+                await bot.send_document(msg.chat.id, document=downloaded, thumb=og_thumbnail, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡", sts, c_time))
             except ValueError as e:
                 return await sts.edit(f"Upload failed: {e}")
             except TimeoutError as e:
                 return await sts.edit(f"Upload timed out: {e}")
 
         try:
-            if file_thumb and os.path.exists(file_thumb):
-                os.remove(file_thumb)
-            if os.path.exists(downloaded):
-                os.remove(downloaded)
+            if og_thumbnail:
+                os.remove(og_thumbnail)
+            os.remove(downloaded)
         except Exception as e:
             print(f"Error deleting files: {e}")
+
         await sts.delete()
 
-async def handle_link_download(bot, msg: Message, link: str, new_name: str, media):
-    sts = await msg.reply_text("🚀 Downloading from link...")
-    c_time = time.time()
-
+async def handle_link_download(bot, msg: Message, link: str, new_name: str, media, sts, c_time):
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(link) as resp:
@@ -1265,56 +1298,46 @@ async def handle_link_download(bot, msg: Message, link: str, new_name: str, medi
         await sts.edit("File not found after download. Please check the link and try again.")
         return
 
-    filesize = os.path.getsize(new_name)
-    filesize_human = humanbytes(filesize)
-    cap = f"{new_name}\n\n🌟 Size: {filesize_human}"
+    filesize = humanbytes(os.path.getsize(new_name))
 
     # Thumbnail handling
-    thumbnail_path = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
-    file_thumb = None
-    if media and media.thumbs:
-        if not os.path.exists(thumbnail_path):
+    thumbnail_file_id = await db.get_thumbnail(msg.from_user.id)
+    og_thumbnail = None
+    if thumbnail_file_id:
+        try:
+            og_thumbnail = await bot.download_media(thumbnail_file_id)
+        except Exception:
+            pass
+    else:
+        if hasattr(media, 'thumbs') and media.thumbs:
             try:
-                file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=thumbnail_path)
-            except Exception as e:
-                print(f"Error downloading thumbnail: {e}")
+                og_thumbnail = await bot.download_media(media.thumbs[0].file_id)
+            except Exception:
+                pass
 
-    await edit_message(sts, "💠 Uploading...")
+    await sts.edit("💠 Uploading... ⚡")
     c_time = time.time()
 
-    if filesize > FILE_SIZE_LIMIT:
+    if os.path.getsize(new_name) > FILE_SIZE_LIMIT:
         file_link = await upload_to_google_drive(new_name, new_name, sts)
-        button = [[InlineKeyboardButton("☁️ CloudUrl ☁️", url=f"{file_link}")]]
-        await msg.reply_text(
-            f"**Leech File successfully uploaded to Google Drive!**\n\n"
-            f"**Google Drive Link**: [View File]({file_link})\n\n"
-            f"**Uploaded File**: {new_name}\n"
-            f"**Request User:** {msg.from_user.mention}\n\n"
-            f"**Size**: {filesize_human}",
-            reply_markup=InlineKeyboardMarkup(button)
-        )
+        await msg.reply_text(f"File uploaded to Google Drive!\n\n📁 **File Name:** {new_name}\n💾 **Size:** {filesize}\n🔗 **Link:** {file_link}")
     else:
         try:
-            await bot.send_document(msg.chat.id, document=new_name, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started...", sts, c_time))
+            await bot.send_document(msg.chat.id, document=new_name, thumb=og_thumbnail, caption=f"{new_name}\n\n🌟 Size: {filesize}", progress=progress_message, progress_args=("💠 Upload Started... ⚡", sts, c_time))
         except ValueError as e:
             return await sts.edit(f"Upload failed: {e}")
         except TimeoutError as e:
             return await sts.edit(f"Upload timed out: {e}")
 
     try:
-        if file_thumb:
-            os.remove(file_thumb)
+        if og_thumbnail:
+            os.remove(og_thumbnail)
         os.remove(new_name)
     except Exception as e:
-        print(f"Error deleting file: {e}")
+        print(f"Error deleting files: {e}")
+
     await sts.delete()
 
-async def edit_message(message, new_text):
-    try:
-        if message.text != new_text:
-            await message.edit(new_text)
-    except MessageNotModified:
-        pass
 
 
 #Removetags command 
@@ -1324,7 +1347,8 @@ async def safe_edit_message(message, new_text):
             await message.edit(new_text)
     except Exception as e:
         print(f"Failed to edit message: {e}")
-
+        
+# Command to remove tags from media files
 @Client.on_message(filters.private & filters.command("removetags"))
 async def remove_tags(bot, msg):
     global REMOVETAGS_ENABLED
@@ -1362,7 +1386,7 @@ async def remove_tags(bot, msg):
         await safe_edit_message(sts, f"Error downloading media: {e}")
         return
 
-    cleaned_file = os.path.join(DOWNLOAD_LOCATION, new_filename if new_filename else "cleaned_" + os.path.basename(downloaded))
+    cleaned_file = new_filename if new_filename else "cleaned_" + os.path.basename(downloaded)
 
     await safe_edit_message(sts, "💠 Removing all tags... ⚡")
     try:
@@ -1372,13 +1396,14 @@ async def remove_tags(bot, msg):
         os.remove(downloaded)
         return
 
-    file_thumb = f"{DOWNLOAD_LOCATION}/thumbnail_{msg.from_user.id}.jpg"
-    if not os.path.exists(file_thumb):
+    # Retrieve thumbnail from database
+    file_thumb = None
+    thumbnail_id = await db.get_thumbnail(msg.from_user.id)
+    if thumbnail_id:
         try:
-            file_thumb = await bot.download_media(media.thumbs[0].file_id, file_name=file_thumb)
+            file_thumb = await bot.download_media(thumbnail_id, file_name=f"thumbnail_{msg.from_user.id}.jpg")
         except Exception as e:
-            print(e)
-            file_thumb = None
+            print(f"Error downloading thumbnail: {e}")
 
     await safe_edit_message(sts, "🔼 Uploading cleaned file... ⚡")
     try:
@@ -1408,7 +1433,7 @@ async def remove_tags(bot, msg):
 
             # Notify in the group about the upload
             await msg.reply_text(
-                f"┏📥 **File Name:** {new_filename if new_filename else os.path.basename(cleaned_file)}\n"
+                f"┏📥 **File Name:** {os.path.basename(cleaned_file)}\n"
                 f"┠💾 **Size:** {humanbytes(filesize)}\n"
                 f"┠♻️ **Mode:** Remove Tags\n"
                 f"┗🚹 **Request User:** {msg.from_user.mention}\n\n"
@@ -1424,12 +1449,19 @@ async def remove_tags(bot, msg):
         if file_thumb and os.path.exists(file_thumb):
             os.remove(file_thumb)
 
+    # Save new filename to database
+    if new_filename:
+        await db.save_new_filename(msg.from_user.id, new_filename)
 
 #Screenshots Command
 @Client.on_message(filters.private & filters.command("screenshots"))
 async def screenshots_command(client, message: Message):
     user_id = message.from_user.id
-    num_screenshots = user_settings.get(user_id, {}).get("screenshots", 5)  # Default to 5 if not set
+
+    # Fetch user settings for screenshots count
+    num_screenshots = await db.get_screenshots_count(user_id)
+    if not num_screenshots:
+        num_screenshots = 5  # Default to 5 if not set
 
     if not message.reply_to_message:
         return await message.reply_text("Please reply to a valid video file or document.")
@@ -1469,9 +1501,7 @@ async def screenshots_command(client, message: Message):
     screenshot_paths = []
     for i in range(num_screenshots):
         time_position = interval * i
-        screenshot_path = os.path.join(DOWNLOAD_LOCATION1, f"screenshot_{i}.jpg")
-
-        os.makedirs(DOWNLOAD_LOCATION1, exist_ok=True)
+        screenshot_path = f"screenshot_{user_id}_{i}.jpg"
 
         command = ['ffmpeg', '-ss', str(time_position), '-i', input_path, '-vframes', '1', '-y', screenshot_path]
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -1486,31 +1516,41 @@ async def screenshots_command(client, message: Message):
 
         screenshot_paths.append(screenshot_path)
 
-    await sts.edit(f"💠 Uploading {num_screenshots} screenshots to your PM... ⚡")
-    for i, screenshot_path in enumerate(screenshot_paths):
+        # Upload screenshot to user's PM
         try:
             await client.send_photo(chat_id=user_id, photo=screenshot_path)
         except Exception as e:
             await sts.edit(f"Error uploading screenshot {i+1}: {e}")
             os.remove(screenshot_path)
 
-    os.remove(input_path)
-    for screenshot_path in screenshot_paths:
-        os.remove(screenshot_path)
+        os.remove(screenshot_path)  # Remove local screenshot after uploading
+
+    # Save screenshot paths to database
+    await db.save_screenshot_paths(user_id, screenshot_paths)
+
+    os.remove(input_path)  # Remove downloaded media file
 
     # Send notification in group chat
     try:
         await message.reply_text("📸 Screenshots have been sent to your PM.")
     except Exception as e:
         print(f"Failed to send notification: {e}")
-    await sts.delete()
 
-#Sample Video Command
+    # Cleanup: Delete screenshot paths from database after sending
+    await db.delete_screenshot_paths(user_id)
+
+    await sts.delete()  # Delete the status message after completion
+
+
+
 @Client.on_message(filters.private & filters.command("samplevideo"))
 async def sample_video(bot, msg):
     user_id = msg.from_user.id
-    duration = user_settings.get(user_id, {}).get("sample_video_duration", 0)
-    if duration == 0:
+
+    # Fetch user settings
+    sample_video_duration = await db.get_sample_video_duration(user_id)
+
+    if sample_video_duration is None:
         return await msg.reply_text("Please set a valid sample video duration using /usersettings.")
 
     if not msg.reply_to_message:
@@ -1528,11 +1568,11 @@ async def sample_video(bot, msg):
         await sts.edit(f"Error downloading media: {e}")
         return
 
-    output_file = os.path.join(DOWNLOAD_LOCATION, f"sample_video_{duration}s.mp4")
+    output_file = f"sample_video_{sample_video_duration}s.mp4"
 
     await sts.edit("🚀 Processing sample video... ⚡")
     try:
-        generate_sample_video(input_path, duration, output_file)
+        generate_sample_video(input_path, sample_video_duration, output_file)
     except Exception as e:
         await sts.edit(f"Error generating sample video: {e}")
         os.remove(input_path)
@@ -1542,7 +1582,6 @@ async def sample_video(bot, msg):
     filesize_human = humanbytes(filesize)
     cap = f"{os.path.basename(output_file)}\n\n🌟 Size: {filesize_human}"
 
-    user_id = msg.from_user.id  # Get the user ID of the sender
     await sts.edit("💠 Uploading sample video to your PM... ⚡")
     c_time = time.time()
     try:
@@ -1553,6 +1592,9 @@ async def sample_video(bot, msg):
             progress=progress_message, 
             progress_args=("💠 Upload Started... ⚡️", sts, c_time)
         )
+        # Save sample video settings to database
+        await db.save_sample_video_settings(user_id, sample_video_duration, "Not set")
+
         # Send notification about the file upload
         await msg.reply_text(f"File Sample Video has been uploaded to your PM. Check your PM of the bot ✅ .")
 
@@ -1563,8 +1605,6 @@ async def sample_video(bot, msg):
     os.remove(input_path)
     os.remove(output_file)
     await sts.delete()
-
-
 
  # Define restart_app command
 @Client.on_message(filters.command("restart") & filters.chat(AUTH_USERS))
@@ -1581,26 +1621,25 @@ async def restart_app(bot, msg):
         return await msg.reply_text("Restarting app, wait for a minute.")
         
 
-# Unzip file command handler
+# Command to unzip a zip file
 @Client.on_message(filters.private & filters.command("unzip"))
 async def unzip(bot, msg):
     if not msg.reply_to_message:
         return await msg.reply_text("Please reply to a zip file to unzip.")
 
     media = msg.reply_to_message.document
-    if not media:
+    if not media or not media.file_name.endswith('.zip'):
         return await msg.reply_text("Please reply to a valid zip file.")
 
     sts = await msg.reply_text("🚀Downloading file...⚡")
     c_time = time.time()
-    input_path = await bot.download_media(media, progress
-                                          =progress_message, progress_args=("🚀Downloading file...⚡️", sts, c_time))
+    input_path = await bot.download_media(media, progress=progress_message, progress_args=("🚀Downloading file...⚡️", sts, c_time))
 
     if not os.path.exists(input_path):
         await sts.edit(f"Error: The downloaded file does not exist.")
         return
 
-    extract_path = os.path.join(DOWNLOAD_LOCATION, "extracted")
+    extract_path = os.path.join("extracted")
     os.makedirs(extract_path, exist_ok=True)
 
     await sts.edit("🚀Unzipping file...⚡")
@@ -1610,53 +1649,41 @@ async def unzip(bot, msg):
         await sts.edit(f"✅ File unzipped successfully. Uploading extracted files...⚡")
         await upload_files(bot, msg.chat.id, extract_path)
         await sts.edit(f"✅ All extracted files uploaded successfully.")
+
+        # Save extracted files to database
+        await db.save_extracted_files(msg.from_user.id, extracted_files)
     else:
         await sts.edit(f"❌ Failed to unzip file.")
 
     os.remove(input_path)
     shutil.rmtree(extract_path)
+
   
-# Handler for setting the photo with user ID
-@Client.on_message(filters.private & filters.command("setphoto"))
-async def set_photo(bot, msg):
-    reply = msg.reply_to_message
-    if not reply or not reply.photo:
-        return await msg.reply_text("Please reply to a photo with the set photo command")
-
-    user_id = msg.from_user.id
-    photo = reply.photo
-    attachment_path = os.path.join(DOWNLOAD_LOCATION, f"attachment_{user_id}.jpg")
-    try:
-        await bot.download_media(photo, attachment_path)
-        await msg.reply_text(f"Photo saved successfully as `{attachment_path}`.")
-    except Exception as e:
-        await msg.reply_text(f"Error saving photo: {e}")
-
-
-# Command to upload to Gofile
-@Client.on_message(filters.private & filters.command("gofile"))
+@Client.on_message(filters.command("gofile") & filters.private)
 async def gofile_upload(bot, msg: Message):
     user_id = msg.from_user.id
     
-    # Retrieve the user's Gofile API key or fallback to the global key
-    gofile_api_key = user_gofile_api_keys.get(user_id, GOFILE_API_KEY)
+    # Retrieve the user's Gofile API key from database
+    gofile_api_key = await db.get_gofile_api_key(user_id)
 
     if not gofile_api_key:
-        return await msg.reply_text("Gofile API key is not set. Use /gofilesetup {your_api_key} to set it or ensure a global key is set.")
+        return await msg.reply_text("Gofile API key is not set. Use /gofilesetup {your_api_key} to set it.")
 
     reply = msg.reply_to_message
-    if not reply:
+    if not reply or not reply.document and not reply.video:
         return await msg.reply_text("Please reply to a file or video to upload to Gofile.")
 
     media = reply.document or reply.video
-    if not media:
-        return await msg.reply_text("Please reply to a valid file or video.")
+    custom_name = None
 
+    # Check if a custom name is provided
     args = msg.text.split(" ", 1)
     if len(args) == 2:
         custom_name = args[1]
-    else:
-        custom_name = media.file_name
+        await db.save_custom_name(user_id, custom_name)  # Save custom name to database
+
+    # Use custom name if available, otherwise use the file name
+    file_name = custom_name or media.file_name
 
     sts = await msg.reply_text("🚀 Uploading to Gofile...")
     c_time = time.time()
@@ -1676,7 +1703,7 @@ async def gofile_upload(bot, msg: Message):
             # Download the media file
             downloaded_file = await bot.download_media(
                 media,
-                file_name=os.path.join(DOWNLOAD_LOCATION, custom_name),
+                file_name=file_name,  # Use custom or original filename directly
                 progress=progress_message,
                 progress_args=("🚀 Download Started...", sts, c_time)
             )
@@ -1684,7 +1711,7 @@ async def gofile_upload(bot, msg: Message):
             # Upload the file to Gofile
             with open(downloaded_file, "rb") as file:
                 form_data = aiohttp.FormData()
-                form_data.add_field("file", file, filename=custom_name)
+                form_data.add_field("file", file, filename=file_name)
                 form_data.add_field("token", gofile_api_key)
 
                 async with session.post(
@@ -1711,10 +1738,14 @@ async def gofile_upload(bot, msg: Message):
         except Exception as e:
             print(f"Error deleting file: {e}")
 
+
+
 @Client.on_message(filters.private & filters.command("clone"))
 async def clone_file(bot, msg: Message):
     user_id = msg.from_user.id
-    gdrive_folder_id = user_gdrive_folder_ids.get(user_id)
+
+    # Retrieve the user's Google Drive folder ID from database
+    gdrive_folder_id = await db.get_gdrive_folder_id(user_id)
 
     if not gdrive_folder_id:
         return await msg.reply_text("Google Drive folder ID is not set. Please use the /gdriveid command to set it.")
@@ -1762,7 +1793,7 @@ async def safe_edit_message(message, new_text):
         print(f"Failed to edit message: {e}")
 
 #extract audio command 
-@Client.on_message(filters.private & filters.command("extractaudios"))
+@Client.on_message(filters.command("extractaudios") & filters.private)
 async def extract_audios(bot, msg):
     global EXTRACT_ENABLED
     
@@ -1820,8 +1851,9 @@ async def extract_audios(bot, msg):
         for file, _ in extracted_files:
             os.remove(file)
 
+
 #extract subtitles command 
-@Client.on_message(filters.private & filters.command("extractsubtitles"))
+@Client.on_message(filters.command("extractsubtitles") & filters.private)
 async def extract_subtitles(bot, msg):
     global EXTRACT_ENABLED
     
@@ -1879,9 +1911,8 @@ async def extract_subtitles(bot, msg):
         for file, _ in extracted_files:
             os.remove(file)
 
-
-#extract video command    
-@Client.on_message(filters.private & filters.command("extractvideo"))
+##extract video command 
+@Client.on_message(filters.command("extractvideo") & filters.private)
 async def extract_video(bot, msg: Message):
     global EXTRACT_ENABLED
     
@@ -1938,15 +1969,14 @@ async def extract_video(bot, msg: Message):
         if os.path.exists(output_file):
             os.remove(output_file)
 
-
 # Command handler for /list
 @Client.on_message(filters.private & filters.command("list"))
 async def list_files(bot, msg: Message):
     user_id = msg.from_user.id
 
-    # Retrieve the user's Google Drive folder ID
-    gdrive_folder_id = user_gdrive_folder_ids.get(user_id)
-    
+    # Retrieve the user's Google Drive folder ID from database
+    gdrive_folder_id = await db.get_gdrive_folder_id(user_id)
+
     if not gdrive_folder_id:
         return await msg.reply_text("Google Drive folder ID is not set. Please use the /gdriveid command to set it.")
 
@@ -1987,7 +2017,7 @@ async def list_files(bot, msg: Message):
                     emoji = '📦'
                 else:
                     emoji = '📁'
-                
+
                 buttons.append([InlineKeyboardButton(f"{emoji} {category}", callback_data=f"{category}")])
                 for file in sorted(items, key=lambda x: x['name']):
                     file_link = f"https://drive.google.com/file/d/{file['id']}/view"
@@ -2002,39 +2032,54 @@ async def list_files(bot, msg: Message):
     except Exception as e:
         await sts.edit(f"Error: {e}")
 
-# Command handler for /clean
+#cleam command
 @Client.on_message(filters.private & filters.command("clean"))
-async def clean_files_by_name(bot, msg: Message):
+async def clean_files(bot, msg: Message):
     user_id = msg.from_user.id
 
-    # Retrieve the user's Google Drive folder ID
-    gdrive_folder_id = user_gdrive_folder_ids.get(user_id)
-    
+    # Retrieve the user's Google Drive folder ID from database
+    gdrive_folder_id = await db.get_gdrive_folder_id(user_id)
+
     if not gdrive_folder_id:
         return await msg.reply_text("Google Drive folder ID is not set. Please use the /gdriveid command to set it.")
 
     try:
-        # Extract file name from the command
+        # Check if the command is followed by a file name or a direct link
         command_parts = msg.text.split(maxsplit=1)
         if len(command_parts) < 2:
-            return await msg.reply_text("Please provide a file name to clean.")
+            return await msg.reply_text("Please provide a file name or direct link to delete.")
 
-        file_name = command_parts[1].strip()
+        query_or_link = command_parts[1].strip()
 
-        # Define query to find files by name in the specified folder
-        query = f"'{gdrive_folder_id}' in parents and trashed=false and name='{file_name}'"
+        # If the query_or_link starts with 'http', treat it as a direct link
+        if query_or_link.startswith("http"):
+            # Extract file ID from the direct link
+            file_id = extract_id_from_url(query_or_link)
+            if not file_id:
+                return await msg.reply_text("Invalid Google Drive file link. Please provide a valid direct link.")
 
-        # Execute the query to find matching files
-        response = drive_service.files().list(q=query, fields='files(id, name)').execute()
-        files = response.get('files', [])
+            # Delete the file by its ID
+            drive_service.files().delete(fileId=file_id).execute()
+            await msg.reply_text(f"Deleted File with ID '{file_id}' Successfully ✅.")
 
-        if not files:
-            return await msg.reply_text(f"No files found with the name '{file_name}' in the specified folder.")
+        else:
+            # Treat it as a file name and delete files by name in the specified folder
+            file_name = query_or_link
 
-        # Delete each found file
-        for file in files:
-            drive_service.files().delete(fileId=file['id']).execute()
-            await msg.reply_text(f"Deleted File '{file['name']}' Successfully ✅.")
+            # Define query to find files by name in the specified folder
+            query = f"'{gdrive_folder_id}' in parents and trashed=false and name='{file_name}'"
+
+            # Execute the query to find matching files
+            response = drive_service.files().list(q=query, fields='files(id, name)').execute()
+            files = response.get('files', [])
+
+            if not files:
+                return await msg.reply_text(f"No files found with the name '{file_name}' in the specified folder.")
+
+            # Delete each found file
+            for file in files:
+                drive_service.files().delete(fileId=file['id']).execute()
+                await msg.reply_text(f"Deleted File '{file['name']}' Successfully ✅.")
 
     except HttpError as error:
         await msg.reply_text(f"An error occurred: {error}")
@@ -2042,6 +2087,492 @@ async def clean_files_by_name(bot, msg: Message):
         await msg.reply_text(f"An unexpected error occurred: {e}")
 
 
+
+#Downloading Progress Hook For YouTube In logs work process 
+async def progress_hook(status_message):
+    async def hook(d):
+        if d['status'] == 'downloading':
+            current_progress = d.get('_percent_str', '0%')
+            current_size = humanbytes(d.get('total_bytes', 0))
+            await safe_edit_message(status_message, f"🚀 Downloading... ⚡\nProgress: {current_progress}\nSize: {current_size}")
+        elif d['status'] == 'finished':
+            await safe_edit_message(status_message, "Download finished. 🚀")
+    return hook
+    
+@Client.on_message(filters.private & filters.command("ytdlleech"))
+async def ytdlleech_handler(client: Client, msg: Message):
+    if len(msg.command) < 2:
+        return await msg.reply_text("Please provide a YouTube link.")
+
+    command_text = msg.text.split(" ", 1)[1]
+    url = command_text.strip()
+
+    ydl_opts = {
+        'quiet': True,
+        'skip_download': True,
+        'force_generic_extractor': True,
+        'noplaylist': True,
+        'merge_output_format': 'mkv'
+    }
+
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(url, download=False)
+            formats = info_dict.get('formats', [])
+
+            buttons = [
+                InlineKeyboardButton(
+                    f"{f.get('format_note', 'Unknown')} - {humanbytes(f.get('filesize'))}",
+                    callback_data=f"{f['format_id']}"
+                )
+                for f in formats if f.get('filesize') is not None
+            ]
+            buttons = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
+            await msg.reply_text("Choose quality:", reply_markup=InlineKeyboardMarkup(buttons))
+
+            file_data = {
+                'title': info_dict['title'],
+                'thumbnail': info_dict.get('thumbnail')  # No default thumbnail path
+            }
+            await db.save_file_data(msg.from_user.id, file_data)
+
+            user_quality_selection = {
+                'url': url,
+                'title': info_dict['title'],
+                'thumbnail': info_dict.get('thumbnail'),
+                'formats': formats
+            }
+            await db.save_user_quality_selection(msg.from_user.id, user_quality_selection)
+
+    except Exception as e:
+        await msg.reply_text(f"Error: {e}")
+
+@Client.on_callback_query(filters.regex(r"^\d+$"))
+async def callback_query_handler(client: Client, query):
+    user_id = query.from_user.id
+    format_id = query.data
+
+    selection = await db.get_user_quality_selection(user_id)
+    if not selection:
+        return await query.answer("No download in progress.")
+
+    url = selection['url']
+    video_title = selection['title']
+    formats = selection['formats']
+
+    selected_format = next((f for f in formats if f['format_id'] == format_id), None)
+    if not selected_format:
+        return await query.answer("Invalid format selection.")
+
+    quality = selected_format.get('format_note', 'Unknown')
+    file_size = selected_format.get('filesize', 0)
+    file_name = f"{video_title} - {quality}.mkv"
+
+    sts = await query.message.reply_text(f"🚀 Downloading {quality} - {humanbytes(file_size)}... ⚡")
+
+    ydl_opts = {
+        'format': f'{format_id}+bestaudio/best',
+        'outtmpl': file_name,
+        'quiet': True,
+        'noplaylist': True,
+        'progress_hooks': [await progress_hook(status_message=sts)],
+        'merge_output_format': 'mkv'
+    }
+
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+
+        if not os.path.exists(file_name):
+            return await safe_edit_message(sts, "Error: Download failed. File not found.")
+        
+        # No thumbnail downloading
+        file_thumb = None
+        
+        if file_size >= FILE_SIZE_LIMIT:
+            await safe_edit_message(sts, "💠 Uploading to Google Drive... ⚡")
+            file_link = await upload_to_google_drive(file_name, file_name, sts)
+            button = [[InlineKeyboardButton("☁️ CloudUrl ☁️", url=f"{file_link}")]]
+            await query.message.reply_text(
+                f"**File successfully uploaded to Google Drive!**\n\n"
+                f"**Google Drive Link**: [View File]({file_link})\n\n"
+                f"**Uploaded File**: {file_name}\n"
+                f"**Size**: {humanbytes(file_size)}",
+                reply_markup=InlineKeyboardMarkup(button)
+            )
+        else:
+            await safe_edit_message(sts, "💠 Uploading to Telegram... ⚡")
+            caption = f"**Uploaded Document 📄**: {file_name}\n\n🌟 Size: {humanbytes(file_size)}"
+            
+            try:
+                with open(file_name, 'rb') as file:
+                    await query.message.reply_document(
+                        document=file,
+                        caption=caption,
+                        thumb=file_thumb,  # No thumbnail
+                        progress=progress_message,
+                        progress_args=("💠 Upload Started... ⚡", sts, time.time())
+                    )
+            except Exception as e:
+                await safe_edit_message(sts, f"Error uploading file: {e}")
+                return
+
+    except Exception as e:
+        await safe_edit_message(sts, f"Error: {e}")
+
+    finally:
+        if os.path.exists(file_name):
+            os.remove(file_name)
+        await sts.delete()
+        await query.message.delete()
+
+
+@Client.on_message(filters.command("mediainfo") & filters.private)
+async def mediainfo_handler(client: Client, message: Message):
+    if not message.reply_to_message or (not message.reply_to_message.document and not message.reply_to_message.video):
+        await message.reply_text("Please reply to a document or video to get media info.")
+        return
+
+    reply = message.reply_to_message
+    media = reply.document or reply.video
+
+    # Send an acknowledgment message immediately
+    processing_message = await message.reply_text("Getting MediaInfo...")
+
+    try:
+        # Download the media file to a local location
+        if media:
+            file_path = await client.download_media(media)
+        else:
+            raise ValueError("No valid media found in the replied message.")
+
+        # Get media info
+        media_info_html = get_mediainfo(file_path)
+
+        # Remove date from the media info
+        media_info_html = (
+            f"<strong>SUNRISES 24 BOT UPDATES</strong><br>"
+            f"<strong>MediaInfo X</strong><br>"
+            f"{media_info_html}"
+            f"<p>Rights Designed By Sᴜɴʀɪsᴇs Hᴀʀsʜᴀ 𝟸𝟺 🇮🇳 ᵀᴱᴸ</p>"
+        )
+
+        # Save the media info to an HTML file
+        html_file_path = f"media_info_{media.file_id}.html"
+        with open(html_file_path, "w") as file:
+            file.write(media_info_html)
+
+        # Store media info in MongoDB
+        media_info_data = {
+            'media_info': media_info_html,
+            'media_id': media.file_id
+        }
+        media_info_id = await db.store_media_info_in_db(media_info_data)
+
+        # Upload the media info to Telegraph
+        response = telegraph.post(
+            title="MediaInfo",
+            author="SUNRISES 24 BOT UPDATES",
+            author_url="https://t.me/Sunrises24BotUpdates",
+            text=media_info_html
+        )
+        link = f"https://graph.org/{response['path']}"
+
+        # Prepare the final message with the Telegraph link
+        message_text = (
+            f"SUNRISES 24 BOT UPDATES\n"
+            f"MediaInfo X\n\n"
+            f"[View Info on Telegraph]({link})\n"
+            f"Rights designed by Sᴜɴʀɪsᴇs Hᴀʀsʜᴀ 𝟸𝟺 🇮🇳 ᵀᴱᴸ"
+        )
+
+        # Send HTML file and Telegraph link
+        await message.reply_document(document=html_file_path, caption=message_text)
+
+    except Exception as e:
+        await message.reply_text(f"Error: {e}")
+    finally:
+        # Clean up the acknowledgment message
+        await processing_message.delete()
+
+        # Clean up downloaded files and HTML file
+        if 'file_path' in locals() and os.path.exists(file_path):
+            os.remove(file_path)
+        if 'html_file_path' in locals() and os.path.exists(html_file_path):
+            os.remove(html_file_path)
+        
+
+# Function to handle "/getmodapk" command
+@Client.on_message(filters.private & filters.command("getmodapk"))
+async def get_mod_apk(bot, msg: Message):
+    if len(msg.command) < 2:
+        return await msg.reply_text("Please provide a URL from getmodsapk.com or gamedva.com.")
+    
+    # Extract URL from command arguments
+    apk_url = msg.command[1]
+
+    # Validate URL
+    if not (apk_url.startswith("https://files.getmodsapk.com/") or apk_url.startswith("https://file.gamedva.com/")):
+        return await msg.reply_text("Please provide a valid URL from getmodsapk.com or gamedva.com.")
+
+    # Downloading and sending the file
+    sts = await msg.reply_text("🚀 Downloading APK... ⚡️")
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(apk_url) as response:
+                if response.status == 200:
+                    # Extract filename from URL
+                    file_name = apk_url.split("/")[-1]
+
+                    # Write the downloaded content to a temporary file
+                    with open(file_name, 'wb') as f:
+                        f.write(await response.read())
+
+                    # Send the APK file as a document
+                    await bot.send_document(msg.chat.id, document=file_name, caption=f"Downloaded from {apk_url}")
+
+                    # Clean up: delete the downloaded file
+                    os.remove(file_name)
+
+                    await sts.edit("✅ APK sent successfully!")
+                else:
+                    await sts.edit("❌ Failed to download APK.")
+    except Exception as e:
+        await sts.edit(f"❌ Error: {str(e)}")
+
+    await sts.delete()
+
+
+@Client.on_message(filters.command("ban") & filters.user(ADMIN))
+async def ban_user(bot, msg: Message):
+    try:
+        user_id = int(msg.text.split()[1])
+        # Ban user in the database
+        await db.ban_user(user_id)
+        # Ban user from the chat
+        await bot.ban_chat_member(chat_id=msg.chat.id, user_id=user_id)
+        await msg.reply_text(f"User {user_id} has been banned.")
+    except PyMongoError as e:
+        await msg.reply_text(f"Database error occurred: {e}")
+    except FloodWait as e:
+        await asyncio.sleep(e.x)
+        await msg.reply_text(f"Flood wait error: Please try again later.")
+    except Exception as e:
+        await msg.reply_text(f"An error occurred: {e}")
+
+@Client.on_message(filters.command("unban") & filters.user(ADMIN))
+async def unban_user(bot, msg: Message):
+    try:
+        user_id = int(msg.text.split()[1])
+        # Unban user in the database
+        await db.unban_user(user_id)
+        # Unban user from the chat
+        await bot.unban_chat_member(chat_id=msg.chat.id, user_id=user_id)
+        await msg.reply_text(f"User {user_id} has been unbanned.")
+    except PyMongoError as e:
+        await msg.reply_text(f"Database error occurred: {e}")
+    except FloodWait as e:
+        await asyncio.sleep(e.x)
+        await msg.reply_text(f"Flood wait error: Please try again later.")
+    except Exception as e:
+        await msg.reply_text(f"An error occurred: {e}")
+
+@Client.on_message(filters.command("users") & filters.user(ADMIN))
+async def count_users(bot, msg):
+    try:
+        total_users = await db.count_users()
+        banned_users = await db.count_banned_users()
+
+        response = (
+            f"**User Statistics:**\n"
+            f"Total Active Users: {total_users}\n"
+            f"Banned Users: {banned_users}"
+        )
+        await msg.reply_text(response)
+    except PyMongoError as e:
+        await msg.reply_text(f"Database error occurred while counting users: {e}")
+    except Exception as e:
+        await msg.reply_text(f"An error occurred: {e}")
+
+        
+@Client.on_message(filters.command("stats"))
+async def stats_command(_, msg):
+    uptime = datetime.datetime.now() - START_TIME
+    uptime_str = str(timedelta(seconds=int(uptime.total_seconds())))
+
+    total_space = psutil.disk_usage('/').total / (1024 ** 3)
+    used_space = psutil.disk_usage('/').used / (1024 ** 3)
+    free_space = psutil.disk_usage('/').free / (1024 ** 3)
+
+    cpu_usage = psutil.cpu_percent()
+    ram_usage = psutil.virtual_memory().percent
+
+    stats_message = (
+        f"📊 **Server Stats** 📊\n\n"
+        f"⏳ **Uptime:** `{uptime_str}`\n"
+        f"💾 **Total Space:** `{total_space:.2f} GB`\n"
+        f"📂 **Used Space:** `{used_space:.2f} GB` ({used_space / total_space * 100:.1f}%)\n"
+        f"📁 **Free Space:** `{free_space:.2f} GB`\n"
+        f"⚙️ **CPU Usage:** `{cpu_usage:.1f}%`\n"
+        f"💻 **RAM Usage:** `{ram_usage:.1f}%`\n"
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton("🔄 Refresh", callback_data="refresh_stats")]
+        ]
+    )
+
+    await msg.reply_text(stats_message, reply_markup=keyboard)
+
+@Client.on_callback_query(filters.regex("^refresh_stats$"))
+async def refresh_stats_callback(_, callback_query):
+    # Refresh stats
+    uptime = datetime.datetime.now() - START_TIME
+    uptime_str = str(timedelta(seconds=int(uptime.total_seconds())))
+
+    total_space = psutil.disk_usage('/').total / (1024 ** 3)
+    used_space = psutil.disk_usage('/').used / (1024 ** 3)
+    free_space = psutil.disk_usage('/').free / (1024 ** 3)
+
+    cpu_usage = psutil.cpu_percent()
+    ram_usage = psutil.virtual_memory().percent
+
+    stats_message = (
+        f"📊 **Server Stats** 📊\n\n"
+        f"⏳ **Uptime:** `{uptime_str}`\n"
+        f"💾 **Total Space:** `{total_space:.2f} GB`\n"
+        f"📂 **Used Space:** `{used_space:.2f} GB` ({used_space / total_space * 100:.1f}%)\n"
+        f"📁 **Free Space:** `{free_space:.2f} GB`\n"
+        f"⚙️ **CPU Usage:** `{cpu_usage:.1f}%`\n"
+        f"💻 **RAM Usage:** `{ram_usage:.1f}%`\n"
+    )
+
+    await callback_query.message.edit_text(stats_message, reply_markup=InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton("🔄 Refresh", callback_data="refresh_stats")]
+        ]
+    ))
+
+
+@Client.on_message(filters.command("clear") & filters.user(ADMIN))
+async def clear_database_handler(client: Client, msg: Message):
+    try:
+        await db.clear_database()
+        await msg.reply_text("Database has been cleared✅.")
+    except Exception as e:
+        await msg.reply_text(f"An error occurred: {e}")
+
+@Client.on_message(filters.command("broadcast") & filters.user(ADMIN))
+async def broadcast(bot, msg: Message):
+    if not msg.reply_to_message:
+        await msg.reply_text("Please reply to a message to broadcast it.")
+        return
+
+    broadcast_message = msg.reply_to_message
+
+    # Fetch all user IDs
+    user_ids = await db.get_all_user_ids()
+
+    sent_count = 0
+    failed_count = 0
+    log_entries = []
+
+    for user_id in user_ids:
+        try:
+            await broadcast_message.copy(chat_id=user_id)
+            sent_count += 1
+            log_entries.append(f"Sent to {user_id}")
+        except Exception as e:
+            failed_count += 1
+            log_entries.append(f"Failed to send to {user_id}: {e}")
+
+        await asyncio.sleep(0.5)  # To avoid hitting rate limits
+
+    # Write log entries to a text file
+    log_content = "\n".join(log_entries)
+    with open("broadcast_log.txt", "w") as log_file:
+        log_file.write(log_content)
+
+    # Send summary to admin
+    await msg.reply_text(f"Broadcast completed: {sent_count} sent, {failed_count} failed.")
+    await msg.reply_document('broadcast_log.txt')
+
+
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+#FUNCTION ABOUT HANDLER
+@Client.on_message(filters.command("about"))
+async def about_command(bot, msg):
+    about_text = """
+<b>✯ Mʏ Nᴀᴍᴇ : <a href=https://t.me/MetaMorpher24Bot>𝐌𝐞𝐭𝐚𝐌𝐨𝐫𝐩𝐡𝐞𝐫 🌟</a></b>
+<b>✯ Dᴇᴠᴇʟᴏᴘᴇʀ 🧑🏻‍💻 : <a href=https://t.me/Sunrises_24>𝐒𝐔𝐍𝐑𝐈𝐒𝐄𝐒™ ⚡</a></b>
+<b>✯ Uᴘᴅᴀᴛᴇs 📢 : <a href=https://t.me/Sunrises24BotUpdates>𝐔𝐏𝐃𝐀𝐓𝐄𝐒 📢</a></b>
+<b>✯ Sᴜᴘᴘᴏʀᴛ ✨ : <a href=https://t.me/Sunrises24BotUpdates>𝐒𝐔𝐏𝐏𝐎𝐑𝐓 ✨</a></b>
+<b>✯ Bᴜɪʟᴅ Sᴛᴀᴛᴜs 📊 : ᴠ2.4 [Sᴛᴀʙʟᴇ]</b>
+    """
+    await msg.reply_text(about_text)
+
+# Function to handle /help command
+@Client.on_message(filters.command("help"))
+async def help_command(bot, msg):
+    help_text = """
+    <b>Hᴇʟʟᴏ Mᴀᴡᴀ ❤️
+Hᴇʀᴇ Is Tʜᴇ Hᴇʟᴘ Fᴏʀ Mʏ Cᴏᴍᴍᴀɴᴅs.
+
+🦋 ʜᴏᴡ ᴛᴏ ᴜꜱᴇ
+◉ Reply To Any Video/File 🖼️
+
+/start - 𝐵𝑜𝑡 𝑎𝑙𝑖𝑣𝑒 𝑜𝑟 𝑁𝑜𝑡 🚶🏻
+/usersettings - 𝑂𝑝𝑒𝑛 𝑡ℎ𝑒 𝑈𝑠𝑒𝑟𝑠𝑒𝑡𝑡𝑖𝑛𝑔𝑠 𝐹𝑜𝑟 𝐵𝑜𝑡 𝐼𝑛𝑓𝑜
+/bsettings - 𝐵𝑜𝑡 𝑆𝑒𝑡𝑡𝑖𝑛𝑔𝑠 𝐸𝑛𝑎𝑏𝑙𝑒𝑑 𝑜𝑟 𝐷𝑖𝑠𝑎𝑏𝑙𝑒𝑑 [𝐴𝐷𝑀𝐼𝑁]
+/setmetadata - 𝑆𝑒𝑡 𝑀𝑒𝑡𝑎𝑑𝑎𝑡𝑎 𝐼𝑛𝑑𝑖𝑣𝑖𝑑𝑢𝑎𝑙 𝑇𝑖𝑡𝑙𝑒𝑠
+/gofilesetup - 𝑆𝑒𝑡𝑢𝑝 𝑇ℎ𝑒 𝐺𝑜𝑓𝑖𝑙𝑒 𝐴𝑃𝐼 𝐾𝐸𝑌 𝑓𝑟𝑜𝑚 𝐺𝑜𝑓𝑖𝑙𝑒.𝑖𝑜 ⚙️[𝑃𝑟𝑖𝑣𝑎𝑡𝑒]
+/gdriveid - 𝑇ℎ𝑒 𝐺𝑜𝑜𝑔𝑙𝑒 𝐷𝑟𝑖𝑣𝑒 𝐹𝑜𝑙𝑑𝑒𝑟 𝐼𝐷 𝑆𝑒𝑡𝑢𝑝 📁[𝑃𝑟𝑖𝑣𝑎𝑡𝑒]
+/mirror - 𝑀𝑖𝑟𝑟𝑜𝑟 𝑓𝑖𝑙𝑒𝑠 𝑡𝑜 𝑎 𝐺𝑜𝑜𝑔𝑙𝑒 𝐷𝑟𝑖𝑣𝑒 𝑙𝑖𝑛𝑘.
+/clone -  𝐶𝑙𝑜𝑛𝑒 𝑎 𝐺𝑜𝑜𝑔𝑙𝑒 𝐷𝑟𝑖𝑣𝑒 𝑙𝑖𝑛𝑘.
+/list - 𝐶ℎ𝑒𝑐𝑘 𝑡ℎ𝑒 𝑓𝑖𝑙𝑒𝑠 𝑖𝑛 𝐺𝑜𝑜𝑔𝑙𝑒 𝐷𝑟𝑖𝑣𝑒 𝑣𝑖𝑎 𝑡ℎ𝑒 𝑏𝑜𝑡.
+/clean - 𝐷𝑒𝑙𝑒𝑡𝑒 𝑓𝑖𝑙𝑒𝑠 𝑖𝑛 𝐺𝑜𝑜𝑔𝑙𝑒 𝐷𝑟𝑖𝑣𝑒 𝑏𝑦 𝑓𝑖𝑙𝑒 𝑛𝑎𝑚𝑒.
+/leech - 𝑙𝑒𝑒𝑐ℎ 𝑡ℎ𝑒 𝑆𝑒𝑒𝑑𝑟 & 𝑊𝑜𝑟𝑘𝑒𝑟𝑠 𝐿𝑖𝑛𝑘𝑠 𝑡𝑜 𝐹𝑖𝑙𝑒 𝑜𝑟 𝐺𝑑𝑟𝑖𝑣𝑒 [𝐴𝑈𝑇𝐻_𝑈𝑆𝐸𝑅𝑆].
+/extractaudios - 𝐸𝑥𝑡𝑟𝑎𝑐𝑡 𝑎𝑢𝑑𝑖𝑜 𝑓𝑟𝑜𝑚 𝑓𝑖𝑙𝑒𝑠.
+/extractsubtitles - 𝐸𝑥𝑡𝑟𝑎𝑐𝑡 𝑠𝑢𝑏𝑡𝑖𝑡𝑙𝑒𝑠 𝑓𝑟𝑜𝑚 𝑓𝑖𝑙𝑒𝑠.
+/extractvideo - 𝐸𝑥𝑡𝑟𝑎𝑐𝑡 𝑣𝑖𝑑𝑒𝑜 𝑓𝑟𝑜𝑚 𝑓𝑖𝑙𝑒𝑠.
+/rename - 𝑟𝑒𝑝𝑙𝑎𝑦 𝑤𝑖𝑡ℎ 𝑓𝑖𝑙𝑒 𝑡𝑜 𝑅𝑒𝑛𝑎𝑚𝑒📝
+/gofile - 𝑇ℎ𝑒 𝐹𝑖𝑙𝑒𝑠 𝑈𝑝𝑙𝑜𝑎𝑑 𝑇𝑜 𝐺𝑜𝑓𝑖𝑙𝑒 𝐿𝑖𝑛𝑘 🔗
+/changeindexaudio - 𝑅𝑒𝑜𝑟𝑑𝑒𝑟 𝑡ℎ𝑒 𝑠𝑒𝑞𝑢𝑒𝑛𝑐𝑒 [a-1  𝑓𝑜𝑟 𝑟𝑒𝑚𝑜𝑣𝑒 𝑎𝑢𝑑𝑖𝑜 , a-2-1-3-4  𝑓𝑜𝑟 𝑠𝑤𝑎𝑝 𝑎𝑢𝑑𝑖𝑜]
+/changeindexsub - 𝑅𝑒𝑜𝑟𝑑𝑒𝑟 𝑡ℎ𝑒 𝑠𝑒𝑞𝑢𝑒𝑛𝑐𝑒 [s-1  𝑓𝑜𝑟 𝑟𝑒𝑚𝑜𝑣𝑒 𝑠𝑢𝑏𝑡𝑖𝑡𝑙𝑒 , s-2-1-3-4  𝑓𝑜𝑟 𝑠𝑤𝑎𝑝 𝑠𝑢𝑏𝑡𝑖𝑡𝑙𝑒]
+/changemetadata - 𝑇𝑟𝑎𝑛𝑠𝑓𝑜𝑟𝑚 𝑡ℎ𝑒 𝑚𝑒𝑡𝑎𝑑𝑎𝑡𝑎
+/removetags - 𝑇𝑜 𝑅𝑒𝑚𝑜𝑣𝑒 𝐴𝑙𝑙 𝑀𝑒𝑡𝑎𝑑𝑎𝑡𝑎 𝑇𝑎𝑔𝑠
+/merge - 𝑆𝑒𝑛𝑑 𝑢𝑝 𝑡𝑜 10 𝑣𝑖𝑑𝑒𝑜/𝑑𝑜𝑐𝑢𝑚𝑒𝑛𝑡 𝑓𝑖𝑙𝑒𝑠 𝑜𝑛𝑒 𝑏𝑦 𝑜𝑛𝑒.
+/videomerge - 𝑉𝑖𝑑𝑒𝑜𝑚𝑒𝑟𝑔𝑒 𝑤𝑖𝑡ℎ 𝑓𝑖𝑙𝑒𝑛𝑎𝑚𝑒.𝑚𝑘𝑣 𝑡𝑜 𝑠𝑡𝑎𝑟𝑡 𝑚𝑒𝑟𝑔𝑖𝑛𝑔
+/multitask - 𝑚𝑢𝑙𝑡𝑖𝑡𝑎𝑠𝑘 𝑖𝑠 𝐶ℎ𝑎𝑛𝑔𝑒𝑚𝑒𝑡𝑑𝑎𝑡𝑎 + 𝑅𝑒𝑚𝑜𝑣𝑒 𝑇𝑎𝑔𝑠 + 𝑇ℎ𝑢𝑚𝑏𝑛𝑎𝑖𝑙
+/samplevideo - 𝐶𝑟𝑒𝑎𝑡𝑒 𝐴 𝑆𝑎𝑚𝑝𝑙𝑒 𝑉𝑖𝑑𝑒𝑜 🎞️
+/screenshots - 𝐶𝑎𝑝𝑡𝑢𝑟𝑒 𝑠𝑜𝑚𝑒 𝑚𝑒𝑚𝑜𝑟𝑎𝑏𝑙𝑒 𝑠ℎ𝑜𝑡𝑠 📸
+/unzip - 𝐸𝑥𝑡𝑟𝑎𝑐𝑡 𝑓𝑖𝑙𝑒𝑠 (𝑍𝐼𝑃 𝑓𝑜𝑟𝑚𝑎𝑡 𝑜𝑛𝑙𝑦)
+/setphoto  -  𝑇𝑜 𝑎𝑑𝑑 𝑎 𝑝ℎ𝑜𝑡𝑜 𝑡𝑜 𝑎 𝑓𝑖𝑙𝑒  𝑎𝑡𝑡𝑎𝑐ℎ𝑚𝑒𝑛𝑡.𝑗𝑝𝑔 𝑓𝑜𝑟 𝑠𝑒𝑛𝑑𝑖𝑛𝑔 𝑡ℎ𝑒 𝑝ℎ𝑜𝑡𝑜 𝑎𝑠 𝑎𝑛 𝑎𝑡𝑡𝑎𝑐ℎ𝑚𝑒𝑛𝑡.
+/attachphoto - 𝑇ℎ𝑖𝑠 𝑐𝑜𝑚𝑚𝑎𝑛𝑑 𝑖𝑠 𝑢𝑠𝑒𝑑 𝑡𝑜 𝑎𝑑𝑑 𝑎 𝑝ℎ𝑜𝑡𝑜 𝑎𝑡𝑡𝑎𝑐ℎ𝑚𝑒𝑛𝑡.𝑗𝑝𝑔 𝑡𝑜 𝑎 𝑓𝑖𝑙𝑒
+/help - 𝐺𝑒𝑡 𝑑𝑒𝑡𝑎𝑖𝑙𝑒𝑑 𝑜𝑓 𝑏𝑜𝑡 𝑐𝑜𝑚𝑚𝑎𝑛𝑑𝑠 📝
+/about - 𝐿𝑒𝑎𝑟𝑛 𝑚𝑜𝑟𝑒 𝑎𝑏𝑜𝑢𝑡 𝑡ℎ𝑖𝑠 𝑏𝑜𝑡 🧑🏻‍💻
+/ping - 𝑇𝑜 𝐶ℎ𝑒𝑐𝑘 𝑇ℎ𝑒 𝑃𝑖𝑛𝑔 𝑂𝑓 𝑇ℎ𝑒 𝐵𝑜𝑡 📍
+
+ 💭• Tʜɪs Bᴏᴛ Is Fᴏʟʟᴏᴡs ᴛʜᴇ 𝟸GB Bᴇʟᴏᴡ Fɪʟᴇs Tᴏ Tᴇʟᴇɢʀᴀᴍ.\n• 𝟸GB Aʙᴏᴠᴇ Fɪʟᴇs Tᴏ Gᴏᴏɢʟᴇ Dʀɪᴠᴇ.
+ 
+🔱 𝐌𝐚𝐢𝐧𝐭𝐚𝐢𝐧𝐞𝐝 𝐁𝐲 : <a href='https://t.me/Sunrises_24'>𝐒𝐔𝐍𝐑𝐈𝐒𝐄𝐒™</a></b>
+    
+   """
+    await msg.reply_text(help_text)
+
+
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+#Ping
+@Client.on_message(filters.command("ping"))
+async def ping(bot, msg):
+    start_t = time.time()
+    rm = await msg.reply_text("Checking")
+    end_t = time.time()
+    time_taken_s = (end_t - start_t) * 1000
+    await rm.edit(f"Pong!📍\n{time_taken_s:.3f} ms")
+
+    
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
     app.run()
