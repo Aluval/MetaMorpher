@@ -58,6 +58,7 @@
   /mediainfo 
   /stats
 • Admin Command:
+  /clear - Clear Database 
   /ban
   /unban
   /users
