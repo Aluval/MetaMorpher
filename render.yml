@@ -1,14 +1,37 @@
 services:
-  - type: worker
+  - type: web
     plan: free
     name: 𝐌𝐞𝐭𝐚𝐌𝐨𝐫𝐩𝐡𝐞𝐫
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: python bot.py
     repo: https://github.com/Aluval/MetaMorpher.git
-    branch: SH24BOTS-PVT
-    autoDeploy: true
+    branch: SH24BOTS-GD-REVERSION-PVT
+    autoDeploy: false
     envVars:
       - key: BOT_TOKEN
         sync: false
-      
+      - key: API_ID
+        sync: false
+      - key: API_HASH
+        sync: false
+      - key: FSUB_UPDATES
+        sync: false
+      - key: FSUB_GROUP
+        sync: false
+      - key: LOG_CHANNEL_ID
+        sync: false
+      - key: DATABASE_NAME
+        sync: false
+      - key: DATABASE_URI
+        sync: false
+      - key: SUNRISES_PIC
+        sync: false
+      - key: ADMIN
+        sync: false
+      - key: AUTH_USERS
+        sync: false
+      - key: WEBHOOK
+        sync: false
+      - key: PORT
+        sync: false
