@@ -1081,6 +1081,7 @@ async def change_index_subtitle(bot, msg):
 
 #merge command 
 # Command to start merging files
+# Command to start merging files
 @Client.on_message(filters.command("merge") & filters.chat(GROUP))
 async def start_merge_command(bot, msg: Message):
     global MERGE_ENABLED
@@ -1117,7 +1118,7 @@ async def handle_media_files(bot, msg: Message):
             await msg.reply_text("File received. Send another file or use `/videomerge filename` to start merging.")
         else:
             await msg.reply_text("You have already sent 10 files. Use `/videomerge filename` to start merging.")
-
+            
 async def merge_and_upload(bot, msg: Message):
     user_id = msg.from_user.id
     if user_id not in merge_state:
