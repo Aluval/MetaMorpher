@@ -2,7 +2,7 @@
     "name": "MetaMorpher", 
     "description": "ADVANCE RENAME BOT WITH THUMBNAIL,CAPTION & HIGH SPEED ⚡️",
     "logo":"https://graph.org/file/bd91761f6e938e2e6d23a.jpg",
-    "repository": "https://github.com/Aluval/ADVANCERENAME24BOT",   
+    "repository": "https://github.com/Aluval/MetaMorpher",   
     "keywords": ["Rename-bot", "Telegram", "ADVANCE RENAME 24 BOT"], 
     "env": { 
         "BOT_TOKEN": { 
@@ -16,6 +16,31 @@
         "API_HASH": { 
             "description": "Your API_HASH from https://my.telegram.org/apps", 
             "required": true 
+        },
+        "DATABASE_URI": {
+            "description": "mongoDB URI. Get this value from https://www.mongodb.com. For more help watch this video - https://youtu.be/dsuTn4qV2GA",
+            "value": "",
+            "required": true
+        },
+        "DATABASE_NAME": {
+            "description": "Name of the database in mongoDB. For more contact to admin",
+            "value": "Cluster0",
+            "required": false
+        },
+        "LOG_CHANNEL_ID": {
+            "description": "Add to bot & admin the bot in channel",
+            "value": "",
+            "required": true
+        },
+        "WEBHOOK": {
+            "description": "web true only",
+            "value": "True",
+            "required": true
+        },
+         "PORT": {
+            "description": "8080",
+            "value": "8080",
+            "required": true   
         },
         "FSUB_UPDATES": { 
             "description": "forcesub username channel and admin it", 
@@ -51,7 +76,6 @@
         }
     ]
 }
-
 
 
 
