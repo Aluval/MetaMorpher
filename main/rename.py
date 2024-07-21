@@ -949,6 +949,7 @@ async def change_index_audio(bot, msg):
             await bot.send_document(
                 msg.chat.id,
                 document=output_file,
+                file_name=output_filename,  # Apply the new file name here
                 thumb=file_thumb,
                 caption=cap,
                 progress=progress_message,
