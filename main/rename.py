@@ -1,3 +1,4 @@
+g
 #TG : @Sunrises_24
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 import subprocess
@@ -14,7 +15,7 @@ from pyrogram.enums import MessageMediaType
 from pyrogram.errors import MessageNotModified
 from main.utils import progress_message, humanbytes
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup,CallbackQuery
-from config import AUTH_USERS, ADMIN, CAPTION
+from config import AUTH_USERS, ADMIN, CAPTION, GROUP
 from main.utils import heroku_restart, upload_files, download_media
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
@@ -225,7 +226,7 @@ async def sample_video_option(client, callback_query: CallbackQuery):
 async def back_to_settings(client, callback_query: CallbackQuery):
     await display_user_settings(client, callback_query.message, edit=True)
 
-@Client.on_message(filters.private & filters.command("usersettings"))
+@Client.on_message(filters.command("usersettings") & filters.chat(GROUP))
 async def display_user_settings(client, msg, edit=False):
     user_id = msg.from_user.id
     
@@ -339,7 +340,7 @@ async def inline_thumbnail_settings(client, callback_query: CallbackQuery):
     )
     await callback_query.message.edit_text("Thumbnail Settings:", reply_markup=keyboard)
 
-@Client.on_message(filters.private & filters.command("setthumbnail"))
+@Client.on_message(filters.command("setthumbnail") & filters.chat(GROUP))
 async def set_thumbnail_command(client, message):
     user_id = message.from_user.id
 
@@ -350,7 +351,7 @@ async def set_thumbnail_command(client, message):
     else:
         await message.reply("Send a photo to set as your permanent thumbnail.")
 
-@Client.on_message(filters.photo & filters.private)
+@Client.on_message(filters.photo & filters.chat(GROUP))
 async def set_thumbnail_handler(client, message):
     user_id = message.from_user.id
     photo_file_id = message.photo.file_id
@@ -402,8 +403,7 @@ async def inline_preview_gdrive(bot, callback_query):
     
     await callback_query.message.reply_text(f"Current Google Drive Folder ID for user `{user_id}`: {gdrive_folder_id}")
 
-
-@Client.on_message(filters.private & filters.command("setmetadata"))
+@Client.on_message(filters.command("setmetadata") & filters.chat(GROUP))
 async def set_metadata_command(client, msg):
     # Extract titles from the command message
     if len(msg.command) < 2:
@@ -485,7 +485,7 @@ async def inline_preview_gofile_api_key(bot, callback_query):
   
 
 # Command handler for /mirror
-@Client.on_message(filters.private & filters.command("mirror"))
+@Client.on_message(filters.command("mirror") & filters.chat(GROUP))
 async def mirror_to_google_drive(bot, msg: Message):
     global MIRROR_ENABLED
         
@@ -564,7 +564,7 @@ async def mirror_to_google_drive(bot, msg: Message):
         
 
 #Rename Command
-@Client.on_message(filters.private & filters.command("rename"))
+@Client.on_message(filters.command("rename") & filters.chat(GROUP))
 async def rename_file(bot, msg):
     if len(msg.command) < 2 or not msg.reply_to_message:
         return await msg.reply_text("Please reply to a file, video, or audio with the new filename and extension (e.g., .mkv, .mp4, .zip).")
@@ -619,7 +619,7 @@ async def rename_file(bot, msg):
     await sts.delete()
 
 #Change Metadata Code
-@Client.on_message(filters.private & filters.command("changemetadata"))
+@Client.on_message(filters.command("changemetadata") & filters.chat(GROUP))
 async def change_metadata(bot, msg: Message):
     global METADATA_ENABLED
 
@@ -719,7 +719,7 @@ async def change_metadata(bot, msg: Message):
    
 
 #attach photo
-@Client.on_message(filters.private & filters.command("attachphoto"))
+@Client.on_message(filters.command("attachphoto") & filters.chat(GROUP))
 async def attach_photo(bot, msg: Message):
     global PHOTO_ATTACH_ENABLED
 
@@ -842,7 +842,7 @@ async def attach_photo(bot, msg: Message):
 
 # Command handler
 # Command handler for changing audio index
-@Client.on_message(filters.private & filters.command("changeindexaudio"))
+@Client.on_message(filters.command("changeindexaudio") & filters.chat(GROUP))
 async def change_index_audio(bot, msg):
     global CHANGE_INDEX_ENABLED
 
@@ -968,7 +968,7 @@ async def change_index_audio(bot, msg):
 #changeindex subtitles 
 # Command to change index subtitle
 # Command handler for changing subtitle index
-@Client.on_message(filters.private & filters.command("changeindexsub"))
+@Client.on_message(filters.command("changeindexsub") & filters.chat(GROUP))
 async def change_index_subtitle(bot, msg):
     global CHANGE_INDEX_ENABLED
 
@@ -1082,7 +1082,7 @@ async def change_index_subtitle(bot, msg):
 
 #merge command 
 # Command to start merging files
-@Client.on_message(filters.private & filters.command("merge"))
+@Client.on_message(filters.command("merge") & filters.chat(GROUP))
 async def start_merge_command(bot, msg: Message):
     global MERGE_ENABLED
     if not MERGE_ENABLED:
@@ -1093,7 +1093,7 @@ async def start_merge_command(bot, msg: Message):
 
     await msg.reply_text("Send up to 10 video/document files one by one. Once done, send `/videomerge filename`.")
 
-@Client.on_message(filters.private & filters.command("videomerge"))
+@Client.on_message(filters.command("videomerge") & filters.chat(GROUP))
 async def start_video_merge_command(bot, msg: Message):
     user_id = msg.from_user.id
     if user_id not in merge_state or not merge_state[user_id]["files"]:
@@ -1104,7 +1104,7 @@ async def start_video_merge_command(bot, msg: Message):
 
     await merge_and_upload(bot, msg)
 
-@Client.on_message(filters.document | filters.video & filters.private)
+@Client.on_message(filters.document | filters.video & filters.chat(GROUP))
 async def handle_media_files(bot, msg: Message):
     user_id = msg.from_user.id
     if user_id in merge_state and len(merge_state[user_id]["files"]) < 10:
@@ -1205,7 +1205,7 @@ async def merge_and_upload(bot, msg: Message):
 
 
 # Leech command handler
-@Client.on_message(filters.command("leech") & filters.chat(AUTH_USERS))
+@Client.on_message(filters.command("leech") & filters.chat(GROUP))
 async def linktofile(bot, msg: Message):
     if len(msg.command) < 2 or not msg.reply_to_message:
         return await msg.reply_text("Please reply to a file, video, audio, or link with the desired filename and extension (e.g., `.mkv`, `.mp4`, `.zip`).")
@@ -1349,7 +1349,7 @@ async def safe_edit_message(message, new_text):
         print(f"Failed to edit message: {e}")
         
 # Command to remove tags from media files
-@Client.on_message(filters.private & filters.command("removetags"))
+@Client.on_message(filters.command("removetags") & filters.chat(GROUP))
 async def remove_tags(bot, msg):
     global REMOVETAGS_ENABLED
     if not REMOVETAGS_ENABLED:
@@ -1454,7 +1454,7 @@ async def remove_tags(bot, msg):
         await db.save_new_filename(msg.from_user.id, new_filename)
 
 #Screenshots Command
-@Client.on_message(filters.private & filters.command("screenshots"))
+@Client.on_message(filters.command("screenshots") & filters.chat(GROUP))
 async def screenshots_command(client, message: Message):
     user_id = message.from_user.id
 
@@ -1542,8 +1542,7 @@ async def screenshots_command(client, message: Message):
     await sts.delete()  # Delete the status message after completion
 
 
-
-@Client.on_message(filters.private & filters.command("samplevideo"))
+@Client.on_message(filters.command("samplevideo") & filters.chat(GROUP))
 async def sample_video(bot, msg):
     user_id = msg.from_user.id
 
@@ -1622,7 +1621,7 @@ async def restart_app(bot, msg):
         
 
 # Command to unzip a zip file
-@Client.on_message(filters.private & filters.command("unzip"))
+@Client.on_message(filters.command("unzip") & filters.chat(GROUP))
 async def unzip(bot, msg):
     if not msg.reply_to_message:
         return await msg.reply_text("Please reply to a zip file to unzip.")
@@ -1659,7 +1658,7 @@ async def unzip(bot, msg):
     shutil.rmtree(extract_path)
 
   
-@Client.on_message(filters.command("gofile") & filters.private)
+@Client.on_message(filters.command("gofile") & filters.chat(GROUP))
 async def gofile_upload(bot, msg: Message):
     user_id = msg.from_user.id
     
@@ -1739,8 +1738,7 @@ async def gofile_upload(bot, msg: Message):
             print(f"Error deleting file: {e}")
 
 
-
-@Client.on_message(filters.private & filters.command("clone"))
+@Client.on_message(filters.command("clone") & filters.chat(GROUP))
 async def clone_file(bot, msg: Message):
     user_id = msg.from_user.id
 
@@ -1793,7 +1791,7 @@ async def safe_edit_message(message, new_text):
         print(f"Failed to edit message: {e}")
 
 #extract audio command 
-@Client.on_message(filters.command("extractaudios") & filters.private)
+@Client.on_message(filters.command("extractaudios") & filters.chat(GROUP))
 async def extract_audios(bot, msg):
     global EXTRACT_ENABLED
     
@@ -1853,7 +1851,7 @@ async def extract_audios(bot, msg):
 
 
 #extract subtitles command 
-@Client.on_message(filters.command("extractsubtitles") & filters.private)
+@Client.on_message(filters.command("extractsubtitles") & filters.chat(GROUP))
 async def extract_subtitles(bot, msg):
     global EXTRACT_ENABLED
     
@@ -1912,7 +1910,7 @@ async def extract_subtitles(bot, msg):
             os.remove(file)
 
 ##extract video command 
-@Client.on_message(filters.command("extractvideo") & filters.private)
+@Client.on_message(filters.command("extractvideo") & filters.chat(GROUP))
 async def extract_video(bot, msg: Message):
     global EXTRACT_ENABLED
     
@@ -1970,7 +1968,7 @@ async def extract_video(bot, msg: Message):
             os.remove(output_file)
 
 # Command handler for /list
-@Client.on_message(filters.private & filters.command("list"))
+@Client.on_message(filters.command("list") & filters.chat(GROUP))
 async def list_files(bot, msg: Message):
     user_id = msg.from_user.id
 
@@ -2033,7 +2031,7 @@ async def list_files(bot, msg: Message):
         await sts.edit(f"Error: {e}")
 
 #cleam command
-@Client.on_message(filters.private & filters.command("clean"))
+@Client.on_message(filters.command("clean") & filters.chat(GROUP))
 async def clean_files(bot, msg: Message):
     user_id = msg.from_user.id
 
@@ -2099,7 +2097,7 @@ async def progress_hook(status_message):
             await safe_edit_message(status_message, "Download finished. 🚀")
     return hook
     
-@Client.on_message(filters.private & filters.command("ytdlleech"))
+@Client.on_message(filters.command("ytdlleech") & filters.chat(GROUP))
 async def ytdlleech_handler(client: Client, msg: Message):
     if len(msg.command) < 2:
         return await msg.reply_text("Please provide a YouTube link.")
@@ -2226,8 +2224,7 @@ async def callback_query_handler(client: Client, query):
         await sts.delete()
         await query.message.delete()
 
-
-@Client.on_message(filters.command("mediainfo") & filters.private)
+@Client.on_message(filters.command("mediainfo") & filters.chat(GROUP))
 async def mediainfo_handler(client: Client, message: Message):
     if not message.reply_to_message or (not message.reply_to_message.document and not message.reply_to_message.video):
         await message.reply_text("Please reply to a document or video to get media info.")
@@ -2303,7 +2300,7 @@ async def mediainfo_handler(client: Client, message: Message):
         
 
 # Function to handle "/getmodapk" command
-@Client.on_message(filters.private & filters.command("getmodapk"))
+@Client.on_message(filters.command("getmodapk") & filters.chat(GROUP))
 async def get_mod_apk(bot, msg: Message):
     if len(msg.command) < 2:
         return await msg.reply_text("Please provide a URL from getmodsapk.com or gamedva.com.")
@@ -2394,8 +2391,7 @@ async def count_users(bot, msg):
     except Exception as e:
         await msg.reply_text(f"An error occurred: {e}")
 
-        
-@Client.on_message(filters.command("stats"))
+@Client.on_message(filters.command("stats") & filters.chat(GROUP))        
 async def stats_command(_, msg):
     uptime = datetime.datetime.now() - START_TIME
     uptime_str = str(timedelta(seconds=int(uptime.total_seconds())))
@@ -2508,7 +2504,7 @@ async def about_command(bot, msg):
 <b>✯ Dᴇᴠᴇʟᴏᴘᴇʀ 🧑🏻‍💻 : <a href=https://t.me/Sunrises_24>𝐒𝐔𝐍𝐑𝐈𝐒𝐄𝐒™ ⚡</a></b>
 <b>✯ Uᴘᴅᴀᴛᴇs 📢 : <a href=https://t.me/Sunrises24BotUpdates>𝐔𝐏𝐃𝐀𝐓𝐄𝐒 📢</a></b>
 <b>✯ Sᴜᴘᴘᴏʀᴛ ✨ : <a href=https://t.me/Sunrises24BotUpdates>𝐒𝐔𝐏𝐏𝐎𝐑𝐓 ✨</a></b>
-<b>✯ Bᴜɪʟᴅ Sᴛᴀᴛᴜs 📊 : ᴠ2.4 [Sᴛᴀʙʟᴇ]</b>
+<b>✯ Bᴜɪʟᴅ Sᴛᴀᴛᴜs 📊 : ᴠ2.5 [Sᴛᴀʙʟᴇ]</b>
     """
     await msg.reply_text(about_text)
 
@@ -2567,7 +2563,7 @@ Hᴇʀᴇ Is Tʜᴇ Hᴇʟᴘ Fᴏʀ Mʏ Cᴏᴍᴍᴀɴᴅs.
     
    """
     await msg.reply_text(help_text)
-
+    
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 #Ping
