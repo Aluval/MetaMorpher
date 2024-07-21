@@ -1088,7 +1088,7 @@ async def start_merge_command(bot, msg: Message):
         return await msg.reply_text("The merge feature is currently disabled.")
 
     user_id = msg.from_user.id
-    merge_state[user_id] = {"files": [], "output_filename": None}
+    merge_state[user_id] = {"files": [], "output_filename": None, "is_merging": False}
 
     await msg.reply_text("Send up to 10 video/document files one by one. Once done, send `/videomerge filename`.")
 
@@ -1100,16 +1100,24 @@ async def start_video_merge_command(bot, msg: Message):
 
     output_filename = msg.text.split(' ', 1)[1].strip()  # Extract output filename from command
     merge_state[user_id]["output_filename"] = output_filename
+    merge_state[user_id]["is_merging"] = True  # Set the flag to indicate that merging has started
 
     await merge_and_upload(bot, msg)
 
 @Client.on_message(filters.document | filters.video & filters.chat(GROUP))
 async def handle_media_files(bot, msg: Message):
     user_id = msg.from_user.id
-    if user_id in merge_state and len(merge_state[user_id]["files"]) < 10:
-        merge_state[user_id]["files"].append(msg)
-        await msg.reply_text("File received. Send another file or use `/videomerge filename` to start merging.")
+    if user_id in merge_state:
+        if merge_state[user_id].get("is_merging"):
+            await msg.reply_text("Merging process has started. No more files can be added.")
+            return
         
+        if len(merge_state[user_id]["files"]) < 10:
+            merge_state[user_id]["files"].append(msg)
+            await msg.reply_text("File received. Send another file or use `/videomerge filename` to start merging.")
+        else:
+            await msg.reply_text("You have already sent 10 files. Use `/videomerge filename` to start merging.")
+
 async def merge_and_upload(bot, msg: Message):
     user_id = msg.from_user.id
     if user_id not in merge_state:
