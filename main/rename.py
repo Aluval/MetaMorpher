@@ -180,7 +180,7 @@ async def update_settings_message(message):
             [InlineKeyboardButton(f"{change_index_status} Change Index ♻️", callback_data="toggle_change_index")],
             [InlineKeyboardButton(f"{merge_video_status} Merge Video 🎞️", callback_data="toggle_merge_video")],
             [InlineKeyboardButton(f"{photo_attach_status} Attach Photo 🖼️", callback_data="toggle_photo_attach")],                        
-            [InlineKeyboardButton(f"{multitask_status} Mirror 💽", callback_data="toggle_mirror")],            
+            [InlineKeyboardButton(f"{mirror_status} Mirror 💽", callback_data="toggle_mirror")],            
             [InlineKeyboardButton("Close ❌", callback_data="del")],
             [InlineKeyboardButton("💠", callback_data="sunrises24_bot_updates")]
         ]
