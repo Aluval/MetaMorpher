@@ -1118,6 +1118,7 @@ async def handle_media_files(bot, msg: Message):
         else:
             await msg.reply_text("You have already sent 10 files. Use `/videomerge filename` to start merging.")
 
+
 async def merge_and_upload(bot, msg: Message):
     user_id = msg.from_user.id
     if user_id not in merge_state:
