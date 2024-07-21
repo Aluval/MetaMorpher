@@ -948,6 +948,7 @@ async def change_index_audio(bot, msg):
             await bot.send_document(
                 msg.chat.id,
                 document=output_file,
+                file_name=output_filename,  # Apply the new file name here
                 thumb=file_thumb,
                 caption=cap,
                 progress=progress_message,
@@ -962,7 +963,6 @@ async def change_index_audio(bot, msg):
     if file_thumb and os.path.exists(file_thumb):
         os.remove(file_thumb)
     await sts.delete()
-
 
 #changeindex subtitles 
 # Command to change index subtitle
