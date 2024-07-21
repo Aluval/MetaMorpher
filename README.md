@@ -27,7 +27,7 @@ Press Below Button to Deploy!
 
 **ADD YOUR TOKEN.PICKLE For Google Drive Access**
 
-**This Branch Only In Bot [Private] Support**
+**This Branch Only In Bot [GROUP] Support**
 
 **This Bot Is Follows the 2GB Below Files To Telegram. 2GB Above Files To Google Drive.**
 
@@ -71,6 +71,8 @@ Press Below Button to Deploy!
 * `SUNRISES_PIC` - Start Pic
 
 * `AUTH_USERS` - for restart owner id
+
+* `GROUP` - group id add and admin it
 
 * `DATABASE_NAME` - Database Name
 
