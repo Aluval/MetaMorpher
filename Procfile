@@ -1,2 +1,2 @@
-worker: python bot.py
+web: python bot.py
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
