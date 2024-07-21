@@ -1,0 +1,71 @@
+──「 Version v.1.0 」──
+• Initial commit
+
+──「 Version V.2.0 」──
+• /Rename ,/help, /about ,/ping commands.
+• Adding button.
+
+──「 Version V.2.1 」──
+• Added Start With Forcesub.
+• Dual Forcesub 
+• New variables:
+[FSUB_CHANNEL, FSUB_GROUP]
+
+──「 Version  V.2.2 」──
+• Auth fix.
+• Precommit file fixed.
+• Variables errors fixed.
+
+──「 Version  V.2.3 」──
+• New Command: 
+  /usersettings
+  /bsettings
+  /changemetadata
+  /changeindexaudio
+  /Changeindexsub 
+  /removetags 
+  /screenshots
+  /samplevideo 
+  /attachphoto 
+  -setphoto cmd
+• Sort imports
+• Removed useless imports.
+• Removed useless codes.
+• Format python code.
+• print() function use.
+• Group & Private Branch Separate 
+• updates.txt file for updates logs.
+
+──「 Version  V.2.4 」──
+•New Comamnd :
+ /gofile
+ /gofilesetup 
+ /gdriveid - setup
+ /mirror
+ /clone
+ /clean
+ /list 
+• Implemented Progress Status Bar.
+• Added Google drive For Above 2GB files upload - For all commands
+• Small changes and fixes.
+
+──「 Version  V.2.5 」──
+**Major Update** 
+• Database Support.
+• Implemented Settings.
+• New Command:
+  /ytdlleech 
+  /mediainfo 
+  /stats
+• Admin Command:
+  /clear - Clear Database 
+  /ban
+  /unban
+  /users
+  /broadcast 
+• Log Channel 
+• Small changes and fixes.
+• Support Render, Koyeb Support.
+• Docker File Updated : Mediainfo, Ffmpeg 
+• Use pyrofork for Peer ID Invalid error
+• version.txt file for updates logs.
