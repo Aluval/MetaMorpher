@@ -3,7 +3,11 @@ import asyncio, time
 from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from pyrogram.errors import UserNotParticipant, UserBannedInChannel
-from config import FSUB_UPDATES, FSUB_GROUP, SUNRISES_PIC
+from config import *
+from Database.database import db
+from pymongo.errors import PyMongoError
+
+
 
 START_TEXT = """
 Hᴇʟʟᴏ Mᴀᴡа❤️! I ᴀᴍ ᴛʜᴇ Aᴅᴠᴀɴᴄᴇᴅ Rᴇɴᴀᴍᴇ 𝟸𝟺 Bᴏᴛ [MᴇᴛᴀMᴏʀᴘʜᴇʀ]⚡
@@ -25,7 +29,7 @@ Fᴇᴀᴛᴜʀᴇs:
 - Cʟᴇᴀɴ Fɪʟᴇs ɪɴ Gᴏᴏɢʟᴇ Dʀɪᴠᴇ
 - Exᴛʀᴀᴄᴛ Aᴜᴅɪᴏs, Sᴜʙᴛɪᴛʟᴇs, Vɪᴅᴇᴏs
 - Lᴇᴇᴄʜ: Wᴏʀᴋᴇʀs & Sᴇᴇᴅʀ Lɪɴᴋs
-- Uᴘʟᴏᴀᴅ Lᴀʀɢᴇ Fɪʟᴇs (𝟺GB+) ᴛᴏ Gᴏᴏɢʟᴇ Dʀɪᴠᴇ.
+- Uᴘʟᴏᴀᴅ Lᴀʀɢᴇ Fɪʟᴇs (𝟺GB+) ᴛᴏ Gᴏᴏɢʟᴇ Dʀɪᴠᴇ
 
 Exᴘʟᴏʀᴇ sɪᴍᴘʟɪᴄɪᴛʏ! 💥
 
@@ -33,20 +37,33 @@ Exᴘʟᴏʀᴇ sɪᴍᴘʟɪᴄɪᴛʏ! 💥
 """
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
- 
+
+
 joined_channel_1 = {}
 joined_channel_2 = {}
 
 @Client.on_message(filters.command("start"))
 async def start(bot, msg: Message):
     user_id = msg.chat.id
-    
+    username = msg.from_user.username or "N/A"
+
+    # Check if user is banned
+    if await db.is_user_banned(user_id):
+        await msg.reply_text("Sorry, you are banned 🚫. Contact admin for more information ℹ️.")
+        return
+
+    # Fetch user from the database or add a new user
+    user_data = await db.get_user(user_id)
+    if user_data is None:
+        await db.add_user(user_id, username)
+        user_data = await db.get_user(user_id)
+
     # Check for channel 1 (updates channel) membership
     if FSUB_UPDATES:
         try:
             user = await bot.get_chat_member(FSUB_UPDATES, user_id)
             if user.status == "kicked":
-                await msg.reply_text("Sorry, you are **banned**.")
+                await msg.reply_text("Sorry, you are banned 🚫. Contact admin for more information ℹ️.")
                 return
         except UserNotParticipant:
             await msg.reply_text(
@@ -65,7 +82,7 @@ async def start(bot, msg: Message):
         try:
             user = await bot.get_chat_member(FSUB_GROUP, user_id)
             if user.status == "kicked":
-                await msg.reply_text("Sorry, you are **banned**.")
+                await msg.reply_text("Sorry, you are banned 🚫. Contact admin for more information ℹ️.")
                 return
         except UserNotParticipant:
             await msg.reply_text(
@@ -79,21 +96,44 @@ async def start(bot, msg: Message):
         else:
             joined_channel_2[user_id] = True
 
-    # If the user has joined both required channels, send the start message with photo
-    start_text = START_TEXT.format(msg.from_user.first_name) if hasattr(msg, "message_id") else START_TEXT
-    await bot.send_photo(
-        chat_id=user_id,
-        photo=SUNRISES_PIC,
-        caption=start_text,
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("Developer ❤️", url="https://t.me/Sunrises_24"),
-             InlineKeyboardButton("Updates 📢", url="https://t.me/Sunrises24botupdates")],
-            [InlineKeyboardButton("Help 🌟", callback_data="help"),
-             InlineKeyboardButton("About 🧑🏻‍💻", callback_data="about")],
-            [InlineKeyboardButton("Support ❤️‍🔥", url="https://t.me/Sunrises24botSupport")]
-        ]),
-        reply_to_message_id=getattr(msg, "message_id", None)
+    # Update user's membership status in the database
+    await db.update_user_membership(
+        user_id,
+        joined_channel_1.get(user_id, False),
+        joined_channel_2.get(user_id, False)
     )
+
+    # If the user has joined both required channels, send the start message with photo
+    if joined_channel_1.get(user_id, False) and joined_channel_2.get(user_id, False):
+        start_text = START_TEXT.format(msg.from_user.first_name) if hasattr(msg, "message_id") else START_TEXT
+        await bot.send_photo(
+            chat_id=user_id,
+            photo=SUNRISES_PIC,
+            caption=start_text,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Developer ❤️", url="https://t.me/Sunrises_24"),
+                 InlineKeyboardButton("Updates 📢", url="https://t.me/Sunrises24botupdates")],
+                [InlineKeyboardButton("Help 🌟", callback_data="help"),
+                 InlineKeyboardButton("About 🧑🏻‍💻", callback_data="about")],
+                [InlineKeyboardButton("Support ❤️‍🔥", url="https://t.me/Sunrises24botSupport")]
+            ]),
+            reply_to_message_id=getattr(msg, "message_id", None)
+        )
+    else:
+        await msg.reply_text(
+            "You need to join both the updates channel and the group to use the bot."
+        )
+
+    # Notify log channel
+    log_message = (
+        f"💬 **Bot Started**\n"
+        f"🆔 **ID**: {user_id}\n"
+        f"👤 **Username**: {username}"
+    )
+    try:
+        await bot.send_message(LOG_CHANNEL_ID, log_message)
+    except Exception as e:
+        print(f"An error occurred while sending log message: {e}")
 
 async def check_membership(bot, msg: Message, fsub, joined_channel_dict, prompt_text, join_url):
     user_id = msg.chat.id
@@ -110,6 +150,11 @@ async def check_membership(bot, msg: Message, fsub, joined_channel_dict, prompt_
 @Client.on_message(filters.private & ~filters.command("start"))
 async def handle_private_message(bot, msg: Message):
     user_id = msg.chat.id
+
+    # Check if user is banned
+    if await db.is_user_banned(user_id):
+        await msg.reply_text("Sorry, you are banned 🚫. Contact admin for more information ℹ️.")
+        return
     
     # Check membership for updates channel
     if FSUB_UPDATES and not await check_membership(bot, msg, FSUB_UPDATES, joined_channel_1, "Please join my first updates channel before using me.", f"https://t.me/{FSUB_UPDATES}"):
@@ -118,72 +163,7 @@ async def handle_private_message(bot, msg: Message):
     # Check membership for group channel
     if FSUB_GROUP and not await check_membership(bot, msg, FSUB_GROUP, joined_channel_2, "Please join my Group before using me.", f"https://t.me/{FSUB_GROUP}"):
         return
-    
-
-                          
-#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
-#FUNCTION ABOUT HANDLER
-@Client.on_message(filters.command("about"))
-async def about_command(bot, msg):
-    about_text = """
-<b>✯ Mʏ Nᴀᴍᴇ : <a href=https://t.me/MetaMorpher24Bot>𝐌𝐞𝐭𝐚𝐌𝐨𝐫𝐩𝐡𝐞𝐫 🌟</a></b>
-<b>✯ Dᴇᴠᴇʟᴏᴘᴇʀ 🧑🏻‍💻 : <a href=https://t.me/Sunrises_24>𝐒𝐔𝐍𝐑𝐈𝐒𝐄𝐒™ ⚡</a></b>
-<b>✯ Uᴘᴅᴀᴛᴇs 📢 : <a href=https://t.me/Sunrises24BotUpdates>𝐔𝐏𝐃𝐀𝐓𝐄𝐒 📢</a></b>
-<b>✯ Sᴜᴘᴘᴏʀᴛ ✨ : <a href=https://t.me/Sunrises24BotUpdates>𝐒𝐔𝐏𝐏𝐎𝐑𝐓 ✨</a></b>
-<b>✯ Bᴜɪʟᴅ Sᴛᴀᴛᴜs 📊 : ᴠ2.4 [Sᴛᴀʙʟᴇ]</b>
-    """
-    await msg.reply_text(about_text)
-
-# Function to handle /help command
-@Client.on_message(filters.command("help"))
-async def help_command(bot, msg):
-    help_text = """
-    <b>Hᴇʟʟᴏ Mᴀᴡᴀ ❤️
-Hᴇʀᴇ Is Tʜᴇ Hᴇʟᴘ Fᴏʀ Mʏ Cᴏᴍᴍᴀɴᴅs.
-
-🦋 ʜᴏᴡ ᴛᴏ ᴜꜱᴇ
-◉ Reply To Any Video/File 🖼️
-
-/start - 𝐵𝑜𝑡 𝑎𝑙𝑖𝑣𝑒 𝑜𝑟 𝑁𝑜𝑡 🚶🏻
-/usersettings - 𝑂𝑝𝑒𝑛 𝑡ℎ𝑒 𝑈𝑠𝑒𝑟𝑠𝑒𝑡𝑡𝑖𝑛𝑔𝑠 𝐹𝑜𝑟 𝐵𝑜𝑡 𝐼𝑛𝑓𝑜
-/bsettings - 𝐵𝑜𝑡 𝑆𝑒𝑡𝑡𝑖𝑛𝑔𝑠 𝐸𝑛𝑎𝑏𝑙𝑒𝑑 𝑜𝑟 𝐷𝑖𝑠𝑎𝑏𝑙𝑒𝑑 [𝐴𝐷𝑀𝐼𝑁]
-/setmetadata - 𝑆𝑒𝑡 𝑀𝑒𝑡𝑎𝑑𝑎𝑡𝑎 𝐼𝑛𝑑𝑖𝑣𝑖𝑑𝑢𝑎𝑙 𝑇𝑖𝑡𝑙𝑒𝑠
-/gofilesetup - 𝑆𝑒𝑡𝑢𝑝 𝑇ℎ𝑒 𝐺𝑜𝑓𝑖𝑙𝑒 𝐴𝑃𝐼 𝐾𝐸𝑌 𝑓𝑟𝑜𝑚 𝐺𝑜𝑓𝑖𝑙𝑒.𝑖𝑜 ⚙️[𝑃𝑟𝑖𝑣𝑎𝑡𝑒]
-/gdriveid - 𝑇ℎ𝑒 𝐺𝑜𝑜𝑔𝑙𝑒 𝐷𝑟𝑖𝑣𝑒 𝐹𝑜𝑙𝑑𝑒𝑟 𝐼𝐷 𝑆𝑒𝑡𝑢𝑝 📁[𝑃𝑟𝑖𝑣𝑎𝑡𝑒]
-/mirror - 𝑀𝑖𝑟𝑟𝑜𝑟 𝑓𝑖𝑙𝑒𝑠 𝑡𝑜 𝑎 𝐺𝑜𝑜𝑔𝑙𝑒 𝐷𝑟𝑖𝑣𝑒 𝑙𝑖𝑛𝑘.
-/clone -  𝐶𝑙𝑜𝑛𝑒 𝑎 𝐺𝑜𝑜𝑔𝑙𝑒 𝐷𝑟𝑖𝑣𝑒 𝑙𝑖𝑛𝑘.
-/list - 𝐶ℎ𝑒𝑐𝑘 𝑡ℎ𝑒 𝑓𝑖𝑙𝑒𝑠 𝑖𝑛 𝐺𝑜𝑜𝑔𝑙𝑒 𝐷𝑟𝑖𝑣𝑒 𝑣𝑖𝑎 𝑡ℎ𝑒 𝑏𝑜𝑡.
-/clean - 𝐷𝑒𝑙𝑒𝑡𝑒 𝑓𝑖𝑙𝑒𝑠 𝑖𝑛 𝐺𝑜𝑜𝑔𝑙𝑒 𝐷𝑟𝑖𝑣𝑒 𝑏𝑦 𝑓𝑖𝑙𝑒 𝑛𝑎𝑚𝑒.
-/leech - 𝑙𝑒𝑒𝑐ℎ 𝑡ℎ𝑒 𝑆𝑒𝑒𝑑𝑟 & 𝑊𝑜𝑟𝑘𝑒𝑟𝑠 𝐿𝑖𝑛𝑘𝑠 𝑡𝑜 𝐹𝑖𝑙𝑒 𝑜𝑟 𝐺𝑑𝑟𝑖𝑣𝑒 [𝐴𝑈𝑇𝐻_𝑈𝑆𝐸𝑅𝑆].
-/extractaudios - 𝐸𝑥𝑡𝑟𝑎𝑐𝑡 𝑎𝑢𝑑𝑖𝑜 𝑓𝑟𝑜𝑚 𝑓𝑖𝑙𝑒𝑠.
-/extractsubtitles - 𝐸𝑥𝑡𝑟𝑎𝑐𝑡 𝑠𝑢𝑏𝑡𝑖𝑡𝑙𝑒𝑠 𝑓𝑟𝑜𝑚 𝑓𝑖𝑙𝑒𝑠.
-/extractvideo - 𝐸𝑥𝑡𝑟𝑎𝑐𝑡 𝑣𝑖𝑑𝑒𝑜 𝑓𝑟𝑜𝑚 𝑓𝑖𝑙𝑒𝑠.
-/rename - 𝑟𝑒𝑝𝑙𝑎𝑦 𝑤𝑖𝑡ℎ 𝑓𝑖𝑙𝑒 𝑡𝑜 𝑅𝑒𝑛𝑎𝑚𝑒📝
-/gofile - 𝑇ℎ𝑒 𝐹𝑖𝑙𝑒𝑠 𝑈𝑝𝑙𝑜𝑎𝑑 𝑇𝑜 𝐺𝑜𝑓𝑖𝑙𝑒 𝐿𝑖𝑛𝑘 🔗
-/changeindexaudio - 𝑅𝑒𝑜𝑟𝑑𝑒𝑟 𝑡ℎ𝑒 𝑠𝑒𝑞𝑢𝑒𝑛𝑐𝑒 [a-1  𝑓𝑜𝑟 𝑟𝑒𝑚𝑜𝑣𝑒 𝑎𝑢𝑑𝑖𝑜 , a-2-1-3-4  𝑓𝑜𝑟 𝑠𝑤𝑎𝑝 𝑎𝑢𝑑𝑖𝑜]
-/changeindexsub - 𝑅𝑒𝑜𝑟𝑑𝑒𝑟 𝑡ℎ𝑒 𝑠𝑒𝑞𝑢𝑒𝑛𝑐𝑒 [s-1  𝑓𝑜𝑟 𝑟𝑒𝑚𝑜𝑣𝑒 𝑠𝑢𝑏𝑡𝑖𝑡𝑙𝑒 , s-2-1-3-4  𝑓𝑜𝑟 𝑠𝑤𝑎𝑝 𝑠𝑢𝑏𝑡𝑖𝑡𝑙𝑒]
-/changemetadata - 𝑇𝑟𝑎𝑛𝑠𝑓𝑜𝑟𝑚 𝑡ℎ𝑒 𝑚𝑒𝑡𝑎𝑑𝑎𝑡𝑎
-/removetags - 𝑇𝑜 𝑅𝑒𝑚𝑜𝑣𝑒 𝐴𝑙𝑙 𝑀𝑒𝑡𝑎𝑑𝑎𝑡𝑎 𝑇𝑎𝑔𝑠
-/merge - 𝑆𝑒𝑛𝑑 𝑢𝑝 𝑡𝑜 10 𝑣𝑖𝑑𝑒𝑜/𝑑𝑜𝑐𝑢𝑚𝑒𝑛𝑡 𝑓𝑖𝑙𝑒𝑠 𝑜𝑛𝑒 𝑏𝑦 𝑜𝑛𝑒.
-/videomerge - 𝑉𝑖𝑑𝑒𝑜𝑚𝑒𝑟𝑔𝑒 𝑤𝑖𝑡ℎ 𝑓𝑖𝑙𝑒𝑛𝑎𝑚𝑒.𝑚𝑘𝑣 𝑡𝑜 𝑠𝑡𝑎𝑟𝑡 𝑚𝑒𝑟𝑔𝑖𝑛𝑔
-/multitask - 𝑚𝑢𝑙𝑡𝑖𝑡𝑎𝑠𝑘 𝑖𝑠 𝐶ℎ𝑎𝑛𝑔𝑒𝑚𝑒𝑡𝑑𝑎𝑡𝑎 + 𝑅𝑒𝑚𝑜𝑣𝑒 𝑇𝑎𝑔𝑠 + 𝑇ℎ𝑢𝑚𝑏𝑛𝑎𝑖𝑙
-/samplevideo - 𝐶𝑟𝑒𝑎𝑡𝑒 𝐴 𝑆𝑎𝑚𝑝𝑙𝑒 𝑉𝑖𝑑𝑒𝑜 🎞️
-/screenshots - 𝐶𝑎𝑝𝑡𝑢𝑟𝑒 𝑠𝑜𝑚𝑒 𝑚𝑒𝑚𝑜𝑟𝑎𝑏𝑙𝑒 𝑠ℎ𝑜𝑡𝑠 📸
-/unzip - 𝐸𝑥𝑡𝑟𝑎𝑐𝑡 𝑓𝑖𝑙𝑒𝑠 (𝑍𝐼𝑃 𝑓𝑜𝑟𝑚𝑎𝑡 𝑜𝑛𝑙𝑦)
-/setphoto  -  𝑇𝑜 𝑎𝑑𝑑 𝑎 𝑝ℎ𝑜𝑡𝑜 𝑡𝑜 𝑎 𝑓𝑖𝑙𝑒  𝑎𝑡𝑡𝑎𝑐ℎ𝑚𝑒𝑛𝑡.𝑗𝑝𝑔 𝑓𝑜𝑟 𝑠𝑒𝑛𝑑𝑖𝑛𝑔 𝑡ℎ𝑒 𝑝ℎ𝑜𝑡𝑜 𝑎𝑠 𝑎𝑛 𝑎𝑡𝑡𝑎𝑐ℎ𝑚𝑒𝑛𝑡.
-/attachphoto - 𝑇ℎ𝑖𝑠 𝑐𝑜𝑚𝑚𝑎𝑛𝑑 𝑖𝑠 𝑢𝑠𝑒𝑑 𝑡𝑜 𝑎𝑑𝑑 𝑎 𝑝ℎ𝑜𝑡𝑜 𝑎𝑡𝑡𝑎𝑐ℎ𝑚𝑒𝑛𝑡.𝑗𝑝𝑔 𝑡𝑜 𝑎 𝑓𝑖𝑙𝑒
-/help - 𝐺𝑒𝑡 𝑑𝑒𝑡𝑎𝑖𝑙𝑒𝑑 𝑜𝑓 𝑏𝑜𝑡 𝑐𝑜𝑚𝑚𝑎𝑛𝑑𝑠 📝
-/about - 𝐿𝑒𝑎𝑟𝑛 𝑚𝑜𝑟𝑒 𝑎𝑏𝑜𝑢𝑡 𝑡ℎ𝑖𝑠 𝑏𝑜𝑡 🧑🏻‍💻
-/ping - 𝑇𝑜 𝐶ℎ𝑒𝑐𝑘 𝑇ℎ𝑒 𝑃𝑖𝑛𝑔 𝑂𝑓 𝑇ℎ𝑒 𝐵𝑜𝑡 📍
-
- 💭• Tʜɪs Bᴏᴛ Is Fᴏʟʟᴏᴡs ᴛʜᴇ 𝟸GB Bᴇʟᴏᴡ Fɪʟᴇs Tᴏ Tᴇʟᴇɢʀᴀᴍ.\n• 𝟸GB Aʙᴏᴠᴇ Fɪʟᴇs Tᴏ Gᴏᴏɢʟᴇ Dʀɪᴠᴇ.
- 
-🔱 𝐌𝐚𝐢𝐧𝐭𝐚𝐢𝐧𝐞𝐝 𝐁𝐲 : <a href='https://t.me/Sunrises_24'>𝐒𝐔𝐍𝐑𝐈𝐒𝐄𝐒™</a></b>
-    
-   """
-    await msg.reply_text(help_text)
-
-
+        
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 #FUNCTION CALLBACK HELP
@@ -217,14 +197,3 @@ async def closed(bot, msg):
         await msg.message.delete()
     except:
         return
-
-#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
-#Ping
-@Client.on_message(filters.command("ping"))
-async def ping(bot, msg):
-    start_t = time.time()
-    rm = await msg.reply_text("Checking")
-    end_t = time.time()
-    time_taken_s = (end_t - start_t) * 1000
-    await rm.edit(f"Pong!📍\n{time_taken_s:.3f} ms")
- 
