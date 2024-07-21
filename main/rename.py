@@ -1020,7 +1020,7 @@ async def change_index_subtitle(bot, msg):
     indexes = [int(i) - 1 for i in index_params[1:]]
 
     # Construct the FFmpeg command to modify indexes
-    ffmpeg_cmd = ['ffmpeg', '-i', downloaded, '-map', '0:v']  # Always map video stream
+    ffmpeg_cmd = ['ffmpeg', '-i', downloaded]
 
     for idx in indexes:
         ffmpeg_cmd.extend(['-map', f'0:{stream_type}:{idx}'])
@@ -1068,7 +1068,7 @@ async def change_index_subtitle(bot, msg):
         )
     else:
         try:
-            await bot.send_document(msg.chat.id, document=output_file, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡", sts, c_time))
+            await bot.send_document(msg.chat.id, document=output_file, file_name=output_filename, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡", sts, c_time))
         except Exception as e:
             return await safe_edit_message(sts, f"Error: {e}")
 
@@ -1077,7 +1077,6 @@ async def change_index_subtitle(bot, msg):
     if file_thumb and os.path.exists(file_thumb):
         os.remove(file_thumb)
     await sts.delete()
-
 
 
 #merge command 
