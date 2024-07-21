@@ -5,6 +5,7 @@ import asyncio
 import ffmpeg
 import os
 
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 def remove_all_tags(input_path, output_path):
     command = [
         'ffmpeg',
@@ -270,3 +271,15 @@ def extract_video_from_file(input_path):
     output_file = extract_video_stream(input_path, output_file, video_stream['index'], codec_name)
 
     return output_file
+
+# Function to extract media information using mediainfo command
+def get_mediainfo(file_path):
+    process = subprocess.Popen(
+        ["mediainfo", file_path, "--Output=HTML"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        raise Exception(f"Error getting media info: {stderr.decode().strip()}")
+    return stdout.decode().strip()
