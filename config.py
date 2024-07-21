@@ -6,7 +6,7 @@ import os
 id_pattern = re.compile(r'^.\d+$')
 
 
-API_ID = int(os.environ.get("API_ID", "10811400"))
+API_ID = os.environ.get("API_ID", "10811400")
 API_HASH = os.environ.get("API_HASH", "191bf5ae7a6c39771e7b13cf4ffd1279")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "6487202001:AAHvkz9vPGnVX_QpIPr-YvOJvHMBARepPyY")
 ADMIN = int(os.environ.get("ADMIN", '6469754522'))
