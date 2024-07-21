@@ -7,6 +7,16 @@
 
 <p align="center">🌟 PUBLIC REPO 🌟</p>
 
+## Deploy To Koyeb
+
+[![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/Aluval/MetaMorpher&env[BOT_TOKEN]&env[API_ID]&env[API_HASH]&env[FSUB_UPDATES]&env[FSUB_GROUP]&env[AUTH_USERS]&env[LOG_CHANNEL_ID]&env[WEBHOOK]=True&env[ADMIN]&env[DATABASE_URI]&env[DATABASE_NAME]=Cluster0&env[SUNRISES_PIC]&env[PORT]=8080&run_command=python%20bot.py&branch=SH24BOTS-GD-REVERSION-PVT&name=MetaMorpher) 
+
+## Deploy To Render
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Aluval/MetaMorpher)
+
+
+
 ## Deploy to Heroku
 
 Press Below Button to Deploy!
@@ -41,6 +51,8 @@ Press Below Button to Deploy!
 - `Unzip files only support extension .zip`: Unzips files specifically supporting .zip extension.
 - `Screenshots`: Captures screenshots.
 - `Sample Video`: Generates sample videos.
+- `Youtube Leech`: YouTube Leech From Link to Below 2GB Files Upload & Above 2GB Files In Drive.
+- `Mediainfo`: Media & Document 📄 Information ℹ️ 
 
 ###  **𝑅𝐸𝑄𝑈𝐼𝑅𝐸𝐷 𝑉𝐴𝑅𝐼𝐴𝐵𝐿𝐸𝑆** 
 
@@ -58,13 +70,22 @@ Press Below Button to Deploy!
 
 * `SUNRISES_PIC` - Start Pic
 
-* `AUTH_USERS` - for restart owner id 
+* `AUTH_USERS` - for restart owner id
+
+* `DATABASE_NAME` - Database Name
+
+* `DATABASE_URI` - Mongdb Url From mongodb.com.
+
+* `WEBHOOK` - True
+
+* `PORT` - 8080
 
 ### Bot Commands
  ```
 start - 𝐵𝑜𝑡 𝑎𝑙𝑖𝑣𝑒 𝑜𝑟 𝑁𝑜𝑡 🚶🏻
 usersettings - 𝑂𝑝𝑒𝑛 𝑡ℎ𝑒 𝑈𝑠𝑒𝑟𝑠𝑒𝑡𝑡𝑖𝑛𝑔𝑠 𝐹𝑜𝑟 𝐵𝑜𝑡 𝐼𝑛𝑓𝑜
 bsettings - 𝐵𝑜𝑡 𝑆𝑒𝑡𝑡𝑖𝑛𝑔𝑠 𝐸𝑛𝑎𝑏𝑙𝑒𝑑 𝑜𝑟 𝐷𝑖𝑠𝑎𝑏𝑙𝑒𝑑 [𝐴𝐷𝑀𝐼𝑁]
+clear - 𝑐𝑙𝑒𝑎𝑟 𝑡ℎ𝑒 𝑑𝑎𝑡𝑎𝑏𝑎𝑠𝑒
 setmetadata - 𝑆𝑒𝑡 𝑀𝑒𝑡𝑎𝑑𝑎𝑡𝑎 𝐼𝑛𝑑𝑖𝑣𝑖𝑑𝑢𝑎𝑙 𝑇𝑖𝑡𝑙𝑒𝑠
 gofilesetup - 𝑆𝑒𝑡𝑢𝑝 𝑇ℎ𝑒 𝐺𝑜𝑓𝑖𝑙𝑒 𝐴𝑃𝐼 𝐾𝐸𝑌 𝑓𝑟𝑜𝑚 𝐺𝑜𝑓𝑖𝑙𝑒.𝑖𝑜 ⚙️
 gdriveid - 𝑇ℎ𝑒 𝐺𝑜𝑜𝑔𝑙𝑒 𝐷𝑟𝑖𝑣𝑒 𝐹𝑜𝑙𝑑𝑒𝑟 𝐼𝐷 𝑆𝑒𝑡𝑢𝑝 📁
