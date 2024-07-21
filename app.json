@@ -48,7 +48,11 @@
         }, 
         "FSUB_GROUP": { 
             "description": "forcesub username group and admin it", 
-            "required": true 
+            "required": true
+        }, 
+        "GROUP": { 
+            "description": "Group id", 
+            "required": true    
         },
         "SUNRISES_PIC": { 
             "description": "Start Pic", 
