@@ -486,7 +486,7 @@ COMPRESS_ENABLED = True
 
 FILE_SIZE_LIMIT = 2 * 1024 * 1024 * 1024  # 2GB size limit
 
-@Client.on_message(filters.private & filters.command("compress"))
+@Client.on_message(filters.private & filters.command("comp"))
 async def compress_media(bot, msg: Message):
     global COMPRESS_ENABLED
     
