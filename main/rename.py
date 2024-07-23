@@ -2347,8 +2347,8 @@ async def get_mod_apk(bot, msg: Message):
     await sts.delete()
 
 
-# Define global variable
-COMPRESS_ENABLED = True
+
+COMPRESS_ENABLED = True  # Ensure this is defined globally
 
 
 @Client.on_message(filters.private & filters.command("compress"))
@@ -2356,29 +2356,36 @@ async def compress_media(bot, msg: Message):
     global COMPRESS_ENABLED
 
     if not COMPRESS_ENABLED:
+        print("Compress feature is disabled")
         return await msg.reply_text("The compress feature is currently disabled.")
 
     user_id = msg.from_user.id
     reply = msg.reply_to_message
     if not reply:
+        print("No reply to message")
         return await msg.reply_text("Please reply to a media file with the compress command\nFormat: `compress -n output_filename`")
 
     if len(msg.command) < 3 or msg.command[1] != "-n":
+        print("Invalid command format")
         return await msg.reply_text("Please provide the output filename with the `-n` flag\nFormat: `compress -n output_filename`")
 
     output_filename = " ".join(msg.command[2:]).strip()
     if not output_filename.lower().endswith(('.mkv', '.mp4', '.avi')):
+        print("Invalid file extension")
         return await msg.reply_text("Invalid file extension. Please use a valid video file extension (e.g., .mkv, .mp4, .avi).")
 
     media = reply.document or reply.audio or reply.video
     if not media:
+        print("No valid media file")
         return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the compress command.")
 
     sts = await msg.reply_text("🚀 Downloading media... ⚡")
     c_time = time.time()
     try:
+        print("Starting download")
         downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
     except Exception as e:
+        print(f"Error downloading media: {e}")
         await safe_edit_message(sts, f"Error downloading media: {e}")
         return
 
@@ -2386,8 +2393,10 @@ async def compress_media(bot, msg: Message):
 
     await safe_edit_message(sts, "💠 Compressing media... ⚡")
     try:
+        print("Starting compression")
         compress_video(downloaded, output_file)
     except Exception as e:
+        print(f"Error compressing media: {e}")
         await safe_edit_message(sts, f"Error compressing media: {e}")
         os.remove(downloaded)
         return
@@ -2397,12 +2406,14 @@ async def compress_media(bot, msg: Message):
     file_thumb = None
     if thumbnail_file_id:
         try:
+            print("Downloading thumbnail from database")
             file_thumb = await bot.download_media(thumbnail_file_id)
         except Exception:
             pass
     else:
         if hasattr(media, 'thumbs') and media.thumbs:
             try:
+                print("Downloading media thumbnail")
                 file_thumb = await bot.download_media(media.thumbs[0].file_id)
             except Exception as e:
                 file_thumb = None
@@ -2427,8 +2438,10 @@ async def compress_media(bot, msg: Message):
         )
     else:
         try:
+            print("Uploading to Telegram")
             await bot.send_document(msg.chat.id, document=output_file, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡", sts, c_time))
         except Exception as e:
+            print(f"Error uploading to Telegram: {e}")
             return await safe_edit_message(sts, f"Error: {e}")
 
     os.remove(downloaded)
@@ -2456,7 +2469,6 @@ def compress_video(input_path, output_path):
     stdout, stderr = process.communicate()
     if process.returncode != 0:
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
-
 
 
 
