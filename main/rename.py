@@ -563,7 +563,6 @@ async def compress_media(bot, msg: Message):
         os.remove(file_thumb)
     await sts.delete()
 
-
 def compress_video(input_path, output_path):
     command = [
         'ffmpeg',
@@ -585,7 +584,7 @@ def compress_video(input_path, output_path):
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
 
 
-  
+
 
 # Command handler for /mirror
 @Client.on_message(filters.private & filters.command("mirror"))
