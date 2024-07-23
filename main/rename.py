@@ -302,15 +302,28 @@ async def set_photo(bot, msg):
     if not reply or not reply.photo:
         return await msg.reply_text("Please reply to a photo with the setphoto command")
 
+    # Extract custom name from the command
+    if len(msg.command) < 2:
+        return await msg.reply_text("Please provide a custom name for the photo.")
+    
+    custom_name = msg.command[1]  # The custom name is the second part of the command
     user_id = msg.from_user.id
     photo_file_id = reply.photo.file_id
 
     try:
-        await db.save_attach_photo(user_id, photo_file_id)
-        await msg.reply_text("Photo saved successfully.")
+        # Download the photo file
+        photo_path = await bot.download_media(photo_file_id)
+        
+        # Save the photo with the custom name
+        custom_photo_path = f"{custom_name}.jpg"
+        os.rename(photo_path, custom_photo_path)
+
+        # Save the custom photo path to the database
+        await db.save_attach_photo(user_id, custom_photo_path)
+        await msg.reply_text(f"Photo saved successfully with the name: {custom_name}.jpg")
+
     except Exception as e:
         await msg.reply_text(f"Error saving photo: {e}")
-
 @Client.on_callback_query(filters.regex("^preview_photo$"))
 async def inline_preview_photo_callback(client, callback_query):
     await callback_query.answer()
@@ -753,18 +766,24 @@ async def attach_photo(bot, msg: Message):
         return
 
     # Retrieve attachment from the database
-    attachment_file_id = await db.get_attach_photo(msg.from_user.id)
-    if not attachment_file_id:
+    attachment_file_path = await db.get_attach_photo(msg.from_user.id)
+    if not attachment_file_path:
         await safe_edit_message(sts, "Please send a photo to be attached using the `setphoto` command.")
         os.remove(downloaded)
         return
 
-    attachment_path = await bot.download_media(attachment_file_id)
+    # Ensure the attachment exists and download it if necessary
+    attachment_path = attachment_file_path
+    if not os.path.exists(attachment_path):
+        await safe_edit_message(sts, "Attachment not found.")
+        os.remove(downloaded)
+        return
 
     output_file = output_filename
 
     await safe_edit_message(sts, "💠 Adding photo attachment... ⚡")
     try:
+        # Function to add photo attachment (assume it's defined elsewhere)
         add_photo_attachment(downloaded, attachment_path, output_file)
     except Exception as e:
         await safe_edit_message(sts, f"Error adding photo attachment: {e}")
@@ -793,6 +812,7 @@ async def attach_photo(bot, msg: Message):
     try:
         # Upload to Google Drive if file size exceeds the limit
         if filesize > FILE_SIZE_LIMIT:
+            # Function to upload to Google Drive (assume it's defined elsewhere)
             file_link = await upload_to_google_drive(output_file, os.path.basename(output_file), sts)
             button = [[InlineKeyboardButton("☁️ CloudUrl ☁️", url=f"{file_link}")]]
             await msg.reply_text(
