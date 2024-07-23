@@ -2351,7 +2351,7 @@ async def get_mod_apk(bot, msg: Message):
 COMPRESS_ENABLED = True
 
 
-@Client.on_message(filters.private & filters.command("compress))
+@Client.on_message(filters.private & filters.command("compress"))
 async def compress_media(bot, msg: Message):
     global COMPRESS_ENABLED
     
