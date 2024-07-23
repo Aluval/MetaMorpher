@@ -480,7 +480,112 @@ async def inline_preview_gofile_api_key(bot, callback_query):
 
 
 
-    
+@Client.on_message(filters.command("compress") & filters.chat(GROUP))
+async def compress_media(bot, msg: Message):
+    user_id = msg.from_user.id
+
+    reply = msg.reply_to_message
+    if not reply:
+        return await msg.reply_text("Please reply to a media file with the compress command\nFormat: `compress -n output_filename`")
+
+    if len(msg.command) < 3 or msg.command[1] != "-n":
+        return await msg.reply_text("Please provide the output filename with the `-n` flag\nFormat: `compress -n output_filename`")
+
+    output_filename = " ".join(msg.command[2:]).strip()
+
+    if not output_filename.lower().endswith(('.mkv', '.mp4', '.avi')):
+        return await msg.reply_text("Invalid file extension. Please use a valid video file extension (e.g., .mkv, .mp4, .avi).")
+
+    media = reply.document or reply.audio or reply.video
+    if not media:
+        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the compress command.")
+
+    sts = await msg.reply_text("🚀 Downloading media... ⚡")
+    c_time = time.time()
+    try:
+        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
+    except Exception as e:
+        await safe_edit_message(sts, f"Error downloading media: {e}")
+        return
+
+    output_file = output_filename
+
+    await safe_edit_message(sts, "💠 Compressing media... ⚡")
+    try:
+        compress_video(downloaded, output_file)
+    except Exception as e:
+        await safe_edit_message(sts, f"Error compressing media: {e}")
+        os.remove(downloaded)
+        return
+
+    # Retrieve thumbnail from the database
+    thumbnail_file_id = await db.get_thumbnail(user_id)
+    file_thumb = None
+    if thumbnail_file_id:
+        try:
+            file_thumb = await bot.download_media(thumbnail_file_id)
+        except Exception:
+            pass
+    else:
+        if hasattr(media, 'thumbs') and media.thumbs:
+            try:
+                file_thumb = await bot.download_media(media.thumbs[0].file_id)
+            except Exception as e:
+                file_thumb = None
+
+    filesize = os.path.getsize(output_file)
+    filesize_human = humanbytes(filesize)
+    cap = f"{output_filename}\n\n🌟 Size: {filesize_human}"
+
+    await safe_edit_message(sts, "💠 Uploading... ⚡")
+    c_time = time.time()
+
+    if filesize > FILE_SIZE_LIMIT:
+        file_link = await upload_to_google_drive(output_file, output_filename, sts)
+        button = [[InlineKeyboardButton("☁️ CloudUrl ☁️", url=f"{file_link}")]]
+        await msg.reply_text(
+            f"**File successfully compressed and uploaded to Google Drive!**\n\n"
+            f"**Google Drive Link**: [View File]({file_link})\n\n"
+            f"**Uploaded File**: {output_filename}\n"
+            f"**Request User:** {msg.from_user.mention}\n\n"
+            f"**Size**: {filesize_human}",
+            reply_markup=InlineKeyboardMarkup(button)
+        )
+    else:
+        try:
+            await bot.send_document(msg.chat.id, document=output_file, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡", sts, c_time))
+        except Exception as e:
+            return await safe_edit_message(sts, f"Error: {e}")
+
+    os.remove(downloaded)
+    os.remove(output_file)
+    if file_thumb and os.path.exists(file_thumb):
+        os.remove(file_thumb)
+    await sts.delete()
+
+
+def compress_video(input_path, output_path):
+    command = [
+        'ffmpeg',
+        '-i', input_path,
+        '-preset', 'ultrafast',
+        '-c:v', 'libx265',
+        '-crf', '27',
+        '-map', '0:v',
+        '-c:a', 'aac',
+        '-map', '0:a',
+        '-c:s', 'copy',
+        '-map', '0:s?',
+        output_path,
+        '-y'
+    ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+
+
+
   
 
 # Command handler for /mirror
@@ -2585,130 +2690,8 @@ async def ping(bot, msg):
 
 
 
-@Client.on_message(filters.command("compress") & filters.chat(GROUP))
-async def compress_media(bot, msg: Message):
-    user_id = msg.from_user.id
-
-    reply = msg.reply_to_message
-    if not reply:
-        return await msg.reply_text("Please reply to a media file with the compress command\nFormat: `compress -n output_filename`")
-
-    if len(msg.command) < 3 or msg.command[1] != "-n":
-        return await msg.reply_text("Please provide the output filename with the `-n` flag\nFormat: `compress -n output_filename`")
-
-    output_filename = " ".join(msg.command[2:]).strip()
-
-    if not output_filename.lower().endswith(('.mkv', '.mp4', '.avi')):
-        return await msg.reply_text("Invalid file extension. Please use a valid video file extension (e.g., .mkv, .mp4, .avi).")
-
-    media = reply.document or reply.audio or reply.video
-    if not media:
-        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the compress command.")
-
-    sts = await msg.reply_text("🚀 Downloading media... ⚡")
-    c_time = time.time()
-    try:
-        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
-    except Exception as e:
-        await safe_edit_message(sts, f"Error downloading media: {e}")
-        return
-
-    output_file = output_filename
-
-    await safe_edit_message(sts, "💠 Compressing media... ⚡")
-    try:
-        compress_video(downloaded, output_file)
-    except Exception as e:
-        await safe_edit_message(sts, f"Error compressing media: {e}")
-        os.remove(downloaded)
-        return
-
-    # Retrieve thumbnail from the database
-    thumbnail_file_id = await db.get_thumbnail(user_id)
-    file_thumb = None
-    if thumbnail_file_id:
-        try:
-            file_thumb = await bot.download_media(thumbnail_file_id)
-        except Exception:
-            pass
-    else:
-        if hasattr(media, 'thumbs') and media.thumbs:
-            try:
-                file_thumb = await bot.download_media(media.thumbs[0].file_id)
-            except Exception as e:
-                file_thumb = None
-
-    filesize = os.path.getsize(output_file)
-    filesize_human = humanbytes(filesize)
-    cap = f"{output_filename}\n\n🌟 Size: {filesize_human}"
-
-    await safe_edit_message(sts, "💠 Uploading... ⚡")
-    c_time = time.time()
-
-    if filesize > FILE_SIZE_LIMIT:
-        file_link = await upload_to_google_drive(output_file, output_filename, sts)
-        button = [[InlineKeyboardButton("☁️ CloudUrl ☁️", url=f"{file_link}")]]
-        await msg.reply_text(
-            f"**File successfully compressed and uploaded to Google Drive!**\n\n"
-            f"**Google Drive Link**: [View File]({file_link})\n\n"
-            f"**Uploaded File**: {output_filename}\n"
-            f"**Request User:** {msg.from_user.mention}\n\n"
-            f"**Size**: {filesize_human}",
-            reply_markup=InlineKeyboardMarkup(button)
-        )
-    else:
-        try:
-            await bot.send_document(msg.chat.id, document=output_file, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡", sts, c_time))
-        except Exception as e:
-            return await safe_edit_message(sts, f"Error: {e}")
-
-    os.remove(downloaded)
-    os.remove(output_file)
-    if file_thumb and os.path.exists(file_thumb):
-        os.remove(file_thumb)
-    await sts.delete()
-
-
-def compress_video(input_path, output_path):
-    command = [
-        'ffmpeg',
-        '-i', input_path,
-        '-preset', 'ultrafast',
-        '-c:v', 'libx265',
-        '-crf', '27',
-        '-map', '0:v',
-        '-c:a', 'aac',
-        '-map', '0:a',
-        '-c:s', 'copy',
-        '-map', '0:s?',
-        output_path,
-        '-y'
-    ]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
-
-
-from pyrogram import Client, errors
-
-
-
-async def download_file(message):
-    try:
-        file_id = message.document.file_id  # Adjust according to the file type (document, photo, etc.)
-        file_path = await app.download_media(file_id)
-        print(f"File downloaded to: {file_path}")
-    except errors.FileReferenceExpired:
-        # File reference expired, re-fetch the original message
-        new_message = await app.get_messages(message.chat.id, message.message_id)
-        file_id = new_message.document.file_id  # Adjust according to the file type (document, photo, etc.)
-        file_path = await app.download_media(file_id)
-        print(f"File downloaded to: {file_path}")
-
-
 
 
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
-    app.run(download_file)
+    app.run()
