@@ -2354,12 +2354,11 @@ COMPRESS_ENABLED = True
 @Client.on_message(filters.private & filters.command("compress"))
 async def compress_media(bot, msg: Message):
     global COMPRESS_ENABLED
-    
+
     if not COMPRESS_ENABLED:
         return await msg.reply_text("The compress feature is currently disabled.")
-    
-    user_id = msg.from_user.id
 
+    user_id = msg.from_user.id
     reply = msg.reply_to_message
     if not reply:
         return await msg.reply_text("Please reply to a media file with the compress command\nFormat: `compress -n output_filename`")
@@ -2368,7 +2367,6 @@ async def compress_media(bot, msg: Message):
         return await msg.reply_text("Please provide the output filename with the `-n` flag\nFormat: `compress -n output_filename`")
 
     output_filename = " ".join(msg.command[2:]).strip()
-
     if not output_filename.lower().endswith(('.mkv', '.mp4', '.avi')):
         return await msg.reply_text("Invalid file extension. Please use a valid video file extension (e.g., .mkv, .mp4, .avi).")
 
