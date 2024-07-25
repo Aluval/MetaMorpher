@@ -1682,12 +1682,11 @@ async def unzip(bot, msg):
     os.remove(input_path)
     shutil.rmtree(extract_path)
 
-  
-@Client.on_message(filters.command("gofile") & filters.chat(GROUP))
+  @Client.on_message(filters.command("gofile") & filters.chat(GROUP))
 async def gofile_upload(bot, msg: Message):
     user_id = msg.from_user.id
-    
-    # Retrieve the user's Gofile API key from database
+
+    # Retrieve the user's Gofile API key from the database
     gofile_api_key = await db.get_gofile_api_key(user_id)
 
     if not gofile_api_key:
@@ -1716,13 +1715,21 @@ async def gofile_upload(bot, msg: Message):
 
     try:
         async with aiohttp.ClientSession() as session:
-            # Get the server to upload the file
-            async with session.get("https://api.gofile.io/getServer") as resp:
+            # Get available servers
+            async with session.get("https://api.gofile.io/servers") as resp:
                 if resp.status != 200:
-                    return await sts.edit(f"Failed to get server. Status code: {resp.status}")
+                    return await sts.edit(f"Failed to get servers. Status code: {resp.status}")
 
                 data = await resp.json()
-                server = data["data"]["server"]
+                servers = data.get("data", {}).get("servers", [])
+                if not servers:
+                    return await sts.edit("No servers available.")
+                
+                server_name = servers[0].get("name")  # Use the server name
+                if not server_name:
+                    return await sts.edit("Server name is missing.")
+                
+                upload_url = f"https://{server_name}.gofile.io/contents/uploadfile"
 
             # Download the media file
             downloaded_file = await bot.download_media(
@@ -1736,10 +1743,11 @@ async def gofile_upload(bot, msg: Message):
             with open(downloaded_file, "rb") as file:
                 form_data = aiohttp.FormData()
                 form_data.add_field("file", file, filename=file_name)
-                form_data.add_field("token", gofile_api_key)
+                headers = {"Authorization": f"Bearer {gofile_api_key}"} if gofile_api_key else {}
 
                 async with session.post(
-                    f"https://{server}.gofile.io/uploadFile",
+                    upload_url,
+                    headers=headers,
                     data=form_data
                 ) as resp:
                     if resp.status != 200:
@@ -1761,6 +1769,7 @@ async def gofile_upload(bot, msg: Message):
                 os.remove(downloaded_file)
         except Exception as e:
             print(f"Error deleting file: {e}")
+
 
 
 @Client.on_message(filters.command("clone") & filters.chat(GROUP))
