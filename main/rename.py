@@ -856,10 +856,9 @@ async def attach_photo(bot, msg: Message):
 
 
 
-
 # Command handler
 # Command handler for changing audio index
-@Client.on_message(filters.private & filters.command("changeindexaudio"))
+@Client.on_message(filters.command("changeindexaudio") & filters.chat(GROUP))
 async def change_index_audio(bot, msg):
     global CHANGE_INDEX_ENABLED
 
@@ -982,11 +981,10 @@ async def change_index_audio(bot, msg):
         os.remove(file_thumb)
     await sts.delete()
 
-
 #changeindex subtitles 
 # Command to change index subtitle
 # Command handler for changing subtitle index
-@Client.on_message(filters.private & filters.command("changeindexsub"))
+@Client.on_message(filters.command("changeindexsub") & filters.chat(GROUP))
 async def change_index_subtitle(bot, msg):
     global CHANGE_INDEX_ENABLED
 
@@ -1095,6 +1093,7 @@ async def change_index_subtitle(bot, msg):
     if file_thumb and os.path.exists(file_thumb):
         os.remove(file_thumb)
     await sts.delete()
+
 
 
 #merge command 
