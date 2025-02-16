@@ -6,20 +6,20 @@ import os
 id_pattern = re.compile(r'^.\d+$')
 
 
-API_ID = os.environ.get("API_ID", "10811400")
-API_HASH = os.environ.get("API_HASH", "191bf5ae7a6c39771e7b13cf4ffd1279")
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "7090403697:AAEelXXHhNoWXR_duKpDJiFl39LbI7A3sU0")
-ADMIN = int(os.environ.get("ADMIN", '6469754522'))
+API_ID = os.environ.get("API_ID", "20577207")
+API_HASH = os.environ.get("API_HASH", "40b5e72e7b9607c2e5563fff5c7b0a37")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "7553174764:AAFIuN_Wceoy5R8nLkjC_ar3ZkxWBCu27P0")
+ADMIN = int(os.environ.get("ADMIN", '2041855080'))
 FSUB_UPDATES = os.environ.get("FSUB_CHANNEL", "Sunrises24BotUpdates")
 FSUB_GROUP = os.environ.get("FSUB_GROUP", "Sunrises24BotSupport")
 DATABASE_URI = os.environ.get("DATABASE_URI", "mongodb+srv://UPLOADXPRO24BOT:UPLOADXPRO24BOT@cluster0.hjfk60f.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
 DATABASE_NAME = os.environ.get("DATABASE_NAME", "Cluster0")
 CAPTION = os.environ.get("CAPTION", "")
-group = environ.get('GROUP', '-1002173560131')
+group = environ.get('GROUP', '-1002425543008')
 GROUP = int(group) if group and id_pattern.search(group) else None
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 SUNRISES_PIC= "https://graph.org/file/bd91761f6e938e2e6d23a.jpg"  # Replace with your Telegraph link
-AUTH_USERS = int(os.environ.get("AUTH_USERS", '6469754522'))
+AUTH_USERS = int(os.environ.get("AUTH_USERS", '7906265673'))
 WEBHOOK = bool(os.environ.get("WEBHOOK", True))
 PORT = int(os.environ.get("PORT", "8080"))
-LOG_CHANNEL_ID = os.environ.get("LOG_CHANNEL_ID", -1002145984196)
+LOG_CHANNEL_ID = os.environ.get("LOG_CHANNEL_ID", -1002458070572)
