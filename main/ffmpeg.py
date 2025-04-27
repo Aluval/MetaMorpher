@@ -284,7 +284,7 @@ def get_mediainfo(file_path):
         raise Exception(f"Error getting media info: {stderr.decode().strip()}")
     return stdout.decode().strip()
 
-"""
+
 # Function to compress Ffmpeg information using compress command
 def compress_video(input_path, output_path, video_title, audio_title, subtitle_title):
     command = [
@@ -314,54 +314,7 @@ def compress_video(input_path, output_path, video_title, audio_title, subtitle_t
     stdout, stderr = process.communicate()
     if process.returncode != 0:
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
-"""
 
-
-def compress_video(input_path, output_path, video_title, audio_title, subtitle_title):
-    if not os.path.exists(input_path):
-        raise FileNotFoundError(f"Input file not found: {input_path}")
-
-    command = [
-        'ffmpeg',
-        '-hide_banner',
-        '-i', input_path,
-        '-c:v', 'libx264',
-        '-crf', '28',
-        '-pix_fmt', 'yuv420p',
-        '-s', '854x480',
-        '-preset', 'ultrafast',
-        '-c:a', 'libopus',
-        '-b:a', '128k',
-        '-map', '0:v:0',  # First video
-        '-map', '0:a?',   # All audios (if any)
-        '-map', '0:s?',   # All subtitles (if any)
-        '-metadata', f'title={video_title}',
-        '-metadata:s:v:0', f'title={video_title}',
-        '-metadata:s:a', f'title={audio_title}',
-        '-metadata:s:s', f'title={subtitle_title}',
-        '-y',
-        output_path
-    ]
-
-    print(f"🔄 Compressing `{os.path.basename(input_path)}`... Please wait.")
-
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-
-    # Reading FFmpeg output live
-    while True:
-        output = process.stderr.readline()
-        if output == '' and process.poll() is not None:
-            break
-        if output:
-            # Optional: parse output and show % progress if you want
-            sys.stdout.write(output)
-            sys.stdout.flush()
-
-    if process.returncode != 0:
-        stderr = process.stderr.read()
-        raise Exception(f"❌ FFmpeg compression failed:\n{stderr}")
-    
-    print(f"✅ Compression finished: {output_path}")
 
 # Function to compress mediainfo information using compress command
 async def get_and_upload_mediainfo(bot, output_file, media):
