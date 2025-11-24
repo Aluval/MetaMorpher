@@ -75,6 +75,13 @@ selected_streams = set()
 downloaded = None
 output_filename = None
 
+import os
+
+# Write cookies.txt from GitHub Secrets
+if os.getenv("YT_COOKIES"):
+    with open("cookies.txt", "w", encoding="utf-8") as f:
+        f.write(os.getenv("YT_COOKIES"))
+
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Command handler to start the interaction (only in admin)
 @Client.on_message(filters.command("bsettings") & filters.chat(ADMIN))
