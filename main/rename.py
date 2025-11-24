@@ -73,6 +73,7 @@ COMPRESS_ENABLED = True
 #varibles for streameremove
 selected_streams = set()
 downloaded = None
+output_filename = None
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Command handler to start the interaction (only in admin)
