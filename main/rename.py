@@ -2202,7 +2202,8 @@ async def ytdlleech_handler(client: Client, msg: Message):
         'skip_download': True,
         'force_generic_extractor': True,
         'noplaylist': True,
-        'merge_output_format': 'mkv'
+        'merge_output_format': 'mkv',
+        'cookies': 'cookies.txt'
     }
 
     try:
@@ -2265,6 +2266,7 @@ async def callback_query_handler(client: Client, query):
         'outtmpl': file_name,
         'quiet': True,
         'noplaylist': True,
+        'cookies': 'cookies.txt',
         'progress_hooks': [await progress_hook(status_message=sts)],
         'merge_output_format': 'mkv'
     }
