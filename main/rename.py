@@ -220,7 +220,7 @@ async def update_settings_message(message):
     mirror_status = "✅ Enabled" if MIRROR_ENABLED else "❌ Disabled"
     rename_status = "✅ Enabled" if RENAME_ENABLED else "❌ Disabled"
     removealltags_status = "✅ Enabled" if REMOVETAGS_ENABLED else "❌ Disabled"
-    change_index_status = "✅ Enabled" if CHANGE_INDEX_ENABLED else "❌ Disabled"
+    swap_index_status = "✅ Enabled" if SWAP_INDEX_ENABLED else "❌ Disabled"
     merge_video_status = "✅ Enabled" if MERGE_ENABLED else "❌ Disabled"   
     multitask_status = "✅ Enabled" if MULTITASK_ENABLED else "❌ Disabled"    
     streamremove_status = "✅ Enabled" if STREAMREMOVE_ENABLED else "❌ Disabled"    
@@ -233,7 +233,7 @@ async def update_settings_message(message):
             [InlineKeyboardButton(f"{rename_status} Change Rename 📝", callback_data="toggle_rename")],
             [InlineKeyboardButton(f"{removealltags_status} Remove All Tags 📛", callback_data="toggle_removealltags")],
             [InlineKeyboardButton(f"{metadata_status} Change Metadata ☄️", callback_data="toggle_metadata")],            
-            [InlineKeyboardButton(f"{change_index_status} Change Index ♻️", callback_data="toggle_change_index")],
+            [InlineKeyboardButton(f"{swap_index_status} Swap Index ♻️", callback_data="toggle_swap_index")],
             [InlineKeyboardButton(f"{merge_video_status} Merge Video 🎞️", callback_data="toggle_merge_video")],
             [InlineKeyboardButton(f"{photo_attach_status} Attach Photo 🖼️", callback_data="toggle_photo_attach")],                        
             [InlineKeyboardButton(f"{mirror_status} Mirror 💽", callback_data="toggle_mirror")],
