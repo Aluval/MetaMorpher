@@ -2184,7 +2184,7 @@ async def clean_files(bot, msg: Message):
     except Exception as e:
         await msg.reply_text(f"An unexpected error occurred: {e}")
 
-
+"""
 
 #Downloading Progress Hook For YouTube In logs work process 
 async def progress_hook(status_message):
@@ -2324,6 +2324,159 @@ async def callback_query_handler(client: Client, query):
             os.remove(file_name)
         await sts.delete()
         await query.message.delete()
+"""
+async def progress_hook(status_message):
+    async def hook(d):
+        if d['status'] == 'downloading':
+            percent = d.get('_percent_str', '0%')
+            size = humanbytes(d.get('total_bytes', 0))
+            await safe_edit_message(status_message, f"🚀 Downloading...\nProgress: {percent}\nSize: {size}")
+        elif d['status'] == 'finished':
+            await safe_edit_message(status_message, "Download finished. 🚀")
+    return hook
+
+
+@Client.on_message(filters.private & filters.command("ytdlleech"))
+async def ytdlleech_handler(client: Client, msg: Message):
+    if len(msg.command) < 2:
+        return await msg.reply_text("Please provide a YouTube link.")
+
+    url = msg.text.split(" ", 1)[1].strip()
+
+    ydl_opts = {
+        'quiet': True,
+        'skip_download': True,
+        'noplaylist': True,
+        'cookies': 'cookies.txt',
+
+        # FIX YOUTUBE JS ISSUE WITHOUT NODE
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'ios']   # Mobile clients bypass many restrictions
+            }
+        },
+
+        # Real browser User-Agent
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 12; Pixel 6) '
+                          'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Mobile Safari/537.36'
+        },
+    }
+
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            formats = info.get("formats", [])
+
+            # Build button list
+            buttons = []
+            for f in formats:
+                if f.get("filesize") is None:
+                    continue
+                label = f"{f.get('format_note', '-')}: {humanbytes(f['filesize'])}"
+                buttons.append(
+                    InlineKeyboardButton(label, callback_data=f"{f['format_id']}")
+                )
+
+            buttons = [buttons[i:i+2] for i in range(0, len(buttons), 2)]
+            await msg.reply_text("Choose quality:", reply_markup=InlineKeyboardMarkup(buttons))
+
+            user_selection = {
+                "url": url,
+                "title": info.get("title", "video"),
+                "formats": formats
+            }
+            await db.save_user_quality_selection(msg.from_user.id, user_selection)
+
+    except Exception as e:
+        await msg.reply_text(f"Error: {e}")
+
+
+@Client.on_callback_query(filters.regex(r"^\d+$"))
+async def ytdlleech_callback(client: Client, query: CallbackQuery):
+    user_id = query.from_user.id
+    format_id = query.data
+
+    selection = await db.get_user_quality_selection(user_id)
+    if not selection:
+        return await query.answer("No active download.")
+
+    url = selection["url"]
+    title = selection["title"]
+    formats = selection["formats"]
+
+    fmt = next((f for f in formats if f["format_id"] == format_id), None)
+    if not fmt:
+        return await query.answer("Invalid selection!")
+
+    quality = fmt.get("format_note", "Unknown")
+    size = fmt.get("filesize", 0)
+
+    filename = f"{title} - {quality}.mkv"
+    sts = await query.message.reply_text(f"🚀 Downloading {quality} ({humanbytes(size)})...")
+
+    ydl_opts = {
+        'format': f"{format_id}+bestaudio/best",
+        'outtmpl': filename,
+        'quiet': True,
+        'noplaylist': True,
+        'cookies': 'cookies.txt',
+
+        # Workaround for JS-based formats
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'ios']
+            }
+        },
+
+        # Real device UA
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 12; Pixel 6) '
+                          'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Mobile Safari/537.36'
+        },
+
+        'progress_hooks': [await progress_hook(sts)],
+        'merge_output_format': 'mkv'
+    }
+
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+
+        if not os.path.exists(filename):
+            return await safe_edit_message(sts, "❌ Download failed.")
+
+        # LARGE FILE → GOOGLE DRIVE
+        if size >= FILE_SIZE_LIMIT:
+            await safe_edit_message(sts, "☁️ Uploading to Google Drive...")
+            link = await upload_to_google_drive(filename, filename, sts)
+
+            btn = [[InlineKeyboardButton("☁️ Open File ☁️", url=link)]]
+            await query.message.reply_text(
+                f"Uploaded to Drive:\n{filename}\n{humanbytes(size)}",
+                reply_markup=InlineKeyboardMarkup(btn)
+            )
+
+        # SMALL FILE → TELEGRAM
+        else:
+            await safe_edit_message(sts, "📤 Uploading to Telegram...")
+            with open(filename, "rb") as f:
+                await query.message.reply_document(
+                    document=f,
+                    caption=f"{title}\nSize: {humanbytes(size)}",
+                    progress=progress_message,
+                    progress_args=("📤 Uploading...", sts, time.time())
+                )
+
+    except Exception as e:
+        await safe_edit_message(sts, f"Error: {e}")
+
+    finally:
+        if os.path.exists(filename):
+            os.remove(filename)
+        await sts.delete()
+        await query.message.delete()
+        
 
 
 @Client.on_message(filters.command("mediainfo") & filters.private)
