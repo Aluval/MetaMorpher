@@ -74,20 +74,20 @@ selected_streams = set()
 downloaded = None
 output_filename = None
 
-import os
+import os, base64
 
-KOYEB_COOKIE = "/var/run/secrets/YT_COOKIES_FILE"
-LOCAL_COOKIE = "cookies.txt"
+cookie_env = os.getenv("YT_COOKIES_B64")
 
-if os.path.exists(KOYEB_COOKIE):
-    print("✔ Koyeb cookie secret found.")
-    with open(KOYEB_COOKIE, "r", encoding="utf-8") as src:
-        data = src.read()
-    with open(LOCAL_COOKIE, "w", encoding="utf-8") as dst:
-        dst.write(data)
-    print("✔ cookies.txt created at:", os.path.abspath(LOCAL_COOKIE))
+if cookie_env:
+    try:
+        decoded = base64.b64decode(cookie_env)
+        with open("cookies.txt", "wb") as f:
+            f.write(decoded)
+        print("✔ cookies.txt created from base64 secret.")
+    except Exception as e:
+        print("❌ Failed to decode cookies:", e)
 else:
-    print("❌ Koyeb cookie secret NOT found.")
+    print("❌ Base64 cookie secret NOT found.")
 
 # Diagnostic checks
 print("=== COOKIE DEBUG ===")
