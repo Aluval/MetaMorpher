@@ -6,6 +6,10 @@ import ffmpeg
 import os, sys
 from html_telegraph_poster import TelegraphPoster
 
+# Initialize Telegraph
+telegraph = TelegraphPoster(use_api=True)
+telegraph.create_api_token("MediaInfoBot")
+
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 def remove_all_tags(input_path, output_path):
     command = [
@@ -334,6 +338,6 @@ async def get_and_upload_mediainfo(bot, output_file, media):
         author_url="https://t.me/Sunrises24BotUpdates",
         text=media_info_html
     )
-    link = f"https://graph.org/{response['path']}"
 
+    link = f"https://graph.org/{response['path']}"
     return media_info_html, link
