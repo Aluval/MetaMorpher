@@ -4,6 +4,7 @@ import zipfile
 import asyncio
 import ffmpeg
 import os, sys
+import telegraph
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 def remove_all_tags(input_path, output_path):
