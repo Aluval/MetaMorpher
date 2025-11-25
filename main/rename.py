@@ -82,6 +82,11 @@ if os.getenv("YT_COOKIES_B64"):
     with open("cookies.txt", "w", encoding="utf-8") as f:
         f.write(decoded)
 
+# Debug: check cookies file exists
+print("Cookies exists:", os.path.exists("cookies.txt"))
+if os.path.exists("cookies.txt"):
+    print("Cookies size:", os.path.getsize("cookies.txt"))
+
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Command handler to start the interaction (only in admin)
 @Client.on_message(filters.command("bsettings") & filters.chat(ADMIN))
