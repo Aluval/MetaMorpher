@@ -4,7 +4,7 @@ import zipfile
 import asyncio
 import ffmpeg
 import os, sys
-import telegraph
+from html_telegraph_poster import TelegraphPoster
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 def remove_all_tags(input_path, output_path):
