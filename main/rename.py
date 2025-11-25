@@ -74,12 +74,13 @@ selected_streams = set()
 downloaded = None
 output_filename = None
 
-import os
+import os, base64
 
-# Write cookies.txt from GitHub Secrets
-if os.getenv("YT_COOKIES"):
+# Decode YouTube cookies from Base64 GitHub Secret
+if os.getenv("YT_COOKIES_B64"):
+    decoded = base64.b64decode(os.getenv("YT_COOKIES_B64")).decode("utf-8")
     with open("cookies.txt", "w", encoding="utf-8") as f:
-        f.write(os.getenv("YT_COOKIES"))
+        f.write(decoded)
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Command handler to start the interaction (only in admin)
@@ -2207,7 +2208,6 @@ async def ytdlleech_handler(client: Client, msg: Message):
     ydl_opts = {
         'quiet': True,
         'skip_download': True,
-        'force_generic_extractor': True,
         'noplaylist': True,
         'merge_output_format': 'mkv',
         'cookies': 'cookies.txt'
