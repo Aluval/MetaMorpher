@@ -74,18 +74,29 @@ selected_streams = set()
 downloaded = None
 output_filename = None
 
-import os, base64
+import os, base64, sys
 
-# Decode YouTube cookies from Base64 GitHub Secret
+# decode secret (you already do this)
 if os.getenv("YT_COOKIES_B64"):
     decoded = base64.b64decode(os.getenv("YT_COOKIES_B64")).decode("utf-8")
     with open("cookies.txt", "w", encoding="utf-8") as f:
         f.write(decoded)
 
-# Debug: check cookies file exists
-print("Cookies exists:", os.path.exists("cookies.txt"))
-if os.path.exists("cookies.txt"):
-    print("Cookies size:", os.path.getsize("cookies.txt"))
+# Diagnostic checks
+print("=== COOKIE DEBUG ===")
+print("CWD:", os.getcwd())
+cookie_path = os.path.abspath("cookies.txt")
+print("Cookie path:", cookie_path)
+print("Cookies exists:", os.path.exists(cookie_path))
+if os.path.exists(cookie_path):
+    print("Cookies size (bytes):", os.path.getsize(cookie_path))
+    # print first 5 lines (safe debug)
+    with open(cookie_path, "r", encoding="utf-8", errors="ignore") as cf:
+        for i, line in enumerate(cf):
+            if i >= 5: break
+            print("LINE", i+1, ":", line.strip())
+print("====================", flush=True)
+
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 # Command handler to start the interaction (only in admin)
@@ -2330,17 +2341,28 @@ async def callback_query_handler(client: Client, query):
         await sts.delete()
         await query.message.delete()
 """
+import os
+
+# Absolute path for the cookies file
+cookie_path = os.path.abspath("cookies.txt")
+
+
+# Progress Hook
 async def progress_hook(status_message):
     async def hook(d):
         if d['status'] == 'downloading':
             percent = d.get('_percent_str', '0%')
-            size = humanbytes(d.get('total_bytes', 0))
+            size = humanbytes(d.get('downloaded_bytes', 0))
             await safe_edit_message(status_message, f"🚀 Downloading...\nProgress: {percent}\nSize: {size}")
         elif d['status'] == 'finished':
             await safe_edit_message(status_message, "Download finished. 🚀")
     return hook
 
 
+
+# ===========================
+#       /ytdlleech
+# ===========================
 @Client.on_message(filters.private & filters.command("ytdlleech"))
 async def ytdlleech_handler(client: Client, msg: Message):
     if len(msg.command) < 2:
@@ -2348,24 +2370,30 @@ async def ytdlleech_handler(client: Client, msg: Message):
 
     url = msg.text.split(" ", 1)[1].strip()
 
+    # FORMAT LIST OPTIONS
     ydl_opts = {
         'quiet': True,
         'skip_download': True,
         'noplaylist': True,
-        'cookies': 'cookies.txt',
+        'merge_output_format': 'mkv',
 
-        # FIX YOUTUBE JS ISSUE WITHOUT NODE
+        # Cookies
+        'cookies': cookie_path,
+        'cookiefile': cookie_path,
+
+        # Prevent JS runtime requirement
         'extractor_args': {
-            'youtube': {
-                'player_client': ['android', 'ios']   # Mobile clients bypass many restrictions
-            }
+            'youtube': {'player_client': ['android', 'ios']}
         },
 
-        # Real browser User-Agent
+        # Real Android browser UA
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 12; Pixel 6) '
-                          'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Mobile Safari/537.36'
-        },
+            'User-Agent': (
+                'Mozilla/5.0 (Linux; Android 12; Pixel 6) '
+                'AppleWebKit/537.36 (KHTML, like Gecko) '
+                'Chrome/121.0 Mobile Safari/537.36'
+            )
+        }
     }
 
     try:
@@ -2373,30 +2401,31 @@ async def ytdlleech_handler(client: Client, msg: Message):
             info = ydl.extract_info(url, download=False)
             formats = info.get("formats", [])
 
-            # Build button list
+            # Create buttons
             buttons = []
             for f in formats:
                 if f.get("filesize") is None:
                     continue
                 label = f"{f.get('format_note', '-')}: {humanbytes(f['filesize'])}"
-                buttons.append(
-                    InlineKeyboardButton(label, callback_data=f"{f['format_id']}")
-                )
+                buttons.append(InlineKeyboardButton(label, callback_data=f"{f['format_id']}"))
 
-            buttons = [buttons[i:i+2] for i in range(0, len(buttons), 2)]
+            buttons = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
             await msg.reply_text("Choose quality:", reply_markup=InlineKeyboardMarkup(buttons))
 
-            user_selection = {
-                "url": url,
-                "title": info.get("title", "video"),
-                "formats": formats
-            }
-            await db.save_user_quality_selection(msg.from_user.id, user_selection)
+            # Save user selection
+            await db.save_user_quality_selection(
+                msg.from_user.id,
+                {"url": url, "title": info.get("title", "video"), "formats": formats}
+            )
 
     except Exception as e:
         await msg.reply_text(f"Error: {e}")
 
 
+
+# ===========================
+#     QUALITY CALLBACK
+# ===========================
 @Client.on_callback_query(filters.regex(r"^\d+$"))
 async def ytdlleech_callback(client: Client, query: CallbackQuery):
     user_id = query.from_user.id
@@ -2416,28 +2445,34 @@ async def ytdlleech_callback(client: Client, query: CallbackQuery):
 
     quality = fmt.get("format_note", "Unknown")
     size = fmt.get("filesize", 0)
-
     filename = f"{title} - {quality}.mkv"
+
     sts = await query.message.reply_text(f"🚀 Downloading {quality} ({humanbytes(size)})...")
 
+
+    # DOWNLOAD OPTIONS
     ydl_opts = {
         'format': f"{format_id}+bestaudio/best",
         'outtmpl': filename,
         'quiet': True,
         'noplaylist': True,
-        'cookies': 'cookies.txt',
 
-        # Workaround for JS-based formats
+        # FIX: Correct cookie path applied here too
+        'cookies': cookie_path,
+        'cookiefile': cookie_path,
+
+        # JS-free extraction
         'extractor_args': {
-            'youtube': {
-                'player_client': ['android', 'ios']
-            }
+            'youtube': {'player_client': ['android', 'ios']}
         },
 
-        # Real device UA
+        # Mobile UA bypasses many restrictions
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 12; Pixel 6) '
-                          'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Mobile Safari/537.36'
+            'User-Agent': (
+                'Mozilla/5.0 (Linux; Android 12; Pixel 6) '
+                'AppleWebKit/537.36 (KHTML, like Gecko) '
+                'Chrome/121.0 Mobile Safari/537.36'
+            )
         },
 
         'progress_hooks': [await progress_hook(sts)],
@@ -2445,13 +2480,15 @@ async def ytdlleech_callback(client: Client, query: CallbackQuery):
     }
 
     try:
+        # DOWNLOAD
         with YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
+        # Check file
         if not os.path.exists(filename):
             return await safe_edit_message(sts, "❌ Download failed.")
 
-        # LARGE FILE → GOOGLE DRIVE
+        # Google Drive for large files
         if size >= FILE_SIZE_LIMIT:
             await safe_edit_message(sts, "☁️ Uploading to Google Drive...")
             link = await upload_to_google_drive(filename, filename, sts)
@@ -2462,7 +2499,7 @@ async def ytdlleech_callback(client: Client, query: CallbackQuery):
                 reply_markup=InlineKeyboardMarkup(btn)
             )
 
-        # SMALL FILE → TELEGRAM
+        # Telegram for small files
         else:
             await safe_edit_message(sts, "📤 Uploading to Telegram...")
             with open(filename, "rb") as f:
@@ -2481,7 +2518,10 @@ async def ytdlleech_callback(client: Client, query: CallbackQuery):
             os.remove(filename)
         await sts.delete()
         await query.message.delete()
-        
+
+    
+
+
 
 
 @Client.on_message(filters.command("mediainfo") & filters.private)
