@@ -1,28 +1,11 @@
-# ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
-
-# Use latest stable Python version
-FROM python:3.12-slim
-
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+FROM python:3.10
 WORKDIR /app
 COPY . /app/
-
-# Install system packages + FFmpeg + Mediainfo
+# Install FFmpeg
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        ffmpeg \
-        git \
-        wget \
-        pv \
-        jq \
-        python3-dev \
-        mediainfo && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Start bot
+    apt-get install -y ffmpeg
+RUN apt -qq update && apt -qq install -y git wget pv jq wget python3-dev ffmpeg mediainfo
+RUN pip install -r requirements.txt
 CMD ["python", "bot.py"]
-
-# TG: @Sunrises_24
+#TG:@Sunrises_24
