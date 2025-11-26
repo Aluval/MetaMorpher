@@ -405,6 +405,27 @@ async def compress_video(
 
     return True
 
+async def safe_edit_message(msg, text):
+    if msg is None:
+        return
+
+    try:
+        # Prevent MessageNotModified
+        if msg.text == text:
+            return
+
+        await msg.edit_text(text)
+    except MessageNotModified:
+        pass
+    except FloodWait as e:
+        await asyncio.sleep(e.value)
+        try:
+            await msg.edit_text(text)
+        except:
+            pass
+    except Exception:
+        pass
+        
 # Function to compress mediainfo information using compress command
 async def get_and_upload_mediainfo(bot, output_file, media):
     media_info_html = get_mediainfo(output_file)
