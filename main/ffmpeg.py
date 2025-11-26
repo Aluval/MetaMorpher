@@ -11,6 +11,7 @@ import json
 from html_telegraph_poster import TelegraphPoster
 from pyrogram.errors import FloodWait, MessageNotModified
 import traceback
+from main.utils import Time_formatter
 
 # Initialize Telegraph
 telegraph = TelegraphPoster(use_api=True)
@@ -424,7 +425,7 @@ async def compress_video(
 
                 await safe_edit_message(
                     sts_msg,
-                    f"⚙️ **Compressing:** {percent}%\n⏳ ETA: {time_formatter(eta)}"
+                    f"⚙️ **Compressing:** {percent}%\n⏳ ETA: {Time_formatter(eta)}"
                 )
 
                 last_percent = percent
