@@ -342,7 +342,7 @@ async def compress_video(
         'ffmpeg',
         '-i', input_path,
         '-c:v', 'libx265',
-        '-bv', '500k',
+        '-b:v', '500k',
         '-preset', 'superfast',
         '-pix_fmt', 'yuv420p',      
 
