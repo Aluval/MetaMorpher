@@ -289,7 +289,7 @@ def get_mediainfo(file_path):
         raise Exception(f"Error getting media info: {stderr.decode().strip()}")
     return stdout.decode().strip()
 
-
+"""
 # Function to compress Ffmpeg information using compress command
 def compress_video(input_path, output_path, video_title, audio_title, subtitle_title):
     command = [
@@ -319,7 +319,91 @@ def compress_video(input_path, output_path, video_title, audio_title, subtitle_t
     stdout, stderr = process.communicate()
     if process.returncode != 0:
         raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
+"""
 
+async def compress_video(
+    input_path, output_path,
+    video_title, audio_title, subtitle_title,
+    sts_msg
+):
+    # ---- Get duration ----
+    try:
+        duration_cmd = [
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=nk=1:nwp=1", input_path
+        ]
+        total_duration = float(subprocess.check_output(duration_cmd).decode().strip())
+    except:
+        await safe_edit_message(sts_msg, "❌ Could not read video duration.")
+        return False
+
+    # ---- FFmpeg Command (FAST + metadata) ----
+    command = [
+        'ffmpeg',
+        '-i', input_path,
+        '-c:v', 'libx264',
+        '-crf', '28',
+        '-preset', 'ultrafast',
+        '-pix_fmt', 'yuv420p',
+        '-s', '854x480',
+
+        '-c:a', 'libopus',
+        '-b:a', '128k',
+
+        '-map', '0:v:0',
+        '-map', '0:a',
+        '-map', '0:s?',
+
+        '-metadata', f'title={video_title}',
+        '-metadata:s:v:0', f'title={video_title}',
+        '-metadata:s:a', f'title={audio_title}',
+        '-metadata:s:s', f'title={subtitle_title}',
+
+        '-movflags', '+faststart',
+        '-y', output_path
+    ]
+
+    # ---- Start FFmpeg ----
+    process = subprocess.Popen(
+        command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+    )
+
+    # Pattern for ffmpeg time=
+    time_pattern = re.compile(r'time=(\d+):(\d+):(\d+).(\d+)')
+
+    start_time = time.time()
+    last_percent = -1
+
+    # ---- TRACK PROGRESS ----
+    while True:
+        line = process.stdout.readline()
+        if line == "" and process.poll() is not None:
+            break
+
+        match = time_pattern.search(line)
+        if match:
+            h, m, s, ms = map(int, match.groups())
+            cur = h * 3600 + m * 60 + s + (ms / 100)
+
+            percent = int((cur / total_duration) * 100)
+
+            if percent != last_percent and percent > 0:
+                elapsed = time.time() - start_time
+                eta = (elapsed * (100 - percent) / percent) if percent else 0
+
+                await safe_edit_message(
+                    sts_msg,
+                    f"⚙️ **Compressing:** {percent}%\n"
+                    f"⏳ ETA: {time_formatter(eta)}"
+                )
+                last_percent = percent
+
+    if process.poll() != 0:
+        await safe_edit_message(sts_msg, "❌ FFmpeg failed.")
+        return False
+
+    return True
 
 # Function to compress mediainfo information using compress command
 async def get_and_upload_mediainfo(bot, output_file, media):
