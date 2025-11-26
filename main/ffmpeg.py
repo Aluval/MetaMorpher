@@ -5,6 +5,7 @@ import asyncio
 import ffmpeg
 import os, sys
 from html_telegraph_poster import TelegraphPoster
+from pyrogram.errors import FloodWait, MessageNotModified
 
 # Initialize Telegraph
 telegraph = TelegraphPoster(use_api=True)
