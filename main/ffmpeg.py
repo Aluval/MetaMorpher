@@ -327,19 +327,49 @@ async def compress_video(
     video_title, audio_title, subtitle_title,
     sts_msg
 ):
-    # ---- Get duration ----
+    # ---- Get duration (SAFE) ----
     try:
         duration_cmd = [
-            "ffprobe", "-v", "error",
-            "-show_entries", "format=duration",
-            "-of", "default=nk=1:nwp=1", input_path
+            "ffprobe", "-v", "quiet",
+            "-print_format", "json",
+            "-show_format",
+            "-show_streams",
+            input_path
         ]
-        total_duration = float(subprocess.check_output(duration_cmd).decode().strip())
-    except:
-        await safe_edit_message(sts_msg, "❌ Could not read video duration.")
+
+        result = subprocess.run(duration_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        if not result.stdout:
+            await safe_edit_message(sts_msg, "❌ ffprobe returned empty output. File may be corrupted.")
+            return False
+
+        info = json.loads(result.stdout)
+
+        # Try format.duration
+        if "format" in info and "duration" in info["format"]:
+            total_duration = float(info["format"]["duration"])
+
+        # Try stream-level duration
+        else:
+            durations = []
+            for s in info.get("streams", []):
+                if "duration" in s:
+                    durations.append(float(s["duration"]))
+                elif "tags" in s and "DURATION" in s["tags"]:
+                    # Convert HH:MM:SS.mmm to seconds
+                    h, m, s = s["tags"]["DURATION"].split(":")
+                    durations.append(float(h) * 3600 + float(m) * 60 + float(s))
+
+            if durations:
+                total_duration = max(durations)
+            else:
+                raise Exception("ffprobe did not provide duration.")
+
+    except Exception as e:
+        await safe_edit_message(sts_msg, f"❌ Could not read video duration.\n{e}")
         return False
 
-    # ---- FFmpeg Command (FAST + metadata) ----
+    # ---- FFmpeg Command (FAST) ----
     command = [
         'ffmpeg',
         '-i', input_path,
@@ -348,7 +378,6 @@ async def compress_video(
         '-preset', 'ultrafast',
         '-pix_fmt', 'yuv420p',
         '-s', '854x480',
-
         '-c:a', 'libopus',
         '-b:a', '128k',
 
@@ -365,18 +394,13 @@ async def compress_video(
         '-y', output_path
     ]
 
-    # ---- Start FFmpeg ----
-    process = subprocess.Popen(
-        command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
-    )
+    # ---- RUN FFMPEG WITH PROGRESS ----
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 
-    # Pattern for ffmpeg time=
-    time_pattern = re.compile(r'time=(\d+):(\d+):(\d+).(\d+)')
-
+    time_pattern = re.compile(r'time=(\d+):(\d+):(\d+)[\.:](\d+)')
     start_time = time.time()
     last_percent = -1
 
-    # ---- TRACK PROGRESS ----
     while True:
         line = process.stdout.readline()
         if line == "" and process.poll() is not None:
@@ -384,8 +408,8 @@ async def compress_video(
 
         match = time_pattern.search(line)
         if match:
-            h, m, s, ms = map(int, match.groups())
-            cur = h * 3600 + m * 60 + s + (ms / 100)
+            h, m, s, ms = match.groups()
+            cur = int(h) * 3600 + int(m) * 60 + int(s) + (int(ms) / 100)
 
             percent = int((cur / total_duration) * 100)
 
@@ -395,9 +419,9 @@ async def compress_video(
 
                 await safe_edit_message(
                     sts_msg,
-                    f"⚙️ **Compressing:** {percent}%\n"
-                    f"⏳ ETA: {time_formatter(eta)}"
+                    f"⚙️ **Compressing:** {percent}%\n⏳ ETA: {time_formatter(eta)}"
                 )
+
                 last_percent = percent
 
     if process.poll() != 0:
@@ -409,12 +433,9 @@ async def compress_video(
 async def safe_edit_message(msg, text):
     if msg is None:
         return
-
     try:
-        # Prevent MessageNotModified
         if msg.text == text:
             return
-
         await msg.edit_text(text)
     except MessageNotModified:
         pass
@@ -424,9 +445,9 @@ async def safe_edit_message(msg, text):
             await msg.edit_text(text)
         except:
             pass
-    except Exception:
+    except:
         pass
-        
+
 # Function to compress mediainfo information using compress command
 async def get_and_upload_mediainfo(bot, output_file, media):
     media_info_html = get_mediainfo(output_file)
