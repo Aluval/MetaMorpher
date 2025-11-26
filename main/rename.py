@@ -3556,9 +3556,7 @@ async def process_media(bot, callback_query, selected_streams, downloaded, outpu
 
     await sts.delete()
 
-            
-
-    
+  """          
 #handler is Compress
 @Client.on_message(filters.private & filters.command("compress"))
 async def compress_media(bot, msg: Message):
@@ -3657,6 +3655,136 @@ async def compress_media(bot, msg: Message):
     if file_thumb and os.path.exists(file_thumb):
         os.remove(file_thumb)
     await sts.delete()
+"""
+@Client.on_message(filters.private & filters.command("compress"))
+async def compress_media(bot, msg: Message):
+    global COMPRESS_ENABLED
+
+    if not COMPRESS_ENABLED:
+        return await msg.reply_text("Compress feature is currently disabled.")
+
+    user_id = msg.from_user.id
+    reply = msg.reply_to_message
+
+    if not reply:
+        return await msg.reply_text(
+            "Please reply to a video or media.\nFormat:\n`compress -n output.mp4`"
+        )
+
+    if len(msg.command) < 3 or msg.command[1] != "-n":
+        return await msg.reply_text(
+            "Invalid format.\nUse:\n`compress -n output.mp4`"
+        )
+
+    output_filename = " ".join(msg.command[2:]).strip()
+
+    if not output_filename.lower().endswith(('.mp4', '.mkv', '.avi')):
+        return await msg.reply_text("Invalid extension. Use .mp4 / .mkv / .avi")
+
+    media = reply.document or reply.video or reply.audio
+    if not media:
+        return await msg.reply_text("Reply to a valid media file only.")
+
+    # ---- START DOWNLOAD ----
+    sts = await msg.reply_text("⬇️ **Downloading...**")
+    c_time = time.time()
+
+    try:
+        downloaded = await reply.download(
+            progress=progress_message,
+            progress_args=("⬇️ **Download Started**", sts, c_time)
+        )
+    except Exception as e:
+        await safe_edit_message(sts, f"❌ Download error: {e}")
+        return
+
+    output_file = output_filename
+
+    # ---- LOAD USER METADATA ----
+    metadata_titles = await db.get_metadata_titles(user_id)
+    video_title = metadata_titles.get('video_title', '')
+    audio_title = metadata_titles.get('audio_title', '')
+    subtitle_title = metadata_titles.get('subtitle_title', '')
+
+    # ---- START COMPRESSION ----
+    await safe_edit_message(sts, "⚙️ **Starting Compression...**")
+
+    ok = await compress_video(
+        downloaded, output_file,
+        video_title, audio_title, subtitle_title,
+        sts
+    )
+
+    if not ok:
+        os.remove(downloaded)
+        return
+
+    # ---- THUMBNAIL HANDLING ----
+    thumbnail_file_id = await db.get_thumbnail(user_id)
+    file_thumb = None
+
+    if thumbnail_file_id:
+        try:
+            file_thumb = await bot.download_media(thumbnail_file_id)
+        except:
+            file_thumb = None
+    elif hasattr(media, 'thumbs') and media.thumbs:
+        try:
+            file_thumb = await bot.download_media(media.thumbs[0].file_id)
+        except:
+            file_thumb = None
+
+    # ---- MEDIAINFO TELEGRAPH ----
+    media_info_html, media_info_link = await get_and_upload_mediainfo(
+        bot, output_file, media
+    )
+
+    size = os.path.getsize(output_file)
+    size_human = humanbytes(size)
+
+    caption = (
+        f"{output_filename}\n\n"
+        f"📦 **Size:** {size_human}\n"
+        f"[ℹ️ MediaInfo]({media_info_link})"
+    )
+
+    await safe_edit_message(sts, "⬆️ **Uploading...**")
+    c_time = time.time()
+
+    # ---- FILE TOO BIG → GOOGLE DRIVE ----
+    if size > FILE_SIZE_LIMIT:
+        file_link = await upload_to_google_drive(output_file, output_filename, sts)
+        btn = [[InlineKeyboardButton("☁️ Cloud URL", url=file_link)]]
+
+        await msg.reply_text(
+            f"✔ File compressed and uploaded!\n"
+            f"Google Drive: [View File]({file_link})\n"
+            f"Size: {size_human}\n"
+            f"[MediaInfo]({media_info_link})",
+            reply_markup=InlineKeyboardMarkup(btn)
+        )
+    else:
+        # ---- NORMAL TELEGRAM UPLOAD ----
+        try:
+            await bot.send_document(
+                msg.chat.id,
+                document=output_file,
+                thumb=file_thumb,
+                caption=caption,
+                progress=progress_message,
+                progress_args=("⬆️ **Upload Started**", sts, c_time)
+            )
+        except Exception as e:
+            return await safe_edit_message(sts, f"❌ Upload error: {e}")
+
+    # ---- CLEANUP ----
+    os.remove(downloaded)
+    os.remove(output_file)
+    if file_thumb and os.path.exists(file_thumb):
+        os.remove(file_thumb)
+
+    await sts.delete()
+    
     
 @Client.on_message(filters.private & filters.command("dleech"))
 async def rename_leech(bot, msg: Message):
