@@ -333,7 +333,7 @@ async def compress_video(
     video_title, audio_title, subtitle_title,
     sts_msg
 ):
-    # ---- Get duration (SAFE) ----
+    # ---- Get duration (SAFE JSON method) ----
     try:
         duration_cmd = [
             "ffprobe", "-v", "quiet",
@@ -351,31 +351,23 @@ async def compress_video(
 
         info = json.loads(result.stdout)
 
-        # Try format.duration
         if "format" in info and "duration" in info["format"]:
             total_duration = float(info["format"]["duration"])
-
-        # Try stream-level duration
         else:
-            durations = []
-            for s in info.get("streams", []):
-                if "duration" in s:
-                    durations.append(float(s["duration"]))
-                elif "tags" in s and "DURATION" in s["tags"]:
-                    # Convert HH:MM:SS.mmm to seconds
-                    h, m, s = s["tags"]["DURATION"].split(":")
-                    durations.append(float(h) * 3600 + float(m) * 60 + float(s))
+            total_duration = None
+            for stream in info.get("streams", []):
+                if "duration" in stream:
+                    total_duration = float(stream["duration"])
+                    break
 
-            if durations:
-                total_duration = max(durations)
-            else:
-                raise Exception("ffprobe did not provide duration.")
+        if not total_duration:
+            raise Exception("No duration found in metadata.")
 
     except Exception as e:
         await safe_edit_message(sts_msg, f"❌ Could not read video duration.\n{e}")
         return False
 
-    # ---- FFmpeg Command (FAST) ----
+    # ---- FFmpeg Command ----
     command = [
         'ffmpeg',
         '-i', input_path,
@@ -384,6 +376,7 @@ async def compress_video(
         '-preset', 'ultrafast',
         '-pix_fmt', 'yuv420p',
         '-s', '854x480',
+
         '-c:a', 'libopus',
         '-b:a', '128k',
 
@@ -400,13 +393,19 @@ async def compress_video(
         '-y', output_path
     ]
 
-    # ---- RUN FFMPEG WITH PROGRESS ----
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    # ---- Start FFmpeg ----
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True
+    )
 
-    time_pattern = re.compile(r'time=(\d+):(\d+):(\d+)[\.:](\d+)')
+    time_pattern = re.compile(r"time=(\d+):(\d+):(\d+)[\.:](\d+)")
     start_time = time.time()
     last_percent = -1
 
+    # ---- Progress Reader ----
     while True:
         line = process.stdout.readline()
         if line == "" and process.poll() is not None:
@@ -415,21 +414,25 @@ async def compress_video(
         match = time_pattern.search(line)
         if match:
             h, m, s, ms = match.groups()
-            cur = int(h) * 3600 + int(m) * 60 + int(s) + (int(ms) / 100)
+            cur = (int(h) * 3600) + (int(m) * 60) + int(s) + (int(ms) / 100)
 
             percent = int((cur / total_duration) * 100)
 
             if percent != last_percent and percent > 0:
                 elapsed = time.time() - start_time
-                eta = (elapsed * (100 - percent) / percent) if percent else 0
+                eta = (elapsed * (100 - percent) / percent) if percent > 0 else 0
+
+                # ✔ Correct TimeFormatter conversion: expects milliseconds
+                eta_ms = int(eta * 1000)
 
                 await safe_edit_message(
                     sts_msg,
-                    f"⚙️ **Compressing:** {percent}%\n⏳ ETA: {Time_formatter(eta)}"
+                    f"⚙️ **Compressing:** {percent}%\n⏳ ETA: {TimeFormatter(eta_ms)}"
                 )
 
                 last_percent = percent
 
+    # ---- Check Failure ----
     if process.poll() != 0:
         await safe_edit_message(sts_msg, "❌ FFmpeg failed.")
         return False
