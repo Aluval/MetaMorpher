@@ -736,7 +736,7 @@ async def change_metadata(bot, msg: Message):
 
     await safe_edit_message(sts, "💠 Changing metadata... ⚡")
     try:
-        change_video_metadata(downloaded, video_title, audio_title, subtitle_title, output_file, sts)
+        change_video_metadata(downloaded, video_title, audio_title, subtitle_title, output_file)
     except Exception as e:
         await safe_edit_message(sts, f"Error changing metadata: {e}")
         os.remove(downloaded)
@@ -845,7 +845,7 @@ async def attach_photo(bot, msg: Message):
     await safe_edit_message(sts, "💠 Adding photo attachment... ⚡")
     try:
         # Function to add photo attachment (assume it's defined elsewhere)
-        add_photo_attachment(downloaded, attachment_path, output_file, sts)
+        add_photo_attachment(downloaded, attachment_path, output_file)
     except Exception as e:
         await safe_edit_message(sts, f"Error adding photo attachment: {e}")
         os.remove(downloaded)
@@ -1219,7 +1219,7 @@ async def merge_and_upload(bot, msg: Message):
                 f.write(f"file '{file_path}'\n")
 
         await sts.edit("💠 Merging videos... ⚡")
-        await merge_videos(input_file, output_path, sts)
+        await merge_videos(input_file, output_path)
 
         filesize = os.path.getsize(output_path)
         filesize_human = humanbytes(filesize)
@@ -1474,7 +1474,7 @@ async def remove_tags(bot, msg):
 
     await safe_edit_message(sts, "💠 Removing all tags... ⚡")
     try:
-        remove_all_tags(downloaded, cleaned_file, sts)
+        remove_all_tags(downloaded, cleaned_file)
     except Exception as e:
         await safe_edit_message(sts, f"Error removing all tags: {e}")
         os.remove(downloaded)
@@ -1656,7 +1656,7 @@ async def sample_video(bot, msg):
 
     await sts.edit("🚀 Processing sample video... ⚡")
     try:
-        generate_sample_video(input_path, sample_video_duration, output_file, sts)
+        generate_sample_video(input_path, sample_video_duration, output_file)
     except Exception as e:
         await sts.edit(f"Error generating sample video: {e}")
         os.remove(input_path)
@@ -1910,7 +1910,7 @@ async def extract_audios(bot, msg):
 
     await safe_edit_message(sts, "🎵 Extracting audio streams... ⚡")
     try:
-        extracted_files = extract_audios_from_file(downloaded, sts)
+        extracted_files = extract_audios_from_file(downloaded)
         if not extracted_files:
             raise Exception("No audio streams found or extraction failed.")
     except Exception as e:
@@ -1970,7 +1970,7 @@ async def extract_subtitles(bot, msg):
 
     await safe_edit_message(sts, "🎥 Extracting subtitle streams... ⚡")
     try:
-        extracted_files = extract_subtitles_from_file(downloaded, sts)
+        extracted_files = extract_subtitles_from_file(downloaded)
         if not extracted_files:
             raise Exception("No subtitle streams found or extraction failed.")
     except Exception as e:
@@ -2029,7 +2029,7 @@ async def extract_video(bot, msg: Message):
 
     await safe_edit_message(sts, "🎥 Extracting video stream... ⚡")
     try:
-        extracted_file = extract_video_from_file(downloaded, sts)
+        extracted_file = extract_video_from_file(downloaded)
         if not extracted_file:
             raise Exception("No video stream found or extraction failed.")
     except Exception as e:
@@ -2320,11 +2320,6 @@ async def callback_query_handler(client: Client, query):
 
 
 
-    
-
-
-
-
 @Client.on_message(filters.command("mediainfo") & filters.private)
 async def mediainfo_handler(client: Client, message: Message):
     if not message.reply_to_message or (not message.reply_to_message.document and not message.reply_to_message.video):
@@ -2403,42 +2398,65 @@ async def mediainfo_handler(client: Client, message: Message):
 # Function to handle "/getmodapk" command
 @Client.on_message(filters.private & filters.command("getmodapk"))
 async def get_mod_apk(bot, msg: Message):
+
     if len(msg.command) < 2:
-        return await msg.reply_text("Please provide a URL from getmodsapk.com or gamedva.com.")
-    
-    # Extract URL from command arguments
+        return await msg.reply_text(
+            "Please send a valid download URL from:\n"
+            "- getmodsapk.com\n- gamedva.com\n- 5modapk.com"
+        )
+
     apk_url = msg.command[1]
 
-    # Validate URL
-    if not (apk_url.startswith("https://files.getmodsapk.com/") or apk_url.startswith("https://file.gamedva.com/")):
-        return await msg.reply_text("Please provide a valid URL from getmodsapk.com or gamedva.com.")
+    # VALID URL LIST
+    valid_prefixes = [
+        "https://files.getmodsapk.com/",
+        "https://file.gamedva.com/",
+        "https://files.5modapk.com/",
+        "https://gamedva.com/"
+    ]
 
-    # Downloading and sending the file
-    sts = await msg.reply_text("🚀 Downloading APK... ⚡️")
+    # Validate link
+    if not any(apk_url.startswith(prefix) for prefix in valid_prefixes):
+        return await msg.reply_text("❌ Invalid URL. Use links from getmodsapk / gamedva / 5modapk.")
+
+    sts = await msg.reply_text("🚀 Starting download...")
+
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(apk_url) as response:
-                if response.status == 200:
-                    # Extract filename from URL
-                    file_name = apk_url.split("/")[-1]
 
-                    # Write the downloaded content to a temporary file
-                    with open(file_name, 'wb') as f:
-                        f.write(await response.read())
+                if response.status != 200:
+                    return await sts.edit("❌ Download failed. Server responded with error.")
 
-                    # Send the APK file as a document
-                    await bot.send_document(msg.chat.id, document=file_name, caption=f"Downloaded from {apk_url}")
+                # Extract clean filename
+                file_name = apk_url.split("/")[-1].split("?")[0]
+                if not file_name.lower().endswith((".apk", ".xapk")):
+                    file_name += ".apk"     # fallback
 
-                    # Clean up: delete the downloaded file
-                    os.remove(file_name)
+                # Download file
+                data = await response.read()
+                with open(file_name, "wb") as f:
+                    f.write(data)
 
-                    await sts.edit("✅ APK sent successfully!")
-                else:
-                    await sts.edit("❌ Failed to download APK.")
+                # Upload to telegram
+                await sts.edit("📤 Uploading file to Telegram...")
+                await bot.send_document(
+                    msg.chat.id,
+                    document=file_name,
+                    caption=f"Downloaded from:\n{apk_url}"
+                )
+
+                # Remove locally
+                os.remove(file_name)
+
+                await sts.edit("✅ File sent successfully!")
+
     except Exception as e:
-        await sts.edit(f"❌ Error: {str(e)}")
+        await sts.edit(f"❌ Error occurred:\n`{str(e)}`")
 
-    await sts.delete()
+    finally:
+        await asyncio.sleep(2)
+        await sts.delete()
 
 
 
@@ -3350,107 +3368,8 @@ async def process_media(bot, callback_query, selected_streams, downloaded, outpu
 
     await sts.delete()
 
-"""          
+     
 #handler is Compress
-@Client.on_message(filters.private & filters.command("compress"))
-async def compress_media(bot, msg: Message):
-    global COMPRESS_ENABLED
-
-    if not COMPRESS_ENABLED:
-        return await msg.reply_text("Compress feature is currently disabled.")
-        
-    user_id = msg.from_user.id
-
-    reply = msg.reply_to_message
-    if not reply:
-        return await msg.reply_text("Please reply to a media file with the compress command\nFormat: `compress -n output_filename`")
-
-    if len(msg.command) < 3 or msg.command[1] != "-n":
-        return await msg.reply_text("Please provide the output filename with the `-n` flag\nFormat: `compress -n output_filename`")
-
-    output_filename = " ".join(msg.command[2:]).strip()
-
-    if not output_filename.lower().endswith(('.mkv', '.mp4', '.avi')):
-        return await msg.reply_text("Invalid file extension. Please use a valid video file extension (e.g., .mkv, .mp4, .avi).")
-
-    media = reply.document or reply.audio or reply.video
-    if not media:
-        return await msg.reply_text("Please reply to a valid media file (audio, video, or document) with the compress command.")
-
-    sts = await msg.reply_text("🚀 Downloading media... ⚡")
-    c_time = time.time()
-    try:
-        downloaded = await reply.download(progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
-    except Exception as e:
-        await safe_edit_message(sts, f"Error downloading media: {e}")
-        return
-
-    output_file = output_filename
-
-    # Retrieve metadata from the database
-    metadata_titles = await db.get_metadata_titles(user_id)
-    video_title = metadata_titles.get('video_title', '')
-    audio_title = metadata_titles.get('audio_title', '')
-    subtitle_title = metadata_titles.get('subtitle_title', '')
-
-    await safe_edit_message(sts, "💠 Compressing media... ⚡")
-    try:
-        compress_video(downloaded, output_file, video_title, audio_title, subtitle_title)
-    except Exception as e:
-        await safe_edit_message(sts, f"Error compressing media: {e}")
-        os.remove(downloaded)
-        return
-
-    # Retrieve thumbnail from the database
-    thumbnail_file_id = await db.get_thumbnail(user_id)
-    file_thumb = None
-    if thumbnail_file_id:
-        try:
-            file_thumb = await bot.download_media(thumbnail_file_id)
-        except Exception:
-            pass
-    else:
-        if hasattr(media, 'thumbs') and media.thumbs:
-            try:
-                file_thumb = await bot.download_media(media.thumbs[0].file_id)
-            except Exception as e:
-                file_thumb = None
-
-    # Get media info and upload to Telegraph
-    media_info_html, media_info_link = await get_and_upload_mediainfo(bot, output_file, media)
-
-    filesize = os.path.getsize(output_file)
-    filesize_human = humanbytes(filesize)
-    cap = f"{output_filename}\n\n🌟 Size: {filesize_human}\n\n[MediaInfo ℹ️]({media_info_link})"
-
-    await safe_edit_message(sts, "💠 Uploading... ⚡")
-    c_time = time.time()
-
-    if filesize > FILE_SIZE_LIMIT:
-        file_link = await upload_to_google_drive(output_file, output_filename, sts)
-        button = [[InlineKeyboardButton("☁️ CloudUrl ☁️", url=f"{file_link}")]]
-        await msg.reply_text(
-            f"**File successfully compressed and uploaded to Google Drive!**\n\n"
-            f"**Google Drive Link**: [View File]({file_link})\n\n"
-            f"**Uploaded File**: {output_filename}\n"
-            f"**Request User:** {msg.from_user.mention}\n\n"
-            f"**Size**: {filesize_human}\n"
-            f"[MediaInfo ℹ️]({media_info_link})",
-            reply_markup=InlineKeyboardMarkup(button)
-        )
-    else:
-        try:
-            await bot.send_document(msg.chat.id, document=output_file, thumb=file_thumb, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡", sts, c_time))
-        except Exception as e:
-            return await safe_edit_message(sts, f"Error: {e}")
-
-    os.remove(downloaded)
-    os.remove(output_file)
-    if file_thumb and os.path.exists(file_thumb):
-        os.remove(file_thumb)
-    await sts.delete()
-"""
-
 @Client.on_message(filters.private & filters.command("compress"))
 async def compress_media(bot, msg: Message):
     global COMPRESS_ENABLED
