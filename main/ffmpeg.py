@@ -4,8 +4,10 @@ import zipfile
 import asyncio
 import ffmpeg
 import os, sys
+import json
 from html_telegraph_poster import TelegraphPoster
 from pyrogram.errors import FloodWait, MessageNotModified
+import traceback
 
 # Initialize Telegraph
 telegraph = TelegraphPoster(use_api=True)
