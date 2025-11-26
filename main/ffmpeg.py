@@ -346,8 +346,8 @@ async def compress_video(
         '-preset', 'superfast',
         '-pix_fmt', 'yuv420p',      
 
-        '-c:a', 'libopus',
-        '-b:a', '128k',
+        '-c:a', 'aac',
+        '-b:a', '96k',
 
         '-map', '0:v:0',
         '-map', '0:a',
