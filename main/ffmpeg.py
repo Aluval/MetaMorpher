@@ -341,9 +341,9 @@ async def compress_video(
     command = [
         'ffmpeg',
         '-i', input_path,
-        '-c:v', 'libx264',
-        '-crf', '28',
-        '-preset', 'veryfast',
+        '-c:v', 'libx265',
+        '-bv', '500k',
+        '-preset', 'superfast',
         '-pix_fmt', 'yuv420p',      
 
         '-c:a', 'libopus',
