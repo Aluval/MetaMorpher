@@ -343,7 +343,7 @@ async def compress_video(
         '-i', input_path,
         '-c:v', 'libx264',
         '-crf', '28',
-        '-preset', 'ultrafast',
+        '-preset', 'veryfast',
         '-pix_fmt', 'yuv420p',      
 
         '-c:a', 'libopus',
