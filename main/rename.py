@@ -3556,7 +3556,7 @@ async def process_media(bot, callback_query, selected_streams, downloaded, outpu
 
     await sts.delete()
 
-  """          
+"""          
 #handler is Compress
 @Client.on_message(filters.private & filters.command("compress"))
 async def compress_media(bot, msg: Message):
@@ -3656,6 +3656,7 @@ async def compress_media(bot, msg: Message):
         os.remove(file_thumb)
     await sts.delete()
 """
+
 @Client.on_message(filters.private & filters.command("compress"))
 async def compress_media(bot, msg: Message):
     global COMPRESS_ENABLED
