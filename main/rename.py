@@ -74,35 +74,6 @@ selected_streams = set()
 downloaded = None
 output_filename = None
 
-import os, base64
-
-cookie_env = os.getenv("YT_COOKIES_B64")
-
-if cookie_env:
-    try:
-        decoded = base64.b64decode(cookie_env)
-        with open("cookies.txt", "wb") as f:
-            f.write(decoded)
-        print("✔ cookies.txt created from base64 secret.")
-    except Exception as e:
-        print("❌ Failed to decode cookies:", e)
-else:
-    print("❌ Base64 cookie secret NOT found.")
-
-# Diagnostic checks
-print("=== COOKIE DEBUG ===")
-print("CWD:", os.getcwd())
-cookie_path = os.path.abspath("cookies.txt")
-print("Cookie path:", cookie_path)
-print("Cookies exists:", os.path.exists(cookie_path))
-if os.path.exists(cookie_path):
-    print("Cookies size (bytes):", os.path.getsize(cookie_path))
-    # print first 5 lines (safe debug)
-    with open(cookie_path, "r", encoding="utf-8", errors="ignore") as cf:
-        for i, line in enumerate(cf):
-            if i >= 5: break
-            print("LINE", i+1, ":", line.strip())
-print("====================", flush=True)
 
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
@@ -765,7 +736,7 @@ async def change_metadata(bot, msg: Message):
 
     await safe_edit_message(sts, "💠 Changing metadata... ⚡")
     try:
-        change_video_metadata(downloaded, video_title, audio_title, subtitle_title, output_file)
+        change_video_metadata(downloaded, video_title, audio_title, subtitle_title, output_file, sts)
     except Exception as e:
         await safe_edit_message(sts, f"Error changing metadata: {e}")
         os.remove(downloaded)
@@ -874,7 +845,7 @@ async def attach_photo(bot, msg: Message):
     await safe_edit_message(sts, "💠 Adding photo attachment... ⚡")
     try:
         # Function to add photo attachment (assume it's defined elsewhere)
-        add_photo_attachment(downloaded, attachment_path, output_file)
+        add_photo_attachment(downloaded, attachment_path, output_file, sts)
     except Exception as e:
         await safe_edit_message(sts, f"Error adding photo attachment: {e}")
         os.remove(downloaded)
@@ -1248,7 +1219,7 @@ async def merge_and_upload(bot, msg: Message):
                 f.write(f"file '{file_path}'\n")
 
         await sts.edit("💠 Merging videos... ⚡")
-        await merge_videos(input_file, output_path)
+        await merge_videos(input_file, output_path, sts)
 
         filesize = os.path.getsize(output_path)
         filesize_human = humanbytes(filesize)
@@ -1503,7 +1474,7 @@ async def remove_tags(bot, msg):
 
     await safe_edit_message(sts, "💠 Removing all tags... ⚡")
     try:
-        remove_all_tags(downloaded, cleaned_file)
+        remove_all_tags(downloaded, cleaned_file, sts)
     except Exception as e:
         await safe_edit_message(sts, f"Error removing all tags: {e}")
         os.remove(downloaded)
@@ -1685,7 +1656,7 @@ async def sample_video(bot, msg):
 
     await sts.edit("🚀 Processing sample video... ⚡")
     try:
-        generate_sample_video(input_path, sample_video_duration, output_file)
+        generate_sample_video(input_path, sample_video_duration, output_file, sts)
     except Exception as e:
         await sts.edit(f"Error generating sample video: {e}")
         os.remove(input_path)
@@ -1939,7 +1910,7 @@ async def extract_audios(bot, msg):
 
     await safe_edit_message(sts, "🎵 Extracting audio streams... ⚡")
     try:
-        extracted_files = extract_audios_from_file(downloaded)
+        extracted_files = extract_audios_from_file(downloaded, sts)
         if not extracted_files:
             raise Exception("No audio streams found or extraction failed.")
     except Exception as e:
@@ -1999,7 +1970,7 @@ async def extract_subtitles(bot, msg):
 
     await safe_edit_message(sts, "🎥 Extracting subtitle streams... ⚡")
     try:
-        extracted_files = extract_subtitles_from_file(downloaded)
+        extracted_files = extract_subtitles_from_file(downloaded, sts)
         if not extracted_files:
             raise Exception("No subtitle streams found or extraction failed.")
     except Exception as e:
@@ -2058,7 +2029,7 @@ async def extract_video(bot, msg: Message):
 
     await safe_edit_message(sts, "🎥 Extracting video stream... ⚡")
     try:
-        extracted_file = extract_video_from_file(downloaded)
+        extracted_file = extract_video_from_file(downloaded, sts)
         if not extracted_file:
             raise Exception("No video stream found or extraction failed.")
     except Exception as e:
@@ -2207,7 +2178,6 @@ async def clean_files(bot, msg: Message):
     except Exception as e:
         await msg.reply_text(f"An unexpected error occurred: {e}")
 
-"""
 
 #Downloading Progress Hook For YouTube In logs work process 
 async def progress_hook(status_message):
@@ -2347,184 +2317,8 @@ async def callback_query_handler(client: Client, query):
             os.remove(file_name)
         await sts.delete()
         await query.message.delete()
-"""
-import os
-
-# Absolute path for the cookies file
-cookie_path = os.path.abspath("cookies.txt")
 
 
-# Progress Hook
-async def progress_hook(status_message):
-    async def hook(d):
-        if d['status'] == 'downloading':
-            percent = d.get('_percent_str', '0%')
-            size = humanbytes(d.get('downloaded_bytes', 0))
-            await safe_edit_message(status_message, f"🚀 Downloading...\nProgress: {percent}\nSize: {size}")
-        elif d['status'] == 'finished':
-            await safe_edit_message(status_message, "Download finished. 🚀")
-    return hook
-
-
-
-# ===========================
-#       /ytdlleech
-# ===========================
-@Client.on_message(filters.private & filters.command("ytdlleech"))
-async def ytdlleech_handler(client: Client, msg: Message):
-    if len(msg.command) < 2:
-        return await msg.reply_text("Please provide a YouTube link.")
-
-    url = msg.text.split(" ", 1)[1].strip()
-
-    # FORMAT LIST OPTIONS
-    ydl_opts = {
-        'quiet': True,
-        'skip_download': True,
-        'noplaylist': True,
-        'merge_output_format': 'mkv',
-
-        # Cookies
-        'cookies': cookie_path,
-        'cookiefile': cookie_path,
-
-        # Prevent JS runtime requirement
-        'extractor_args': {
-            'youtube': {'player_client': ['android', 'ios']}
-        },
-
-        # Real Android browser UA
-        'http_headers': {
-            'User-Agent': (
-                'Mozilla/5.0 (Linux; Android 12; Pixel 6) '
-                'AppleWebKit/537.36 (KHTML, like Gecko) '
-                'Chrome/121.0 Mobile Safari/537.36'
-            )
-        }
-    }
-
-    try:
-        with YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            formats = info.get("formats", [])
-
-            # Create buttons
-            buttons = []
-            for f in formats:
-                if f.get("filesize") is None:
-                    continue
-                label = f"{f.get('format_note', '-')}: {humanbytes(f['filesize'])}"
-                buttons.append(InlineKeyboardButton(label, callback_data=f"{f['format_id']}"))
-
-            buttons = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
-            await msg.reply_text("Choose quality:", reply_markup=InlineKeyboardMarkup(buttons))
-
-            # Save user selection
-            await db.save_user_quality_selection(
-                msg.from_user.id,
-                {"url": url, "title": info.get("title", "video"), "formats": formats}
-            )
-
-    except Exception as e:
-        await msg.reply_text(f"Error: {e}")
-
-
-
-# ===========================
-#     QUALITY CALLBACK
-# ===========================
-@Client.on_callback_query(filters.regex(r"^\d+$"))
-async def ytdlleech_callback(client: Client, query: CallbackQuery):
-    user_id = query.from_user.id
-    format_id = query.data
-
-    selection = await db.get_user_quality_selection(user_id)
-    if not selection:
-        return await query.answer("No active download.")
-
-    url = selection["url"]
-    title = selection["title"]
-    formats = selection["formats"]
-
-    fmt = next((f for f in formats if f["format_id"] == format_id), None)
-    if not fmt:
-        return await query.answer("Invalid selection!")
-
-    quality = fmt.get("format_note", "Unknown")
-    size = fmt.get("filesize", 0)
-    filename = f"{title} - {quality}.mkv"
-
-    sts = await query.message.reply_text(f"🚀 Downloading {quality} ({humanbytes(size)})...")
-
-
-    # DOWNLOAD OPTIONS
-    ydl_opts = {
-        'format': f"{format_id}+bestaudio/best",
-        'outtmpl': filename,
-        'quiet': True,
-        'noplaylist': True,
-
-        # FIX: Correct cookie path applied here too
-        'cookies': cookie_path,
-        'cookiefile': cookie_path,
-
-        # JS-free extraction
-        'extractor_args': {
-            'youtube': {'player_client': ['android', 'ios']}
-        },
-
-        # Mobile UA bypasses many restrictions
-        'http_headers': {
-            'User-Agent': (
-                'Mozilla/5.0 (Linux; Android 12; Pixel 6) '
-                'AppleWebKit/537.36 (KHTML, like Gecko) '
-                'Chrome/121.0 Mobile Safari/537.36'
-            )
-        },
-
-        'progress_hooks': [await progress_hook(sts)],
-        'merge_output_format': 'mkv'
-    }
-
-    try:
-        # DOWNLOAD
-        with YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-
-        # Check file
-        if not os.path.exists(filename):
-            return await safe_edit_message(sts, "❌ Download failed.")
-
-        # Google Drive for large files
-        if size >= FILE_SIZE_LIMIT:
-            await safe_edit_message(sts, "☁️ Uploading to Google Drive...")
-            link = await upload_to_google_drive(filename, filename, sts)
-
-            btn = [[InlineKeyboardButton("☁️ Open File ☁️", url=link)]]
-            await query.message.reply_text(
-                f"Uploaded to Drive:\n{filename}\n{humanbytes(size)}",
-                reply_markup=InlineKeyboardMarkup(btn)
-            )
-
-        # Telegram for small files
-        else:
-            await safe_edit_message(sts, "📤 Uploading to Telegram...")
-            with open(filename, "rb") as f:
-                await query.message.reply_document(
-                    document=f,
-                    caption=f"{title}\nSize: {humanbytes(size)}",
-                    progress=progress_message,
-                    progress_args=("📤 Uploading...", sts, time.time())
-                )
-
-    except Exception as e:
-        await safe_edit_message(sts, f"Error: {e}")
-
-    finally:
-        if os.path.exists(filename):
-            os.remove(filename)
-        await sts.delete()
-        await query.message.delete()
 
     
 
