@@ -11,7 +11,7 @@ import json
 from html_telegraph_poster import TelegraphPoster
 from pyrogram.errors import FloodWait, MessageNotModified
 import traceback
-from main.utils import Timeformatter
+from main.utils import TimeFormatter
 
 # Initialize Telegraph
 telegraph = TelegraphPoster(use_api=True)
