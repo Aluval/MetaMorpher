@@ -34,6 +34,7 @@ from os import execl as osexecl
 from sys import executable
 from config import *
 import logging
+import tempfile
 
 logging.basicConfig(
     filename='SunrisesBot.txt',
