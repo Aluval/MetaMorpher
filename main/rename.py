@@ -2841,80 +2841,78 @@ async def multitask_file(bot, msg: Message):
         os.remove(file_thumb)
     await sts.delete()
 
+import re
+import aiohttp
+import os
+import time
+
+URL_RE = re.compile(r"(https?://[^\s]+)")
+
 @Client.on_message(filters.private & filters.command("multitasklink"))
 async def changeleech(bot, msg: Message):
-    if len(msg.command) < 2 or not msg.reply_to_message:
-        return await msg.reply_text("Please reply to a file, video, audio, or link with the desired filename and extension (e.g., `.mkv`, `.mp4`, `.zip`).Please provide the correct format\nFormat: `/multitasklink a-2 -m -n filename.mkv`.")
+
+    # Must reply to a message
+    if not msg.reply_to_message:
+        return await msg.reply_text("❌ Please reply to a **link**.\n\nFormat:\n`/multitasklink filename.mkv`")
 
     reply = msg.reply_to_message
-    new_name = msg.text.split(" ", 1)[1]
+    reply_text = reply.text or reply.caption or ""
 
-    if not new_name.endswith((".mkv", ".mp4", ".zip")):
-        return await msg.reply_text("Please specify a filename ending with .mkv, .mp4, or .zip.")
+    # Extract filename
+    if len(msg.command) < 2:
+        return await msg.reply_text("❌ Please give output filename.\nExample:\n`/multitasklink new.mkv`")
 
-    media = reply.document or reply.audio or reply.video or reply.text
+    new_name = msg.text.split(" ", 1)[1].strip()
 
-    sts = await msg.reply_text("🚀 Downloading... ⚡")
-    c_time = time.time()
+    # Allowed extensions
+    if not new_name.lower().endswith((".mkv", ".mp4", ".zip", ".mp3", ".pdf", ".jpg", ".png")):
+        return await msg.reply_text("❌ Invalid extension. Use `.mkv` `.mp4` `.zip` or valid format.")
 
-    if reply.text and ("seedr" in reply.text or "workers" in reply.text):
-        await handle_link_download_multi(bot, msg, reply.text, new_name, media, sts, c_time)
-    else:
-        if not media:
-            return await msg.reply_text("Please reply to a valid file, video, audio, or link with the desired filename and extension (e.g., `.mkv`, `.mp4`, `.zip`).")
+    # Only check for **links**
+    link_match = URL_RE.search(reply_text)
+    if not link_match:
+        return await msg.reply_text("❌ This command supports **only links**.\nReply to a HTTP/HTTPS link.")
 
-        try:
-            downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
-        except RPCError as e:
-            return await sts.edit(f"Download failed: {e}")
+    link = link_match.group(0)
 
-        if not os.path.exists(downloaded):
-            return await sts.edit("File not found after download. Please check the reply and try again.")
+    sts = await msg.reply_text(f"🔗 Detected Link:\n`{link}`\n\n🚀 Downloading...")
 
-        filesize = humanbytes(os.path.getsize(downloaded))
+    # ---------------- LINK DOWNLOAD ----------------
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(link) as resp:
+                if resp.status != 200:
+                    return await sts.edit(f"❌ Download failed.\nHTTP {resp.status}")
 
-        # Change indexing and metadata if required
-        if len(msg.command) > 2:
-            await change_metadata_and_index(bot, msg, downloaded, new_name, media, sts, c_time)
+                with open(new_name, "wb") as f:
+                    f.write(await resp.read())
 
-        # Thumbnail handling
-        thumbnail_file_id = await db.get_thumbnail(msg.from_user.id)
-        og_thumbnail = None
-        if thumbnail_file_id:
-            try:
-                og_thumbnail = await bot.download_media(thumbnail_file_id)
-            except Exception:
-                pass
-        else:
-            if hasattr(media, 'thumbs') and media.thumbs:
-                try:
-                    og_thumbnail = await bot.download_media(media.thumbs[0].file_id)
-                except Exception:
-                    pass
+    except Exception as e:
+        return await sts.edit(f"❌ Error downloading link:\n`{e}`")
 
-        await sts.edit("💠 Uploading... ⚡")
-        c_time = time.time()
+    # Verify file
+    if not os.path.exists(new_name):
+        return await sts.edit("❌ Download failed. No file saved.")
 
-        if os.path.getsize(downloaded) > FILE_SIZE_LIMIT:
-            file_link = await upload_to_google_drive(downloaded, new_name, sts)
-            await msg.reply_text(f"File uploaded to Google Drive!\n\n📁 **File Name:** {new_name}\n💾 **Size:** {filesize}\n🔗 **Link:** {file_link}")
-        else:
-            try:
-                await bot.send_document(msg.chat.id, document=downloaded, thumb=og_thumbnail, caption=new_name, progress=progress_message, progress_args=("💠 Upload Started... ⚡", sts, c_time))
-            except ValueError as e:
-                return await sts.edit(f"Upload failed: {e}")
-            except TimeoutError as e:
-                return await sts.edit(f"Upload timed out: {e}")
+    await sts.edit("📤 Uploading...")
 
-        try:
-            if og_thumbnail and os.path.exists(og_thumbnail):
-                os.remove(og_thumbnail)
-            if os.path.exists(downloaded):
-                os.remove(downloaded)
-        except Exception as e:
-            print(f"Error deleting files: {e}")
+    # ---------------- TELEGRAM UPLOAD ----------------
+    try:
+        await bot.send_document(
+            msg.chat.id,
+            document=new_name,
+            caption=f"✅ Downloaded:\n`{new_name}`"
+        )
+    except Exception as e:
+        return await sts.edit(f"❌ Upload error:\n`{e}`")
 
-        await sts.delete()
+    # Cleanup
+    try:
+        os.remove(new_name)
+    except:
+        pass
+
+    await sts.delete()
 
 async def handle_link_download_multi(bot, msg: Message, link: str, new_name: str, media, sts, c_time):
     try:
@@ -2980,9 +2978,9 @@ async def handle_link_download_multi(bot, msg: Message, link: str, new_name: str
     await sts.delete()
 
 async def change_metadata_and_index(bot, msg, downloaded, new_name, media, sts, c_time):
-    global METADATA_ENABLED, CHANGE_INDEX_ENABLED
+    global METADATA_ENABLED, MULTITASK_ENABLED
 
-    if not (METADATA_ENABLED and CHANGE_INDEX_ENABLED):
+    if not (METADATA_ENABLED and MULTITASK_ENABLED):
         await msg.reply_text("One or more required features are currently disabled.")
         return
 
