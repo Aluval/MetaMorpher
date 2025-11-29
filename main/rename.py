@@ -57,8 +57,7 @@ merge_state = {}
 FILE_SIZE_LIMIT = 2000 * 1024 * 1024  # 2000 MB in bytes
 # ---------------- CONFIG / CONSTANTS ----------------
 URL_RE = re.compile(r"(https?://[^\s'\"]+)")
-
-
+logger = logging.getLogger(__name__)
 
 # Initialize global settings variables
 METADATA_ENABLED = True 
