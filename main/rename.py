@@ -35,6 +35,7 @@ from sys import executable
 from config import *
 import logging
 import tempfile
+import math
 
 logging.basicConfig(
     filename='SunrisesBot.txt',
@@ -2850,15 +2851,7 @@ async def multitask_file(bot, msg: Message):
 # ----------------- MAIN HANDLER (LINK ONLY) -----------------
 @Client.on_message(filters.private & filters.command("multitasklink"))
 async def changeleech(bot: Client, msg: Message):
-    """
-    Link-only multitasklink:
-    Usage (reply to a message that contains a link):
-      /multitasklink a-3 -m -n Movie (2025) NF.WEB-DL ... .mkv
-    Requirements:
-      - reply must contain a HTTP/HTTPS URL
-      - command must include index spec (a-3 or v-1 etc), -m and -n flags
-      - -n <output filename> must be present and end with .mkv/.mp4/.avi/.zip
-    """
+    
     if not msg.reply_to_message:
         return await msg.reply_text("❌ Please **reply to a link** message.\nFormat:\n`/multitasklink a-3 -m -n output.mkv`")
 
@@ -2991,17 +2984,6 @@ async def changeleech(bot: Client, msg: Message):
 # multitasklink_turbo_safe.py
 # Safe Turbo Downloader (low usage) + link-only /multitasklink handler
 # Designed for Koyeb / low-resource environments (4 workers, 2MB parts)
-import re
-import os
-import aiohttp
-import asyncio
-import time
-import tempfile
-import math
-import shutil
-import logging
-from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 
 # Ensure these exist in your main file already:
 # PROGRESS_BAR, progress_message(current, total, ud_type, message, start),
