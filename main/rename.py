@@ -2846,7 +2846,7 @@ async def multitask_file(bot, msg: Message):
 
 
 
-
+"""
 # ----------------- MAIN HANDLER (LINK ONLY) -----------------
 @Client.on_message(filters.private & filters.command("multitasklink"))
 async def changeleech(bot: Client, msg: Message):
@@ -2986,6 +2986,324 @@ async def changeleech(bot: Client, msg: Message):
             logger.exception("Cleanup failed")
 
     await sts.delete()
+
+"""
+# multitasklink_turbo_safe.py
+# Safe Turbo Downloader (low usage) + link-only /multitasklink handler
+# Designed for Koyeb / low-resource environments (4 workers, 2MB parts)
+import re
+import os
+import aiohttp
+import asyncio
+import time
+import tempfile
+import math
+import shutil
+import logging
+from pyrogram import Client, filters
+from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
+
+# Ensure these exist in your main file already:
+# PROGRESS_BAR, progress_message(current, total, ud_type, message, start),
+# humanbytes(), TimeFormatter(), change_metadata_and_index(), FILE_SIZE_LIMIT, upload_to_google_drive, db, safe_edit_message
+
+logger = logging.getLogger(__name__)
+URL_RE = re.compile(r"(https?://[^\s'\"]+)")
+
+
+# -------------------- TURBO DOWNLOADER (LOW-IMPACT) --------------------
+async def turbo_download_safe(url: str, out_path: str, status_msg, *,
+                              part_size: int = 2 * 1024 * 1024,  # 2 MB parts
+                              max_workers: int = 4,
+                              retries: int = 3):
+    """
+    Safe turbo downloader:
+      - Range requests
+      - Resume support (reuses existing part files)
+      - Limited concurrency (max_workers)
+      - Merges parts into out_path
+      - Uses your progress_message() for progress updates (same UI)
+    Returns True on success, False on failure.
+    """
+    start_time = time.time()
+
+    # HEAD to get total size and accept-ranges support
+    try:
+        async with aiohttp.ClientSession() as sess:
+            async with sess.head(url, allow_redirects=True, timeout=60) as head:
+                if head.status not in (200, 206):
+                    await safe_edit_message(status_msg, f"❌ HTTP HEAD error: {head.status}")
+                    return False
+                total = int(head.headers.get("Content-Length", 0))
+                accept_ranges = head.headers.get("Accept-Ranges", "none") != "none"
+    except Exception as e:
+        await safe_edit_message(status_msg, f"❌ Error fetching file info: {e}")
+        return False
+
+    if total == 0:
+        # Try GET to detect content-length or non-range sources
+        try:
+            async with aiohttp.ClientSession() as sess:
+                async with sess.get(url, allow_redirects=True, timeout=60) as resp:
+                    if resp.status != 200:
+                        await safe_edit_message(status_msg, f"❌ HTTP GET error: {resp.status}")
+                        return False
+                    total = int(resp.headers.get("Content-Length", 0) or 0)
+                    if total == 0:
+                        # fallback: stream entire file to single file (no range)
+                        # We'll stream to out_path directly using download_stream below
+                        return await _download_stream_fallback(url, out_path, status_msg, start_time)
+        except Exception as e:
+            await safe_edit_message(status_msg, f"❌ Error fetching direct file info: {e}")
+            return False
+
+    # compute ranges
+    part_ranges = []
+    for i in range(0, total, part_size):
+        start = i
+        end = min(i + part_size - 1, total - 1)
+        part_ranges.append((start, end))
+
+    parts_dir = os.path.join(tempfile.gettempdir(), f"mt_parts_{os.path.basename(out_path)}")
+    os.makedirs(parts_dir, exist_ok=True)
+
+    # track downloaded bytes from existing part files
+    downloaded_bytes = 0
+    part_paths = []
+    for idx, (s, e) in enumerate(part_ranges):
+        ppath = os.path.join(parts_dir, f"part_{idx}")
+        part_paths.append(ppath)
+        if os.path.exists(ppath):
+            downloaded_bytes += os.path.getsize(ppath)
+
+    # semaphore to limit concurrency
+    sem = asyncio.Semaphore(max_workers)
+    download_lock = asyncio.Lock()  # to safely update downloaded_bytes
+
+    last_update = time.time()
+
+    async def fetch_part(idx, byte_range):
+        nonlocal downloaded_bytes, last_update
+        pstart, pend = byte_range
+        ppath = part_paths[idx]
+        expected_size = pend - pstart + 1
+
+        # resume: if exists and correct size, skip
+        if os.path.exists(ppath) and os.path.getsize(ppath) == expected_size:
+            return True
+
+        # If partial part exists smaller than expected, resume inside part using Range
+        resume_offset = 0
+        if os.path.exists(ppath):
+            resume_offset = os.path.getsize(ppath)
+
+        headers = {"Range": f"bytes={pstart + resume_offset}-{pend}"}
+        attempt = 0
+        while attempt < retries:
+            attempt += 1
+            try:
+                async with sem:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(url, headers=headers, timeout=None) as resp:
+                            # Acceptable statuses: 206 Partial or 200 OK (if server ignores range)
+                            if resp.status not in (200, 206):
+                                # retry
+                                await asyncio.sleep(1)
+                                continue
+
+                            # open file in append binary mode
+                            mode = "ab" if resume_offset else "wb"
+                            with open(ppath, mode) as pf:
+                                async for chunk in resp.content.iter_chunked(1024 * 1024):
+                                    if not chunk:
+                                        break
+                                    pf.write(chunk)
+                                    chunk_len = len(chunk)
+                                    async with download_lock:
+                                        downloaded_bytes += chunk_len
+
+                                    # throttle progress edits to ~1s
+                                    now = time.time()
+                                    if now - last_update >= 1:
+                                        try:
+                                            await progress_message(
+                                                downloaded_bytes,
+                                                total,
+                                                "🚀 Downloading...",
+                                                status_msg,
+                                                start_time
+                                            )
+                                        except Exception:
+                                            pass
+                                        last_update = now
+                # after successful write, verify size
+                if os.path.exists(ppath) and os.path.getsize(ppath) == expected_size:
+                    return True
+                # else retry
+            except Exception as exc:
+                logger.debug("Part %s attempt %s failed: %s", idx, attempt, exc)
+                await asyncio.sleep(1)
+                continue
+        return False
+
+    # run tasks
+    tasks = [fetch_part(i, byte_range) for i, byte_range in enumerate(part_ranges)]
+    done = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # check results
+    for i, res in enumerate(done):
+        if isinstance(res, Exception) or res is False:
+            # cleanup partials to avoid corrupted merge
+            # but keep parts for resume (do not delete)
+            await safe_edit_message(status_msg, f"❌ Failed to download part {i}. Aborting.")
+            return False
+
+    # Final progress update
+    try:
+        await progress_message(downloaded_bytes, total, "✅ Merging parts...", status_msg, start_time)
+    except Exception:
+        pass
+
+    # Merge parts into out_path
+    try:
+        with open(out_path, "wb") as outfile:
+            for idx in range(len(part_ranges)):
+                pfile = part_paths[idx]
+                if not os.path.exists(pfile):
+                    await safe_edit_message(status_msg, f"❌ Missing part {idx} during merge.")
+                    return False
+                with open(pfile, "rb") as pf:
+                    shutil.copyfileobj(pf, outfile)
+    except Exception as e:
+        await safe_edit_message(status_msg, f"❌ Error merging parts: {e}")
+        return False
+
+    # Clean up part files directory (optional - keep if you want resume)
+    try:
+        shutil.rmtree(parts_dir, ignore_errors=True)
+    except Exception:
+        pass
+
+    # Final progress (100%)
+    try:
+        await progress_message(total, total, "✅ Download Completed", status_msg, start_time)
+    except Exception:
+        pass
+
+    return True
+
+
+async def _download_stream_fallback(url: str, out_path: str, status_msg, start_time=None):
+    """
+    Fallback single-stream downloader (used when server doesn't support ranges).
+    """
+    if start_time is None:
+        start_time = time.time()
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, allow_redirects=True, timeout=None) as resp:
+                if resp.status != 200:
+                    await safe_edit_message(status_msg, f"❌ Download failed: HTTP {resp.status}")
+                    return False
+                total = int(resp.headers.get("Content-Length", 0) or 0)
+                downloaded = 0
+                chunk_size = 1024 * 1024
+                with open(out_path, "wb") as f:
+                    async for chunk in resp.content.iter_chunked(chunk_size):
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        try:
+                            await progress_message(downloaded, total, "🚀 Downloading...", status_msg, start_time)
+                        except Exception:
+                            pass
+        await progress_message(downloaded, total, "✅ Download Completed", status_msg, start_time)
+        return True
+    except Exception as e:
+        await safe_edit_message(status_msg, f"❌ Stream download error: {e}")
+        return False
+
+
+# -------------------- /multitasklink HANDLER (LINK ONLY) --------------------
+@Client.on_message(filters.private & filters.command("multitasklink"))
+async def multitasklink_handler(bot: Client, msg: Message):
+    """
+    Link-only multitasklink.
+    Command format (example):
+      /multitasklink a-3 -m -n output ... .mkv
+    Reply must contain a HTTP/HTTPS URL.
+    """
+    if not msg.reply_to_message:
+        return await msg.reply_text("❌ Reply to a message that contains a link.\nFormat: `/multitasklink a-3 -m -n filename.mkv`")
+
+    reply = msg.reply_to_message
+    reply_text = reply.text or reply.caption or ""
+    m = URL_RE.search(reply_text)
+    if not m:
+        return await msg.reply_text("❌ No valid link found in the replied message.")
+
+    url = m.group(0).strip()
+
+    # Validate command format
+    if len(msg.command) < 5 or "-m" not in msg.command or "-n" not in msg.command:
+        return await msg.reply_text("❌ Wrong format.\nUse: `/multitasklink a-3 -m -n output.mkv`")
+
+    index_cmd = msg.command[1]
+    output_flag_index = msg.command.index("-n")
+    output_name = " ".join(msg.command[output_flag_index + 1:]).strip()
+
+    if not output_name.lower().endswith((".mkv", ".mp4", ".avi", ".zip")):
+        return await msg.reply_text("❌ Output filename must end with .mkv / .mp4 / .avi / .zip")
+
+    # Prepare temp path
+    tmpdir = tempfile.gettempdir()
+    local_path = os.path.join(tmpdir, output_name)
+
+    # Remove existing local file if you want fresh download (keeps parts for resume)
+    if os.path.exists(local_path):
+        try:
+            os.remove(local_path)
+        except Exception:
+            pass
+
+    # Send status message
+    sts = await msg.reply_text(f"🔗 Link detected:\n`{url}`\n\n🚀 Download starting...")
+
+    # Run turbo download (safe low-impact config)
+    ok = await turbo_download_safe(url, local_path, sts,
+                                   part_size=2 * 1024 * 1024,  # 2MB
+                                   max_workers=4,
+                                   retries=3)
+    if not ok:
+        # turbo failed (maybe server blocks range requests) — try fallback stream
+        await safe_edit_message(sts, "⚠️ Turbo download failed, trying single-stream fallback...")
+        ok2 = await _download_stream_fallback(url, local_path, sts, start_time=time.time())
+        if not ok2:
+            return await safe_edit_message(sts, "❌ Both turbo and fallback downloads failed. Provide a direct link or check the URL.")
+
+    # Ensure file exists
+    if not os.path.exists(local_path):
+        return await safe_edit_message(sts, "❌ Download ended but file missing.")
+
+    # File size (human)
+    filesize = os.path.getsize(local_path)
+    filesize_human = humanbytes(filesize) if callable(humanbytes) else str(filesize)
+
+    # Proceed to metadata/index changes (your existing function)
+    try:
+        await change_metadata_and_index(bot, msg, local_path, output_name, None, sts, time.time())
+    except Exception as e:
+        # If change_metadata_and_index raises, ensure cleanup and inform user
+        logger.exception("Metadata/index error: %s", e)
+        try:
+            if os.path.exists(local_path):
+                os.remove(local_path)
+        except Exception:
+            pass
+        return await safe_edit_message(sts, f"❌ Error processing file: {e}")
+
+    return
 
 
 # ---------------- PROCESS INDEX & METADATA (ADAPTED) ----------------
