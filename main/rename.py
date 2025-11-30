@@ -3956,128 +3956,231 @@ async def log_file(b, m):
         await m.reply(str(e))
 
 
-# Regex for magnet
-MAGNET_REGEX = re.compile(r"(magnet:\?xt=urn:btih:[a-zA-Z0-9]+[^ ]*)")
 
-# ---------------- HELPER: Extract filename from magnet ---------------- #
-def magnet_filename(magnet: str):
+# Regex to extract magnet and hash
+MAGNET_REGEX = re.compile(r"(magnet:\?xt=urn:btih:([a-fA-F0-9]+)[^ ]*)")
+BTIH_REGEX = re.compile(r"btih:([a-fA-F0-9]+)", re.I)
+
+# List of .torrent mirrors we will try (uses the hash)
+TORRENT_MIRRORS = [
+    "https://itorrents.org/torrent/{hash}.torrent",
+    "https://torrage.info/torrent.php?h={hash}",
+    "https://magnet2torrent.com/torrent/{hash}",
+    "https://v2.magnetic.link/torrent/{hash}.torrent",
+    "https://torrents-csv.com/download/{hash}"
+]
+
+# Helper: try to download .torrent file from mirrors
+async def fetch_torrent_by_hash(hash_hex: str, dest_path: str, timeout: int = 20):
+    """
+    Try multiple mirrors to download a .torrent file for given hash.
+    Saves to dest_path and returns True on success.
+    """
+    headers = {"User-Agent": "Mozilla/5.0"}
+    async with aiohttp.ClientSession(headers=headers) as session:
+        for url_template in TORRENT_MIRRORS:
+            url = url_template.format(hash=hash_hex)
+            try:
+                async with session.get(url, timeout=timeout) as resp:
+                    if resp.status == 200:
+                        data = await resp.read()
+                        # basic sanity: .torrent files start with 'd8:'
+                        if data and (data[:2] == b'd8' or b'torrent' in data[:60].lower() or len(data) > 200):
+                            with open(dest_path, "wb") as f:
+                                f.write(data)
+                            return True, url
+            except Exception:
+                # ignore and try next mirror
+                continue
+    return False, None
+
+# Helper: extract display filename from magnet (dn=)
+def magnet_display_name(magnet: str):
     if "dn=" in magnet:
-        part = magnet.split("dn=", 1)[1]
-        part = part.split("&")[0]
-        return part.replace("%20", " ")
+        try:
+            part = magnet.split("dn=", 1)[1]
+            part = part.split("&", 1)[0]
+            return part.replace("%20", " ")
+        except Exception:
+            return None
     return None
 
-
-# ---------------- HELPER: Read subprocess output ---------------- #
-async def read_process(process):
+# Helper: stream subprocess stdout lines asynchronously
+async def stream_process_lines(process, handler):
+    """
+    Reads lines from process.stdout synchronously in a non-blocking way by polling.
+    `handler(line)` is awaited for each line.
+    """
+    # Use text=True for subprocess so stdout is text
     while True:
         line = process.stdout.readline()
         if not line:
             break
-        yield line
+        await handler(line.rstrip())
 
+# Pick largest file from a directory (because torrents may contain multiple files)
+def pick_largest_file(directory: str):
+    files = []
+    for root, _, filenames in os.walk(directory):
+        for fn in filenames:
+            fp = os.path.join(root, fn)
+            try:
+                size = os.path.getsize(fp)
+                files.append((size, fp))
+            except Exception:
+                continue
+    if not files:
+        return None
+    files.sort(reverse=True)
+    return files[0][1]  # return path of largest file
 
-# ---------------- MAIN HANDLER: magnetleech ---------------- #
+# ---------------- MAIN HANDLER ----------------
 @Client.on_message(filters.private & filters.command("magnetleech"))
 async def magnetleech(bot: Client, msg: Message):
-
+    """
+    Magnet -> try fetch .torrent via mirrors -> webtorrent download -> upload to TG
+    Usage:
+      /magnetleech magnet:?xt=urn:btih:...&dn=Name.mkv
+    """
     if len(msg.command) < 2:
-        return await msg.reply_text("Usage:\n`/magnetleech <magnet link>`")
+        return await msg.reply_text("Usage:\n`/magnetleech <magnet>`")
 
     text = msg.text
-    match = MAGNET_REGEX.search(text)
-
-    if not match:
-        return await msg.reply_text("❌ Invalid magnet link.")
-
-    magnet = match.group(1)
-
-    # ---- Extract filename ---- #
-    file_name_detected = magnet_filename(magnet)
-
-    if file_name_detected:
-        await msg.reply_text(f"📄 **Filename detected:**\n`{file_name_detected}`")
+    m = MAGNET_REGEX.search(text)
+    if not m:
+        # maybe user pasted only the hash
+        s = BTIH_REGEX.search(text)
+        if s:
+            magnet = f"magnet:?xt=urn:btih:{s.group(1)}"
+            hash_hex = s.group(1)
+        else:
+            return await msg.reply_text("❌ Invalid magnet link or hash.")
     else:
-        await msg.reply_text(
-            "⚠️ Magnet link has no filename.\nWill detect after download."
-        )
+        magnet = m.group(1)
+        hash_hex = m.group(2)
 
-    # ---- Start download ---- #
-    sts = await msg.reply_text("🎯 *Starting WebTorrent download...*\nPlease wait...")
-
-    download_dir = "/tmp/magnet_dl"
-
-    # Cleanup and recreate folder
-    if os.path.exists(download_dir):
-        for f in os.listdir(download_dir):
-            try:
-                os.remove(os.path.join(download_dir, f))
-            except:
-                pass
+    # quick show detected filename if present in magnet
+    detected_name = magnet_display_name(magnet)
+    if detected_name:
+        try:
+            await msg.reply_text(f"📄 Filename detected:\n`{detected_name}`")
+        except:
+            pass
     else:
-        os.makedirs(download_dir)
+        try:
+            await msg.reply_text("⚠️ Filename not present in magnet; will detect after metadata.")
+        except:
+            pass
 
-    start_time = time.time()
+    status = await msg.reply_text("🔄 Resolving .torrent from mirrors...")
 
-    # WebTorrent command
-    cmd = [
-        "webtorrent",
-        "download",
-        magnet,
-        "--out",
-        download_dir
-    ]
-
+    tmp_dir = tempfile.mkdtemp(prefix="magnet_dl_")
+    torrent_path = os.path.join(tmp_dir, f"{hash_hex}.torrent")
     try:
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True
-        )
+        ok, used_url = await fetch_torrent_by_hash(hash_hex, torrent_path)
+        if not ok:
+            # last try: create a tiny .torrent by using magnet2torrent page (best-effort)
+            await status.edit("⚠️ .torrent not found on mirrors; trying magnet->torrent resolver...")
+            # Try magnet2torrent.com API by posting magnet (fallback - many sites won't allow)
+            # We'll attempt one more direct URL pattern (some sites serve without .torrent ext)
+            alt_url = f"https://magnet2torrent.com/torrent/{hash_hex}"
+            async with aiohttp.ClientSession() as sess:
+                try:
+                    async with sess.get(alt_url, timeout=15) as resp:
+                        if resp.status == 200:
+                            data = await resp.read()
+                            if data:
+                                with open(torrent_path, "wb") as f:
+                                    f.write(data)
+                                ok = True
+                                used_url = alt_url
+                except Exception:
+                    ok = False
 
-        async for line in read_process(process):
-            try:
-                await sts.edit(f"⏳ *Downloading via WebTorrent...*\n\n`{line.strip()}`")
-            except:
-                pass
+        if not ok:
+            return await status.edit("❌ Could not obtain .torrent file from mirrors. Torrent may be private or unavailable.")
 
+        await status.edit(f"✅ .torrent fetched from:\n`{used_url}`\n\n⏳ Starting webtorrent download...")
+
+        # Run webtorrent CLI with the .torrent file
+        # Output directory in tmp_dir/download
+        download_out = os.path.join(tmp_dir, "download")
+        os.makedirs(download_out, exist_ok=True)
+
+        # Use webtorrent CLI; it accepts .torrent path
+        # Add --quiet to reduce noisy logs, but we want some logs; keep default
+        cmd = ["webtorrent", "download", torrent_path, "--out", download_out]
+
+        # Spawn process
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+
+        # stream lines to user (throttle edits to avoid rate-limit)
+        last_edit = 0.0
+
+        async def handle_line(line):
+            nonlocal last_edit
+            # trim long lines
+            sline = line.strip()
+            now = time.time()
+            # update every 1.0s at most
+            if now - last_edit >= 1.0:
+                try:
+                    await status.edit(f"⏳ Downloading via webtorrent...\n\n`{sline}`")
+                except:
+                    pass
+                last_edit = now
+
+        # Read stdout lines (blocking read in loop will be polled)
+        await stream_process_lines(process, handle_line)
         process.wait()
 
+        # After process completes, check exit code
+        if process.returncode != 0:
+            # capture last output
+            try:
+                await status.edit("❌ webtorrent failed to download the torrent (exit code != 0).")
+            except:
+                pass
+            return
+
+        # pick largest file from download_out
+        downloaded_file = pick_largest_file(download_out)
+        if not downloaded_file:
+            return await status.edit("❌ Download finished but no files found in output folder.")
+
+        final_name = os.path.basename(downloaded_file)
+        file_size = os.path.getsize(downloaded_file)
+        try:
+            await status.edit(f"📤 Download complete: `{final_name}`\n\nUploading to Telegram...")
+        except:
+            pass
+
+        # Upload to telegram using your progress_message helper
+        try:
+            await bot.send_document(
+                msg.chat.id,
+                document=downloaded_file,
+                caption=f"{final_name}\n\n🌟 Size: {humanbytes(file_size)}",
+                progress=progress_message,
+                progress_args=("💠 Upload Started... ⚡", status, time.time())
+            )
+        except Exception as e:
+            return await status.edit(f"❌ Upload failed:\n`{e}`")
+
+        # done
+        try:
+            await status.delete()
+        except:
+            pass
+
     except Exception as e:
-        return await sts.edit(f"❌ WebTorrent error:\n`{e}`")
-
-    # ---- Find downloaded file ---- #
-    files = os.listdir(download_dir)
-    if not files:
-        return await sts.edit("❌ Download failed. No files found.")
-
-    file_path = os.path.join(download_dir, files[0])
-    final_file_name = files[0]
-
-    file_size_bytes = os.path.getsize(file_path)
-
-    await sts.edit("📤 Uploading to Telegram...")
-
-    # -------- Upload to user with your progress bar -------- #
-    try:
-        await bot.send_document(
-            msg.chat.id,
-            document=file_path,
-            caption=f"Downloaded: {final_file_name}",
-            progress=progress_message,
-            progress_args=("💠 Uploading... ⚡", sts, time.time())
-        )
-    except Exception as e:
-        return await sts.edit(f"❌ Upload failed:\n`{e}`")
-
-    # Cleanup
-    try:
-        os.remove(file_path)
-    except:
-        pass
-
-    await sts.delete()
+        await status.edit(f"❌ Error: {e}")
+    finally:
+        # cleanup temp dir
+        try:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+        except:
+            pass
     
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
