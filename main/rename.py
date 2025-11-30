@@ -3955,40 +3955,106 @@ async def log_file(b, m):
     except Exception as e:
         await m.reply(str(e))
 
-import re
 import aiohttp
+import re
 
 MAGNET_REGEX = re.compile(r"(magnet:\?xt=urn:btih:[a-zA-Z0-9]+)")
 
-@Client.on_message(filters.private & filters.command("magnetlink"))
-async def magnet_to_link(bot, msg: Message):
+@Client.on_message(filters.private & filters.command("magnetleech"))
+async def magnet_leech(bot, msg: Message):
+
     if len(msg.command) < 2:
-        return await msg.reply_text("Send magnet link.\n\nUsage:\n`/magnetlink <magnet>`")
+        return await msg.reply_text(
+            "Send magnet link.\n\nUsage:\n`/magnetleech <magnet>`"
+        )
 
     text = msg.text
-    match = MAGNET_REGEX.search(text)
+    magnet = None
 
-    if not match:
+    match = MAGNET_REGEX.search(text)
+    if match:
+        magnet = match.group(1)
+    else:
         return await msg.reply_text("❌ Invalid magnet link.")
 
-    magnet = match.group(1)
+    sts = await msg.reply_text("🔄 Converting magnet...")
 
-    # extract BTIH hash
-    hash_part = magnet.split("btih:")[1].split("&")[0]
+    api_url = f"https://torrents2ddl.download/api/?uri={magnet}"
 
-    await msg.reply_text(
-        f"🔗 **Magnet Hash:** `{hash_part}`\n\n"
-        f"Here are direct torrent URLs:\n\n"
-        f"1️⃣ https://itorrents.org/torrent/{hash_part}.torrent\n"
-        f"2️⃣ https://magnet2torrent.com/torrent/{hash_part}\n"
-        f"3️⃣ https://v2.magnetic.link/torrent/{hash_part}\n"
-        f"4️⃣ https://torrage.info/torrent.php?h={hash_part}\n"
-        f"5️⃣ https://torrents-csv.com/download/{hash_part}\n\n"
-        "🌟 Use any link in `/leech` or upload to Seedr."
-    )
-                                                          
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(api_url) as resp:
+                data = await resp.json()
+    except:
+        return await sts.edit("❌ Error contacting Torrent2DDL API.")
 
+    # Torrent2DDL Response Format
+    if not data.get("success"):
+        return await sts.edit("❌ Torrent2DDL failed to fetch the file.")
 
+    file_links = data.get("links", [])
+    if not file_links:
+        return await sts.edit("❌ No file links found for this magnet.")
+
+    # We pick the FIRST direct link
+    direct_link = file_links[0]
+
+    await sts.edit(f"🔗 Direct file link found:\n{direct_link}\n\n🚀 Downloading file...")
+
+    # Extract filename
+    file_name = direct_link.split("/")[-1]
+    c_time = time.time()
+
+    # Download file
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(direct_link) as resp:
+                if resp.status != 200:
+                    return await sts.edit("❌ Failed to download the file.")
+
+                with open(file_name, "wb") as f:
+                    downloaded = 0
+                    total = int(resp.headers.get("Content-Length", 0))
+                    chunk = 1024 * 512
+
+                    async for part in resp.content.iter_chunked(chunk):
+                        f.write(part)
+                        downloaded += len(part)
+
+                        try:
+                            await progress_message(
+                                downloaded, total,
+                                "📥 Downloading...",
+                                sts, c_time
+                            )
+                        except:
+                            pass
+
+    except Exception as e:
+        return await sts.edit(f"❌ Error while downloading:\n`{e}`")
+
+    await sts.edit("💠 Uploading to Telegram...")
+
+    # Upload to user
+    try:
+        await bot.send_document(
+            msg.chat.id,
+            document=file_name,
+            caption=f"File: {file_name}",
+            progress=progress_message,
+            progress_args=("💠 Uploading... ⚡", sts, time.time())
+        )
+    except Exception as e:
+        return await sts.edit(f"❌ Upload failed:\n`{e}`")
+
+    # Cleanup
+    try:
+        os.remove(file_name)
+    except:
+        pass
+
+    await sts.delete()
+    
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
     app.run()
