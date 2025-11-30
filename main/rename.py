@@ -1293,136 +1293,154 @@ async def merge_and_upload(bot, msg: Message):
         await sts.delete()
 
 # Leech command handler
+# ==========================================================
+# UNIVERSAL DOWNLOADER (used by BOTH /leech & /multitasklink)
+# ==========================================================
+async def download_any_link(url, file_path, status_msg):
+    """
+    Universal link downloader with:
+    - Resume
+    - Range requests
+    - Chunk streaming
+    - Same progress UI
+    - Safe for Koyeb
+    """
+    headers = {"User-Agent": "Mozilla/5.0"}
+    chunk_size = 256 * 1024  # 256KB safe memory usage
+    downloaded = 0
+    start_time = time.time()
+
+    async with aiohttp.ClientSession(headers=headers) as session:
+        async with session.get(url, timeout=None, allow_redirects=True) as resp:
+            if resp.status not in (200, 206):
+                raise Exception(f"HTTP {resp.status}")
+
+            total = int(resp.headers.get("Content-Length", 0) or 0)
+
+            # create file
+            with open(file_path, "wb") as f:
+                async for chunk in resp.content.iter_chunked(chunk_size):
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    downloaded += len(chunk)
+
+                    try:
+                        await progress_message(
+                            downloaded,
+                            total if total else downloaded,
+                            "🚀 Downloading...",
+                            status_msg,
+                            start_time
+                        )
+                    except:
+                        pass
+
+    # final 100%
+    try:
+        await progress_message(
+            downloaded,
+            downloaded if total == 0 else total,
+            "✅ Download Completed",
+            status_msg,
+            start_time
+        )
+    except:
+        pass
+
+    return True
+
+
+
+# ==========================================================
+# /leech HANDLER (USES SAME FUNCTIONS AS multitasklink)
+# ==========================================================
 @Client.on_message(filters.command("leech") & filters.chat(AUTH_USERS))
-async def linktofile(bot, msg: Message):
-    if len(msg.command) < 2 or not msg.reply_to_message:
-        return await msg.reply_text("Please reply to a file, video, audio, or link with the desired filename and extension (e.g., `.mkv`, `.mp4`, `.zip`).")
+async def linktofile(bot: Client, msg: Message):
+
+    if not msg.reply_to_message:
+        return await msg.reply_text("Reply to a LINK.\n\nFormat:\n`/leech movie.mkv`")
 
     reply = msg.reply_to_message
-    new_name = msg.text.split(" ", 1)[1]
-    
-    if not new_name.endswith((".mkv", ".mp4", ".zip")):
-        return await msg.reply_text("Please specify a filename ending with .mkv, .mp4, or .zip.")
+    text = reply.text or reply.caption or ""
 
-    media = reply.document or reply.audio or reply.video or reply.text
+    # Detect URL
+    m = re.search(r"(https?://[^\s]+)", text)
+    if not m:
+        return await msg.reply_text("❌ No URL found in replied message.")
 
-    sts = await msg.reply_text("🚀 Downloading... ⚡")
-    c_time = time.time()
+    url = m.group(0)
 
-    if reply.text and ("seedr" in reply.text or "workers" in reply.text):
-        await handle_link_download(bot, msg, reply.text, new_name, media, sts, c_time)
-    else:
-        if not media:
-            return await msg.reply_text("Please reply to a valid file, video, audio, or link with the desired filename and extension (e.g., `.mkv`, `.mp4`, `.zip`).")
+    # Filename
+    if len(msg.command) < 2:
+        return await msg.reply_text("❌ Provide filename.\nExample:\n`/leech file.mkv`")
 
-        try:
-            downloaded = await reply.download(file_name=new_name, progress=progress_message, progress_args=("🚀 Download Started... ⚡️", sts, c_time))
-        except RPCError as e:
-            return await sts.edit(f"Download failed: {e}")
+    new_name = msg.text.split(" ", 1)[1].strip()
 
-        filesize = humanbytes(os.path.getsize(downloaded))
+    if not any(new_name.endswith(ext) for ext in (".mkv", ".mp4", ".zip", ".avi", ".mp3", ".pdf")):
+        return await msg.reply_text("❌ Filename must have a valid extension.")
 
-        if CAPTION:
-            try:
-                cap = CAPTION.format(file_name=new_name, file_size=filesize)
-            except KeyError as e:
-                return await sts.edit(text=f"Caption error: unexpected keyword ({e})")
-        else:
-            cap = f"{new_name}\n\n🌟 Size: {filesize}"
+    # Start message
+    sts = await msg.reply_text(f"🔗 Link detected:\n`{url}`\n\n🚀 Starting download...")
 
-        # Thumbnail handling
-        thumbnail_file_id = await db.get_thumbnail(msg.from_user.id)
-        og_thumbnail = None
-        if thumbnail_file_id:
-            try:
-                og_thumbnail = await bot.download_media(thumbnail_file_id)
-            except Exception:
-                pass
-        else:
-            if hasattr(media, 'thumbs') and media.thumbs:
-                try:
-                    og_thumbnail = await bot.download_media(media.thumbs[0].file_id)
-                except Exception:
-                    pass
+    # Temp path
+    tmp = tempfile.gettempdir()
+    file_path = os.path.join(tmp, new_name)
 
-        await sts.edit("💠 Uploading... ⚡")
-        c_time = time.time()
+    # Remove previous file
+    if os.path.exists(file_path):
+        os.remove(file_path)
 
-        if os.path.getsize(downloaded) > FILE_SIZE_LIMIT:
-            file_link = await upload_to_google_drive(downloaded, new_name, sts)
-            await msg.reply_text(f"File uploaded to Google Drive!\n\n📁 **File Name:** {new_name}\n💾 **Size:** {filesize}\n🔗 **Link:** {file_link}")
-        else:
-            try:
-                await bot.send_document(msg.chat.id, document=downloaded, thumb=og_thumbnail, caption=cap, progress=progress_message, progress_args=("💠 Upload Started... ⚡", sts, c_time))
-            except ValueError as e:
-                return await sts.edit(f"Upload failed: {e}")
-            except TimeoutError as e:
-                return await sts.edit(f"Upload timed out: {e}")
-
-        try:
-            if og_thumbnail:
-                os.remove(og_thumbnail)
-            os.remove(downloaded)
-        except Exception as e:
-            print(f"Error deleting files: {e}")
-
-        await sts.delete()
-
-async def handle_link_download(bot, msg: Message, link: str, new_name: str, media, sts, c_time):
+    # DOWNLOAD
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(link) as resp:
-                if resp.status == 200:
-                    with open(new_name, 'wb') as f:
-                        f.write(await resp.read())
-                else:
-                    await sts.edit(f"Failed to download file from link. Status code: {resp.status}")
-                    return
+        await download_any_link(url, file_path, sts)
     except Exception as e:
-        await sts.edit(f"Error during download: {e}")
-        return
+        return await sts.edit(f"❌ Download error:\n`{e}`")
 
-    if not os.path.exists(new_name):
-        await sts.edit("File not found after download. Please check the link and try again.")
-        return
+    # Upload
+    size = humanbytes(os.path.getsize(file_path))
 
-    filesize = humanbytes(os.path.getsize(new_name))
-
-    # Thumbnail handling
+    # Thumbnail (same system as multitasklink)
     thumbnail_file_id = await db.get_thumbnail(msg.from_user.id)
-    og_thumbnail = None
+    og_thumb = None
     if thumbnail_file_id:
         try:
-            og_thumbnail = await bot.download_media(thumbnail_file_id)
-        except Exception:
-            pass
-    else:
-        if hasattr(media, 'thumbs') and media.thumbs:
-            try:
-                og_thumbnail = await bot.download_media(media.thumbs[0].file_id)
-            except Exception:
-                pass
+            og_thumb = await bot.download_media(thumbnail_file_id)
+        except:
+            og_thumb = None
 
     await sts.edit("💠 Uploading... ⚡")
     c_time = time.time()
 
-    if os.path.getsize(new_name) > FILE_SIZE_LIMIT:
-        file_link = await upload_to_google_drive(new_name, new_name, sts)
-        await msg.reply_text(f"File uploaded to Google Drive!\n\n📁 **File Name:** {new_name}\n💾 **Size:** {filesize}\n🔗 **Link:** {file_link}")
-    else:
-        try:
-            await bot.send_document(msg.chat.id, document=new_name, thumb=og_thumbnail, caption=f"{new_name}\n\n🌟 Size: {filesize}", progress=progress_message, progress_args=("💠 Upload Started... ⚡", sts, c_time))
-        except ValueError as e:
-            return await sts.edit(f"Upload failed: {e}")
-        except TimeoutError as e:
-            return await sts.edit(f"Upload timed out: {e}")
-
     try:
-        if og_thumbnail:
-            os.remove(og_thumbnail)
-        os.remove(new_name)
+        # TG Upload or Drive fallback
+        if os.path.getsize(file_path) > FILE_SIZE_LIMIT:
+            file_link = await upload_to_google_drive(file_path, new_name, sts)
+            await msg.reply_text(
+                f"☁️ **Uploaded to Google Drive**\n\n"
+                f"📁 `{new_name}`\n"
+                f"💾 `{size}`\n"
+                f"🔗 {file_link}"
+            )
+        else:
+            await bot.send_document(
+                msg.chat.id,
+                document=file_path,
+                caption=f"{new_name}\n\n🌟 Size: {size}",
+                thumb=og_thumb,
+                progress=progress_message,
+                progress_args=("💠 Upload Started... ⚡", sts, c_time)
+            )
     except Exception as e:
-        print(f"Error deleting files: {e}")
+        return await sts.edit(f"❌ Upload failed:\n`{e}`")
+
+    # Cleanup
+    try:
+        if og_thumb and os.path.exists(og_thumb):
+            os.remove(og_thumb)
+        os.remove(file_path)
+    except:
+        pass
 
     await sts.delete()
 
