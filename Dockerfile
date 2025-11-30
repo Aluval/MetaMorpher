@@ -8,16 +8,16 @@ COPY . /app/
 # Install dependencies
 # ----------------------------
 RUN apt-get update && \
-    apt-get install -y ffmpeg mediainfo git wget curl jq python3-dev
+    apt-get install -y ffmpeg mediainfo git wget curl jq python3-dev bash build-essential
 
-# Install Node.js + NPM (required for webtorrent-hybrid)
+# Install Node.js + NPM (required for webtorrent-cli)
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
     && apt-get install -y nodejs
 
-# Install WebTorrent HYBRID (supports WebRTC + TCP + UDP)
-RUN npm install -g webtorrent-hybrid
+# Install WebTorrent CLI (WebRTC)
+RUN npm install -g webtorrent-cli
 
-# Python requirements
+# Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 CMD ["python", "bot.py"]
