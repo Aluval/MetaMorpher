@@ -3955,92 +3955,116 @@ async def log_file(b, m):
     except Exception as e:
         await m.reply(str(e))
 
-import aiohttp
-import re
 
-MAGNET_REGEX = re.compile(r"(magnet:\?xt=urn:btih:[a-zA-Z0-9]+)")
+# Regex for magnet
+MAGNET_REGEX = re.compile(r"(magnet:\?xt=urn:btih:[a-zA-Z0-9]+[^ ]*)")
 
+# ---------------- HELPER: Extract filename from magnet ---------------- #
+def magnet_filename(magnet: str):
+    if "dn=" in magnet:
+        part = magnet.split("dn=", 1)[1]
+        part = part.split("&")[0]
+        return part.replace("%20", " ")
+    return None
+
+
+# ---------------- HELPER: Read subprocess output ---------------- #
+async def read_process(process):
+    while True:
+        line = process.stdout.readline()
+        if not line:
+            break
+        yield line
+
+
+# ---------------- MAIN HANDLER: magnetleech ---------------- #
 @Client.on_message(filters.private & filters.command("magnetleech"))
-async def magnet_leech(bot, msg: Message):
+async def magnetleech(bot: Client, msg: Message):
 
     if len(msg.command) < 2:
-        return await msg.reply_text(
-            "Send magnet link.\n\nUsage:\n`/magnetleech <magnet>`"
-        )
+        return await msg.reply_text("Usage:\n`/magnetleech <magnet link>`")
 
     text = msg.text
-    magnet = None
-
     match = MAGNET_REGEX.search(text)
-    if match:
-        magnet = match.group(1)
-    else:
+
+    if not match:
         return await msg.reply_text("❌ Invalid magnet link.")
 
-    sts = await msg.reply_text("🔄 Converting magnet...")
+    magnet = match.group(1)
 
-    api_url = f"https://torrents2ddl.download/api/?uri={magnet}"
+    # ---- Extract filename ---- #
+    file_name_detected = magnet_filename(magnet)
+
+    if file_name_detected:
+        await msg.reply_text(f"📄 **Filename detected:**\n`{file_name_detected}`")
+    else:
+        await msg.reply_text(
+            "⚠️ Magnet link has no filename.\nWill detect after download."
+        )
+
+    # ---- Start download ---- #
+    sts = await msg.reply_text("🎯 *Starting WebTorrent download...*\nPlease wait...")
+
+    download_dir = "/tmp/magnet_dl"
+
+    # Cleanup and recreate folder
+    if os.path.exists(download_dir):
+        for f in os.listdir(download_dir):
+            try:
+                os.remove(os.path.join(download_dir, f))
+            except:
+                pass
+    else:
+        os.makedirs(download_dir)
+
+    start_time = time.time()
+
+    # WebTorrent command
+    cmd = [
+        "webtorrent",
+        "download",
+        magnet,
+        "--out",
+        download_dir
+    ]
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(api_url) as resp:
-                data = await resp.json()
-    except:
-        return await sts.edit("❌ Error contacting Torrent2DDL API.")
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True
+        )
 
-    # Torrent2DDL Response Format
-    if not data.get("success"):
-        return await sts.edit("❌ Torrent2DDL failed to fetch the file.")
+        async for line in read_process(process):
+            try:
+                await sts.edit(f"⏳ *Downloading via WebTorrent...*\n\n`{line.strip()}`")
+            except:
+                pass
 
-    file_links = data.get("links", [])
-    if not file_links:
-        return await sts.edit("❌ No file links found for this magnet.")
-
-    # We pick the FIRST direct link
-    direct_link = file_links[0]
-
-    await sts.edit(f"🔗 Direct file link found:\n{direct_link}\n\n🚀 Downloading file...")
-
-    # Extract filename
-    file_name = direct_link.split("/")[-1]
-    c_time = time.time()
-
-    # Download file
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(direct_link) as resp:
-                if resp.status != 200:
-                    return await sts.edit("❌ Failed to download the file.")
-
-                with open(file_name, "wb") as f:
-                    downloaded = 0
-                    total = int(resp.headers.get("Content-Length", 0))
-                    chunk = 1024 * 512
-
-                    async for part in resp.content.iter_chunked(chunk):
-                        f.write(part)
-                        downloaded += len(part)
-
-                        try:
-                            await progress_message(
-                                downloaded, total,
-                                "📥 Downloading...",
-                                sts, c_time
-                            )
-                        except:
-                            pass
+        process.wait()
 
     except Exception as e:
-        return await sts.edit(f"❌ Error while downloading:\n`{e}`")
+        return await sts.edit(f"❌ WebTorrent error:\n`{e}`")
 
-    await sts.edit("💠 Uploading to Telegram...")
+    # ---- Find downloaded file ---- #
+    files = os.listdir(download_dir)
+    if not files:
+        return await sts.edit("❌ Download failed. No files found.")
 
-    # Upload to user
+    file_path = os.path.join(download_dir, files[0])
+    final_file_name = files[0]
+
+    file_size_bytes = os.path.getsize(file_path)
+
+    await sts.edit("📤 Uploading to Telegram...")
+
+    # -------- Upload to user with your progress bar -------- #
     try:
         await bot.send_document(
             msg.chat.id,
-            document=file_name,
-            caption=f"File: {file_name}",
+            document=file_path,
+            caption=f"Downloaded: {final_file_name}",
             progress=progress_message,
             progress_args=("💠 Uploading... ⚡", sts, time.time())
         )
@@ -4049,7 +4073,7 @@ async def magnet_leech(bot, msg: Message):
 
     # Cleanup
     try:
-        os.remove(file_name)
+        os.remove(file_path)
     except:
         pass
 
