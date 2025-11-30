@@ -3954,6 +3954,38 @@ async def log_file(b, m):
         await m.reply_document('SunrisesBot.txt')
     except Exception as e:
         await m.reply(str(e))
+
+import re
+import aiohttp
+
+MAGNET_REGEX = re.compile(r"(magnet:\?xt=urn:btih:[a-zA-Z0-9]+)")
+
+@Client.on_message(filters.private & filters.command("magnetlink"))
+async def magnet_to_link(bot, msg: Message):
+    if len(msg.command) < 2:
+        return await msg.reply_text("Send magnet link.\n\nUsage:\n`/magnetlink <magnet>`")
+
+    text = msg.text
+    match = MAGNET_REGEX.search(text)
+
+    if not match:
+        return await msg.reply_text("❌ Invalid magnet link.")
+
+    magnet = match.group(1)
+
+    # extract BTIH hash
+    hash_part = magnet.split("btih:")[1].split("&")[0]
+
+    await msg.reply_text(
+        f"🔗 **Magnet Hash:** `{hash_part}`\n\n"
+        f"Here are direct torrent URLs:\n\n"
+        f"1️⃣ https://itorrents.org/torrent/{hash_part}.torrent\n"
+        f"2️⃣ https://magnet2torrent.com/torrent/{hash_part}\n"
+        f"3️⃣ https://v2.magnetic.link/torrent/{hash_part}\n"
+        f"4️⃣ https://torrage.info/torrent.php?h={hash_part}\n"
+        f"5️⃣ https://torrents-csv.com/download/{hash_part}\n\n"
+        "🌟 Use any link in `/leech` or upload to Seedr."
+    )
                                                           
 
 
