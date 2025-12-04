@@ -3957,27 +3957,26 @@ async def log_file(b, m):
 
 
 
+
 @Client.on_message(filters.private & filters.command("watermark"))
 async def watermark_handler(bot, msg):
-
-    # --- Validate input ---
-    if len(msg.command) < 2:
-        return await msg.reply_text("Usage: `/watermark HARSHA 24`")
-
     reply = msg.reply_to_message
+
     if not reply:
-        return await msg.reply_text("Reply to a video with: `/watermark text`")
+        return await msg.reply_text("Reply to a video and send:\n`/watermark Your Text`")
+
+    if len(msg.command) < 2:
+        return await msg.reply_text("Usage: `/watermark HARSHA`")
+
+    wm_text = msg.text.split(" ", 1)[1].strip()
+    if len(wm_text) > 50:
+        return await msg.reply_text("Watermark text too long (max 50 chars).")
 
     media = reply.video or reply.document
     if not media:
         return await msg.reply_text("Reply to a valid video file.")
 
-    wm_text = msg.text.split(" ", 1)[1].strip()
-
-    if len(wm_text) > 50:
-        return await msg.reply_text("Watermark text must be under 50 characters.")
-
-    # --- Start Download ---
+    # ---- Download video ----
     sts = await msg.reply_text("⬇️ Downloading video...")
     c_time = time.time()
 
@@ -3989,39 +3988,47 @@ async def watermark_handler(bot, msg):
     except Exception as e:
         return await safe_edit_message(sts, f"❌ Download error: {e}")
 
-    # --- Create ASS file ---
-    ass_path = "watermark.ass"
-    with open(ass_path, "w") as f:
-        f.write(generate_ass_watermark(wm_text))
+    # ---- Create ASS watermark ----
+    ass_path = "/tmp/watermark.ass"
 
-    output_path = f"watermarked_{wm_text.replace(' ', '_')}.mp4"
+    try:
+        with open(ass_path, "w") as f:
+            f.write(generate_ass_watermark(wm_text))
+    except Exception as e:
+        return await safe_edit_message(sts, f"❌ Failed to create ASS:\n{e}")
 
+    output_path = "/tmp/watermarked.mp4"
+
+    # ---- Apply watermark ----
     await safe_edit_message(sts, "⚙️ Adding watermark...")
 
-    # --- Apply watermark ---
     ok = await apply_ass_watermark(input_path, output_path, ass_path, sts)
 
     if not ok:
-        os.remove(input_path)
         return
 
-    # --- Upload result ---
+    # ---- Upload ----
     await safe_edit_message(sts, "⬆️ Uploading...")
     c_time = time.time()
 
     await bot.send_document(
         msg.chat.id,
         document=output_path,
-        caption=f"✅ Watermark Added\n📝 Text: `{wm_text}`",
+        caption=f"✅ Watermark Added\n📝 `{wm_text}`",
         progress=progress_message,
         progress_args=("⬆️ Uploading...", sts, c_time)
     )
 
-    # Cleanup
-    os.remove(input_path)
-    os.remove(output_path)
-    os.remove(ass_path)
+    # ---- Cleanup ----
+    for f in [input_path, output_path, ass_path]:
+        try:
+            if os.path.exists(f):
+                os.remove(f)
+        except:
+            pass
+
     await sts.delete()
+
     
            
 if __name__ == '__main__':
