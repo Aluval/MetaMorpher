@@ -1,9 +1,21 @@
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+import re
+import time
+import shutil
 import subprocess
 import zipfile
 import asyncio
 import ffmpeg
 import os, sys
+import json
+from html_telegraph_poster import TelegraphPoster
+from pyrogram.errors import FloodWait, MessageNotModified
+import traceback
+from main.utils import TimeFormatter
+
+# Initialize Telegraph
+telegraph = TelegraphPoster(use_api=True)
+telegraph.create_api_token("MediaInfoBot")
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 def remove_all_tags(input_path, output_path):
@@ -285,36 +297,134 @@ def get_mediainfo(file_path):
     return stdout.decode().strip()
 
 
-# Function to compress Ffmpeg information using compress command
-def compress_video(input_path, output_path, video_title, audio_title, subtitle_title):
+
+async def compress_video(
+    input_path, output_path,
+    video_title, audio_title, subtitle_title,
+    sts_msg
+):
+    # ---- Get duration (SAFE JSON method) ----
+    try:
+        duration_cmd = [
+            "ffprobe", "-v", "quiet",
+            "-print_format", "json",
+            "-show_format",
+            "-show_streams",
+            input_path
+        ]
+
+        result = subprocess.run(duration_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        if not result.stdout:
+            await safe_edit_message(sts_msg, "❌ ffprobe returned empty output. File may be corrupted.")
+            return False
+
+        info = json.loads(result.stdout)
+
+        if "format" in info and "duration" in info["format"]:
+            total_duration = float(info["format"]["duration"])
+        else:
+            total_duration = None
+            for stream in info.get("streams", []):
+                if "duration" in stream:
+                    total_duration = float(stream["duration"])
+                    break
+
+        if not total_duration:
+            raise Exception("No duration found in metadata.")
+
+    except Exception as e:
+        await safe_edit_message(sts_msg, f"❌ Could not read video duration.\n{e}")
+        return False
+
+    # ---- FFmpeg Command ----
     command = [
         'ffmpeg',
-        '-hide_banner',
-        '-loglevel', 'quiet',
         '-i', input_path,
         '-c:v', 'libx264',
-        '-crf', '28',
-        '-pix_fmt', 'yuv420p',
-        '-s', '854x480',  
-        '-c:a', 'libopus',
-        '-b:a', '128k',
-        '-preset', 'ultrafast',
-        '-map', '0:v:0',  # Map the first video stream
-        '-map', '0:a',    # Map all audio streams
-        '-map', '0:s?',   # Map all subtitle streams if present
+        '-b:v', '400k',
+        '-preset', 'superfast',
+        '-pix_fmt', 'yuv420p',      
+
+        '-c:a', 'aac',
+        '-b:a', '96k',
+
+        '-map', '0:v:0',
+        '-map', '0:a',
+        '-map', '0:s?',
+
         '-metadata', f'title={video_title}',
         '-metadata:s:v:0', f'title={video_title}',
         '-metadata:s:a', f'title={audio_title}',
         '-metadata:s:s', f'title={subtitle_title}',
-        '-y',
-        output_path
-    ]
-    
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        raise Exception(f"FFmpeg error: {stderr.decode('utf-8')}")
 
+        '-movflags', '+faststart',
+        '-y', output_path
+    ]
+
+    # ---- Start FFmpeg ----
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True
+    )
+
+    time_pattern = re.compile(r"time=(\d+):(\d+):(\d+)[\.:](\d+)")
+    start_time = time.time()
+    last_percent = -1
+
+    # ---- Progress Reader ----
+    while True:
+        line = process.stdout.readline()
+        if line == "" and process.poll() is not None:
+            break
+
+        match = time_pattern.search(line)
+        if match:
+            h, m, s, ms = match.groups()
+            cur = (int(h) * 3600) + (int(m) * 60) + int(s) + (int(ms) / 100)
+
+            percent = int((cur / total_duration) * 100)
+
+            if percent != last_percent and percent > 0:
+                elapsed = time.time() - start_time
+                eta = (elapsed * (100 - percent) / percent) if percent > 0 else 0
+
+                # ✔ Correct TimeFormatter conversion: expects milliseconds
+                eta_ms = int(eta * 1000)
+
+                await safe_edit_message(
+                    sts_msg,
+                    f"⚙️ **Compressing:** {percent}%\n⏳ ETA: {TimeFormatter(eta_ms)}"
+                )
+
+                last_percent = percent
+
+    # ---- Check Failure ----
+    if process.poll() != 0:
+        await safe_edit_message(sts_msg, "❌ FFmpeg failed.")
+        return False
+
+    return True
+
+async def safe_edit_message(msg, text):
+    if msg is None:
+        return
+    try:
+        if msg.text == text:
+            return
+        await msg.edit_text(text)
+    except MessageNotModified:
+        pass
+    except FloodWait as e:
+        await asyncio.sleep(e.value)
+        try:
+            await msg.edit_text(text)
+        except:
+            pass
+    except:
+        pass
 
 # Function to compress mediainfo information using compress command
 async def get_and_upload_mediainfo(bot, output_file, media):
@@ -333,6 +443,6 @@ async def get_and_upload_mediainfo(bot, output_file, media):
         author_url="https://t.me/Sunrises24BotUpdates",
         text=media_info_html
     )
-    link = f"https://graph.org/{response['path']}"
 
+    link = f"https://graph.org/{response['path']}"
     return media_info_html, link
