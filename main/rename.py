@@ -3960,14 +3960,12 @@ async def log_file(b, m):
 async def add_watermark(bot, msg: Message):
     if not msg.reply_to_message:
         return await msg.reply_text(
-            "Reply to a video with:\n\n"
-            "`/watermark YourText`"
+            "Reply to a video with:\n`/watermark YourText`"
         )
 
     if len(msg.command) < 2:
-        return await msg.reply_text("Please provide watermark text.\nExample:\n`/watermark Sunrises24`")
+        return await msg.reply_text("Example:\n`/watermark Sunrises24`")
 
-    # Watermark text
     watermark_text = " ".join(msg.command[1:])
     safe_text = watermark_text.replace("'", "\\'")
 
@@ -3975,13 +3973,13 @@ async def add_watermark(bot, msg: Message):
     media = reply.video or reply.document
 
     if not media:
-        return await msg.reply_text("Reply to a valid **video file only**.")
+        return await msg.reply_text("❌ Please reply to a **video file**.")
 
-    # ---- START DOWNLOAD ----
     sts = await msg.reply_text("⬇️ **Downloading video...**")
     c_time = time.time()
 
     try:
+        # ✔ CORRECT: download via message, NOT media
         input_path = await reply.download(
             progress=progress_message,
             progress_args=("⬇️ Downloading...", sts, c_time)
@@ -3992,14 +3990,14 @@ async def add_watermark(bot, msg: Message):
 
     output_path = f"watermarked_{int(time.time())}.mp4"
 
-    await safe_edit_message(sts, "⚙️ **Adding watermark...**")
+    await safe_edit_message(sts, "⚙️ **Applying watermark...**")
 
     ok = await watermark(input_path, output_path, safe_text, sts)
+
     if not ok:
         os.remove(input_path)
         return
 
-    # ---- UPLOAD RESULT ----
     await safe_edit_message(sts, "⬆️ **Uploading...**")
     c_time = time.time()
 
@@ -4015,11 +4013,9 @@ async def add_watermark(bot, msg: Message):
         await safe_edit_message(sts, f"❌ Upload error: {e}")
         return
 
-    # ---- CLEANUP ----
     os.remove(input_path)
     os.remove(output_path)
     await sts.delete()
-
            
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
