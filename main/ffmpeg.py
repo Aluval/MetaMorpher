@@ -449,9 +449,9 @@ async def get_and_upload_mediainfo(bot, output_file, media):
 
 
 
-# -------------------------------------------------
-# Create ASS Watermark file dynamically
-# -------------------------------------------------
+# =======================================================
+# Generate ASS subtitle watermark file
+# =======================================================
 def generate_ass_watermark(text):
     return f"""[Script Info]
 ScriptType: v4.00+
@@ -460,7 +460,7 @@ PlayResY: 1080
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,DejaVu Sans,42,&H00FFFFFF,&H000000FF,&H00222222,&H00191919,-1,0,0,0,100,100,0,0,1,4,3,2,20,20,20,1
+Style: Default,DejaVu Sans,42,&H00FFFFFF,&H00000000,&H00202020,&H00101010,-1,0,0,0,100,100,0,0,1,4,3,2,20,20,20,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -472,11 +472,20 @@ Dialogue: 0,0:17:20.00,0:18:30.00,Default,,0,0,0,,{{\\pos(1500,120)}}{text}
 """
 
 
-# -------------------------------------------------
-# Apply watermark using FFmpeg ASS filter
-# -------------------------------------------------
+# =======================================================
+# Apply watermark using FFmpeg (FAST + STABLE)
+# =======================================================
 async def apply_ass_watermark(input_path, output_path, ass_path, sts_msg):
 
+    # Ensure ASS exists
+    if not os.path.exists(ass_path):
+        await safe_edit_message(sts_msg, f"❌ ASS file missing: {ass_path}")
+        return False
+
+    # Use absolute path (FFmpeg requirement)
+    ass_path = os.path.abspath(ass_path)
+
+    # FFmpeg command
     command = [
         "ffmpeg",
         "-i", input_path,
@@ -492,25 +501,27 @@ async def apply_ass_watermark(input_path, output_path, ass_path, sts_msg):
     ]
 
     process = subprocess.Popen(
-        command, stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT, text=True
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True
     )
 
-    # ---------------------------
-    # Get Duration for progress
-    # ---------------------------
-    probe = json.loads(subprocess.check_output([
+    # ---- Get duration ----
+    meta = json.loads(subprocess.check_output([
         "ffprobe", "-v", "quiet",
         "-print_format", "json",
         "-show_format", input_path
     ]))
-    total_duration = float(probe["format"]["duration"])
+
+    duration = float(meta["format"]["duration"])
 
     time_pattern = re.compile(r"time=(\d+):(\d+):(\d+)[\.:](\d+)")
 
     start = time.time()
     last_percent = -1
 
+    # ---- Progress ----
     while True:
         line = process.stdout.readline()
         if line == "" and process.poll() is not None:
@@ -521,7 +532,7 @@ async def apply_ass_watermark(input_path, output_path, ass_path, sts_msg):
             h, m, s, ms = match.groups()
             cur = int(h)*3600 + int(m)*60 + int(s) + (int(ms)/100)
 
-            percent = int((cur / total_duration) * 100)
+            percent = int((cur / duration) * 100)
 
             if percent != last_percent:
                 elapsed = time.time() - start
@@ -532,14 +543,15 @@ async def apply_ass_watermark(input_path, output_path, ass_path, sts_msg):
                     sts_msg,
                     f"⚙️ Watermarking: {percent}%\n⏳ ETA: {TimeFormatter(eta_ms)}"
                 )
+
                 last_percent = percent
 
+    # ---- Check FFmpeg result ----
     if process.poll() != 0:
-        error_output = process.stdout.read()[-500:]
-        await safe_edit_message(
-            sts_msg,
-            f"❌ FFmpeg failed.\n```\n{error_output}\n```"
-        )
+        error_log = process.stdout.read()[-2000:]
+        await safe_edit_message(sts_msg, f"❌ FFmpeg failed:\n```\n{error_log}\n```")
         return False
 
     return True
+
+            
