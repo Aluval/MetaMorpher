@@ -87,3 +87,14 @@ Minor Update
   /Restart 
   /Dleech (drive link leech) (2GB)
 
+
+──「 Version  V.2.8 」──
+Major Update 
+• Implemented BSSettings Toggles.
+• Implement Some Commands
+/Compress [Fixed & Fast]
+/Streamremove fixed 
+/multitasklink [Fixed & Fast]
+/leech [Fixed & Fast]
+• Refined the code some 
+
