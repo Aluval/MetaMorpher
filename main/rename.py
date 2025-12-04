@@ -19,7 +19,7 @@ from main.utils import heroku_restart, upload_files, download_media, download_fi
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 import asyncio
-from main.ffmpeg import remove_all_tags, change_video_metadata, generate_sample_video, add_photo_attachment, merge_videos, unzip_file, extract_audio_stream, extract_subtitle_stream, extract_video_stream, extract_audios_from_file, extract_subtitles_from_file, extract_video_from_file, get_mediainfo, compress_video, get_and_upload_mediainfo
+from main.ffmpeg import remove_all_tags, change_video_metadata, generate_sample_video, add_photo_attachment, merge_videos, unzip_file, extract_audio_stream, extract_subtitle_stream, extract_video_stream, extract_audios_from_file, extract_subtitles_from_file, extract_video_from_file, get_mediainfo, compress_video, watermark, get_and_upload_mediainfo
 from googleapiclient.http import MediaFileUpload
 from main.gdrive import upload_to_google_drive, extract_id_from_url, copy_file, get_files_in_folder, drive_service
 from googleapiclient.errors import HttpError
@@ -3954,6 +3954,69 @@ async def log_file(b, m):
         await m.reply_document('SunrisesBot.txt')
     except Exception as e:
         await m.reply(str(e))
+
+
+@Client.on_message(filters.private & filters.command("watermark"))
+async def add_watermark(bot, msg: Message):
+    if not msg.reply_to_message:
+        return await msg.reply_text(
+            "Reply to a video with:\n\n"
+            "`/watermark YourText`"
+        )
+
+    if len(msg.command) < 2:
+        return await msg.reply_text("Please give watermark text.\nExample:\n`/watermark Sunrises24`")
+
+    watermark_text = " ".join(msg.command[1:])
+    safe_text = watermark_text.replace("'", "\\'")  # Avoid FFmpeg breaking
+
+    media = msg.reply_to_message.video or msg.reply_to_message.document
+    if not media:
+        return await msg.reply_text("Please reply to a valid **video**.")
+
+    # ---- START DOWNLOAD ----
+    sts = await msg.reply_text("⬇️ **Downloading video...**")
+    c_time = time.time()
+
+    try:
+        input_path = await media.download(
+            progress=progress_message,
+            progress_args=("⬇️ Downloading...", sts, c_time)
+        )
+    except Exception as e:
+        await safe_edit_message(sts, f"❌ Download error: {e}")
+        return
+
+    output_file = f"watermarked_{int(time.time())}.mp4"
+
+    await safe_edit_message(sts, "⚙️ **Adding watermark...**")
+
+    ok = await watermark(input_path, output_file, safe_text, sts)
+
+    if not ok:
+        os.remove(input_path)
+        return
+
+    # ---- UPLOAD ----
+    await safe_edit_message(sts, "⬆️ **Uploading...**")
+    c_time = time.time()
+
+    try:
+        await bot.send_document(
+            msg.chat.id,
+            document=output_file,
+            caption=f"Watermark added: {watermark_text}",
+            progress=progress_message,
+            progress_args=("⬆️ Uploading...", sts, c_time)
+        )
+    except Exception as e:
+        await safe_edit_message(sts, f"❌ Upload error: {e}")
+        return
+
+    # ---- CLEANUP ----
+    os.remove(input_path)
+    os.remove(output_file)
+    await sts.delete()
 
            
 if __name__ == '__main__':
