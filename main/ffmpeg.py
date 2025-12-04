@@ -450,13 +450,14 @@ async def get_and_upload_mediainfo(bot, output_file, media):
 
 
 async def watermark(input_path, output_path, safe_text, sts_msg):
-    # Watermark drawtext filter
+    # Watermark filter
     drawtext = (
         f"drawtext=text='{safe_text}':"
-        "x=(w-text_w)-20:y=h-th-20:"
+        "x=w-tw-20:y=h-th-20:"
         "fontsize=28:fontcolor=white:borderw=2"
     )
 
+    # FFmpeg watermark command (no compression except x264 ultrafast)
     command = [
         "ffmpeg",
         "-i", input_path,
@@ -481,21 +482,21 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
         text=True
     )
 
-    # Progress detection
+    # ---- Detect duration ----
+    meta = json.loads(subprocess.check_output([
+        "ffprobe", "-v", "quiet",
+        "-print_format", "json",
+        "-show_format", input_path
+    ]))
+
+    total_duration = float(meta["format"]["duration"])
+
+    # ---- Progress Regex ----
     time_pattern = re.compile(r"time=(\d+):(\d+):(\d+)[\.:](\d+)")
     start_time = time.time()
     last_percent = -1
 
-    # Get video duration
-    duration_cmd = [
-        "ffprobe", "-v", "quiet",
-        "-print_format", "json",
-        "-show_format", input_path
-    ]
-    meta = json.loads(subprocess.check_output(duration_cmd))
-    total_duration = float(meta["format"]["duration"])
-
-    # Read ffmpeg output live
+    # ---- Read FFmpeg output ----
     while True:
         line = process.stdout.readline()
         if line == "" and process.poll() is not None:
@@ -504,9 +505,9 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
         match = time_pattern.search(line)
         if match:
             h, m, s, ms = match.groups()
-            cur = int(h)*3600 + int(m)*60 + int(s) + (int(ms)/100.0)
-            percent = int((cur / total_duration) * 100)
+            cur = int(h)*3600 + int(m)*60 + int(s) + (int(ms)/100)
 
+            percent = int((cur / total_duration) * 100)
             if percent != last_percent and percent > 0:
                 elapsed = time.time() - start_time
                 eta = (elapsed * (100 - percent) / percent)
@@ -514,7 +515,7 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
 
                 await safe_edit_message(
                     sts_msg,
-                    f"⚙️ **Watermarking:** {percent}%\n⏳ ETA: {TimeFormatter(eta_ms)}"
+                    f"🖼️ **Watermarking:** {percent}%\n⏳ ETA: {TimeFormatter(eta_ms)}"
                 )
                 last_percent = percent
 
