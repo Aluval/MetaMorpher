@@ -450,9 +450,9 @@ async def get_and_upload_mediainfo(bot, output_file, media):
 
 
 async def watermark(input_path, output_path, safe_text, sts_msg):
-
     drawtext = (
         f"drawtext=text='{safe_text}':"
+        "fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         "x=w-tw-20:y=h-th-20:"
         "fontsize=28:fontcolor=white:borderw=2"
     )
@@ -461,15 +461,12 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
         "ffmpeg",
         "-i", input_path,
         "-vf", drawtext,
-
         "-c:v", "libx264",
         "-preset", "ultrafast",
         "-crf", "23",
         "-pix_fmt", "yuv420p",
-
         "-c:a", "copy",
         "-c:s", "copy",
-
         "-movflags", "+faststart",
         "-y", output_path
     ]
@@ -481,7 +478,7 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
         text=True
     )
 
-    # Duration
+    # --- duration --
     meta = json.loads(subprocess.check_output([
         "ffprobe", "-v", "quiet",
         "-print_format", "json",
@@ -489,11 +486,10 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
     ]))
     total_duration = float(meta["format"]["duration"])
 
-    time_pattern = re.compile(r"time=(\d+):(\d+):(\d+)[\.:](\d+)")
+    time_pattern = re.compile(r"time=(\\d+):(\\d+):(\\d+)[\\.:](\\d+)")
     start_time = time.time()
     last_percent = -1
 
-    # Read progress
     while True:
         line = process.stdout.readline()
         if line == "" and process.poll() is not None:
@@ -503,11 +499,11 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
         if match:
             h, m, s, ms = match.groups()
             cur = int(h)*3600 + int(m)*60 + int(s) + (int(ms)/100)
-
             percent = int((cur / total_duration) * 100)
+
             if percent != last_percent:
                 elapsed = time.time() - start_time
-                eta = (elapsed * (100 - percent) / percent)
+                eta = elapsed * (100-percent) / max(percent, 1)
                 eta_ms = int(eta * 1000)
 
                 await safe_edit_message(
@@ -516,8 +512,13 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
                 )
                 last_percent = percent
 
+    # --- Print REAL FFmpeg error ---
     if process.poll() != 0:
-        await safe_edit_message(sts_msg, "❌ FFmpeg failed while watermarking.")
+        error_output = process.stdout.read()
+        await safe_edit_message(
+            sts_msg,
+            f"❌ FFmpeg failed.\n\n```\n{error_output[-500:]}\n```"
+        )
         return False
 
     return True
