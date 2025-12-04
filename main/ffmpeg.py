@@ -450,9 +450,9 @@ async def get_and_upload_mediainfo(bot, output_file, media):
 
 
 async def watermark(input_path, output_path, safe_text, sts_msg):
+    # ✔ FIXED DRAWTEXT – NO FONTFILE → WORKS ON KOYEB
     drawtext = (
         f"drawtext=text='{safe_text}':"
-        "fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         "x=w-tw-20:y=h-th-20:"
         "fontsize=28:fontcolor=white:borderw=2"
     )
@@ -461,17 +461,21 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
         "ffmpeg",
         "-i", input_path,
         "-vf", drawtext,
+
+        # ✔ FASTEST & MOST STABLE
         "-c:v", "libx264",
         "-preset", "ultrafast",
         "-crf", "23",
         "-pix_fmt", "yuv420p",
+
+        # ✔ COPY audio & subs (no re-encode)
         "-c:a", "copy",
         "-c:s", "copy",
+
         "-movflags", "+faststart",
         "-y", output_path
     ]
 
-    # --- capture stderr separately ---
     process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
@@ -479,24 +483,27 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
         text=True
     )
 
-    # --- Get Duration ---
+    # ---- Get video duration ----
     meta = json.loads(subprocess.check_output([
         "ffprobe", "-v", "quiet",
         "-print_format", "json",
-        "-show_format", input_path
+        "-show_format",
+        input_path
     ]))
     total_duration = float(meta["format"]["duration"])
 
-    time_pattern = re.compile(r"time=(\\d+):(\\d+):(\\d+)[\\.:](\\d+)")
+    # ---- Progress regex ----
+    time_pattern = re.compile(r"time=(\d+):(\d+):(\d+)[\.:](\d+)")
     start_time = time.time()
     last_percent = -1
+    ffmpeg_log = []
 
-    ffmpeg_log = []  # store ALL ffmpeg output lines
-
+    # ---- Read ffmpeg output live ----
     while True:
         line = process.stdout.readline()
         if line:
-            ffmpeg_log.append(line.strip())  # save log
+            ffmpeg_log.append(line.strip())
+
         if line == "" and process.poll() is not None:
             break
 
@@ -504,8 +511,8 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
         if match:
             h, m, s, ms = match.groups()
             cur = int(h)*3600 + int(m)*60 + int(s) + (int(ms)/100)
-            percent = int((cur / total_duration) * 100)
 
+            percent = int((cur / total_duration) * 100)
             if percent != last_percent and percent > 0:
                 elapsed = time.time() - start_time
                 eta = elapsed * (100 - percent) / percent
@@ -513,19 +520,20 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
 
                 await safe_edit_message(
                     sts_msg,
-                    f"⚙️ Watermarking: {percent}%\n⏳ ETA: {TimeFormatter(eta_ms)}"
+                    f"🖼️ Watermarking: {percent}%\n⏳ ETA: {TimeFormatter(eta_ms)}"
                 )
                 last_percent = percent
 
-    # ---- If failed, print REAL error ----
+    # ---- If failed, show REAL FFmpeg error ----
     if process.poll() != 0:
         stderr_output = process.stderr.read()
-        log_text = "\n".join(ffmpeg_log[-30:])  # last 30 lines
+        last_lines = "\n".join(ffmpeg_log[-20:])
 
         await safe_edit_message(
             sts_msg,
-            f"❌ FFmpeg failed.\n\n**stderr:**\n```\n{stderr_output[-500:]}\n```\n"
-            f"**Last Output:**\n```\n{log_text}\n```"
+            f"❌ FFmpeg failed.\n\n"
+            f"stderr:\n```\n{stderr_output[-500:]}\n```\n"
+            f"Last Output:\n```\n{last_lines}\n```"
         )
         return False
 
