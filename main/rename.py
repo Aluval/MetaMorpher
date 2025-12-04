@@ -19,7 +19,7 @@ from main.utils import heroku_restart, upload_files, download_media, download_fi
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 import asyncio
-from main.ffmpeg import remove_all_tags, change_video_metadata, generate_sample_video, add_photo_attachment, merge_videos, unzip_file, extract_audio_stream, extract_subtitle_stream, extract_video_stream, extract_audios_from_file, extract_subtitles_from_file, extract_video_from_file, get_mediainfo, compress_video, generate_ass_watermark, apply_ass_watermark, get_and_upload_mediainfo
+from main.ffmpeg import remove_all_tags, change_video_metadata, generate_sample_video, add_photo_attachment, merge_videos, unzip_file, extract_audio_stream, extract_subtitle_stream, extract_video_stream, extract_audios_from_file, extract_subtitles_from_file, extract_video_from_file, get_mediainfo, compress_video, watermark, get_and_upload_mediainfo
 from googleapiclient.http import MediaFileUpload
 from main.gdrive import upload_to_google_drive, extract_id_from_url, copy_file, get_files_in_folder, drive_service
 from googleapiclient.errors import HttpError
@@ -3958,77 +3958,46 @@ async def log_file(b, m):
 
 
 
-@Client.on_message(filters.private & filters.command("watermark"))
+@Client.on_message(filters.command("watermark") & filters.reply)
 async def watermark_handler(bot, msg):
-    reply = msg.reply_to_message
-
-    if not reply:
-        return await msg.reply_text("Reply to a video and send:\n`/watermark Your Text`")
-
     if len(msg.command) < 2:
-        return await msg.reply_text("Usage: `/watermark HARSHA`")
+        return await msg.reply_text("Usage:\n`/watermark Your_Text` (reply to video)")
 
-    wm_text = msg.text.split(" ", 1)[1].strip()
-    if len(wm_text) > 50:
-        return await msg.reply_text("Watermark text too long (max 50 chars).")
+    text = msg.text.split(" ", 1)[1]
+    media = msg.reply_to_message.video or msg.reply_to_message.document
 
-    media = reply.video or reply.document
     if not media:
-        return await msg.reply_text("Reply to a valid video file.")
+        return await msg.reply_text("Please reply to a video.")
 
-    # ---- Download video ----
-    sts = await msg.reply_text("⬇️ Downloading video...")
-    c_time = time.time()
+    sts = await msg.reply_text("⬇️ Downloading...")
+    c = time.time()
 
     try:
-        input_path = await reply.download(
-            progress=progress_message,
-            progress_args=("⬇️ Downloading...", sts, c_time)
-        )
+        input_path = await media.download(progress=progress_message, progress_args=("⬇️ Downloading", sts, c))
     except Exception as e:
         return await safe_edit_message(sts, f"❌ Download error: {e}")
 
-    # ---- Create ASS watermark ----
-    ass_path = "/tmp/watermark.ass"
+    output_path = "wm_" + os.path.basename(input_path)
 
-    try:
-        with open(ass_path, "w") as f:
-            f.write(generate_ass_watermark(wm_text))
-    except Exception as e:
-        return await safe_edit_message(sts, f"❌ Failed to create ASS:\n{e}")
+    await safe_edit_message(sts, "⚙️ Applying watermark...")
 
-    output_path = "/tmp/watermarked.mp4"
-
-    # ---- Apply watermark ----
-    await safe_edit_message(sts, "⚙️ Adding watermark...")
-
-    ok = await apply_ass_watermark(input_path, output_path, ass_path, sts)
-
+    ok = await watermark(input_path, output_path, text, sts)
     if not ok:
         return
 
-    # ---- Upload ----
     await safe_edit_message(sts, "⬆️ Uploading...")
-    c_time = time.time()
 
     await bot.send_document(
         msg.chat.id,
-        document=output_path,
-        caption=f"✅ Watermark Added\n📝 `{wm_text}`",
+        output_path,
+        caption="Watermark Applied ✔️",
         progress=progress_message,
-        progress_args=("⬆️ Uploading...", sts, c_time)
+        progress_args=("⬆️ Uploading...", sts, time.time())
     )
 
-    # ---- Cleanup ----
-    for f in [input_path, output_path, ass_path]:
-        try:
-            if os.path.exists(f):
-                os.remove(f)
-        except:
-            pass
-
+    os.remove(input_path)
+    os.remove(output_path)
     await sts.delete()
-
     
            
 if __name__ == '__main__':
