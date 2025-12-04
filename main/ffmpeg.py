@@ -471,14 +471,15 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
         "-y", output_path
     ]
 
+    # --- capture stderr separately ---
     process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
+        stderr=subprocess.PIPE,
         text=True
     )
 
-    # --- duration --
+    # --- Get Duration ---
     meta = json.loads(subprocess.check_output([
         "ffprobe", "-v", "quiet",
         "-print_format", "json",
@@ -490,8 +491,12 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
     start_time = time.time()
     last_percent = -1
 
+    ffmpeg_log = []  # store ALL ffmpeg output lines
+
     while True:
         line = process.stdout.readline()
+        if line:
+            ffmpeg_log.append(line.strip())  # save log
         if line == "" and process.poll() is not None:
             break
 
@@ -501,9 +506,9 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
             cur = int(h)*3600 + int(m)*60 + int(s) + (int(ms)/100)
             percent = int((cur / total_duration) * 100)
 
-            if percent != last_percent:
+            if percent != last_percent and percent > 0:
                 elapsed = time.time() - start_time
-                eta = elapsed * (100-percent) / max(percent, 1)
+                eta = elapsed * (100 - percent) / percent
                 eta_ms = int(eta * 1000)
 
                 await safe_edit_message(
@@ -512,12 +517,15 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
                 )
                 last_percent = percent
 
-    # --- Print REAL FFmpeg error ---
+    # ---- If failed, print REAL error ----
     if process.poll() != 0:
-        error_output = process.stdout.read()
+        stderr_output = process.stderr.read()
+        log_text = "\n".join(ffmpeg_log[-30:])  # last 30 lines
+
         await safe_edit_message(
             sts_msg,
-            f"❌ FFmpeg failed.\n\n```\n{error_output[-500:]}\n```"
+            f"❌ FFmpeg failed.\n\n**stderr:**\n```\n{stderr_output[-500:]}\n```\n"
+            f"**Last Output:**\n```\n{log_text}\n```"
         )
         return False
 
