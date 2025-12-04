@@ -19,7 +19,7 @@ from main.utils import heroku_restart, upload_files, download_media, download_fi
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 import asyncio
-from main.ffmpeg import remove_all_tags, change_video_metadata, generate_sample_video, add_photo_attachment, merge_videos, unzip_file, extract_audio_stream, extract_subtitle_stream, extract_video_stream, extract_audios_from_file, extract_subtitles_from_file, extract_video_from_file, get_mediainfo, compress_video, watermark, get_and_upload_mediainfo
+from main.ffmpeg import remove_all_tags, change_video_metadata, generate_sample_video, add_photo_attachment, merge_videos, unzip_file, extract_audio_stream, extract_subtitle_stream, extract_video_stream, extract_audios_from_file, extract_subtitles_from_file, extract_video_from_file, get_mediainfo, compress_video, generate_ass_watermark, apply_ass_watermark, get_and_upload_mediainfo
 from googleapiclient.http import MediaFileUpload
 from main.gdrive import upload_to_google_drive, extract_id_from_url, copy_file, get_files_in_folder, drive_service
 from googleapiclient.errors import HttpError
@@ -3956,26 +3956,29 @@ async def log_file(b, m):
         await m.reply(str(e))
 
 
+
 @Client.on_message(filters.private & filters.command("watermark"))
-async def add_watermark(bot, msg: Message):
-    if not msg.reply_to_message:
-        return await msg.reply_text(
-            "Reply to a video with:\n`/watermark YourText`"
-        )
+async def watermark_handler(bot, msg):
 
+    # --- Validate input ---
     if len(msg.command) < 2:
-        return await msg.reply_text("Example:\n`/watermark Sunrises24`")
-
-    watermark_text = " ".join(msg.command[1:])
-    safe_text = watermark_text.replace("'", "\\'")
+        return await msg.reply_text("Usage: `/watermark HARSHA 24`")
 
     reply = msg.reply_to_message
+    if not reply:
+        return await msg.reply_text("Reply to a video with: `/watermark text`")
+
     media = reply.video or reply.document
-
     if not media:
-        return await msg.reply_text("❌ Please reply to a **video file**.")
+        return await msg.reply_text("Reply to a valid video file.")
 
-    sts = await msg.reply_text("⬇️ **Downloading video...**")
+    wm_text = msg.text.split(" ", 1)[1].strip()
+
+    if len(wm_text) > 50:
+        return await msg.reply_text("Watermark text must be under 50 characters.")
+
+    # --- Start Download ---
+    sts = await msg.reply_text("⬇️ Downloading video...")
     c_time = time.time()
 
     try:
@@ -3984,36 +3987,40 @@ async def add_watermark(bot, msg: Message):
             progress_args=("⬇️ Downloading...", sts, c_time)
         )
     except Exception as e:
-        await safe_edit_message(sts, f"❌ Download error: {e}")
-        return
+        return await safe_edit_message(sts, f"❌ Download error: {e}")
 
-    output_path = f"watermarked_{int(time.time())}.mp4"
+    # --- Create ASS file ---
+    ass_path = "watermark.ass"
+    with open(ass_path, "w") as f:
+        f.write(generate_ass_watermark(wm_text))
 
-    await safe_edit_message(sts, "🖼️ **Applying watermark...**")
+    output_path = f"watermarked_{wm_text.replace(' ', '_')}.mp4"
 
-    ok = await watermark(input_path, output_path, safe_text, sts)
+    await safe_edit_message(sts, "⚙️ Adding watermark...")
+
+    # --- Apply watermark ---
+    ok = await apply_ass_watermark(input_path, output_path, ass_path, sts)
 
     if not ok:
         os.remove(input_path)
         return
 
-    await safe_edit_message(sts, "⬆️ **Uploading...**")
+    # --- Upload result ---
+    await safe_edit_message(sts, "⬆️ Uploading...")
     c_time = time.time()
 
-    try:
-        await bot.send_document(
-            msg.chat.id,
-            document=output_path,
-            caption=f"Watermark added: {watermark_text}",
-            progress=progress_message,
-            progress_args=("⬆️ Uploading...", sts, c_time)
-        )
-    except Exception as e:
-        await safe_edit_message(sts, f"❌ Upload error: {e}")
-        return
+    await bot.send_document(
+        msg.chat.id,
+        document=output_path,
+        caption=f"✅ Watermark Added\n📝 Text: `{wm_text}`",
+        progress=progress_message,
+        progress_args=("⬆️ Uploading...", sts, c_time)
+    )
 
+    # Cleanup
     os.remove(input_path)
     os.remove(output_path)
+    os.remove(ass_path)
     await sts.delete()
     
            
