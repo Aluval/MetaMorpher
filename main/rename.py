@@ -3979,7 +3979,6 @@ async def add_watermark(bot, msg: Message):
     c_time = time.time()
 
     try:
-        # ✔ CORRECT: download via message, NOT media
         input_path = await reply.download(
             progress=progress_message,
             progress_args=("⬇️ Downloading...", sts, c_time)
@@ -3990,7 +3989,7 @@ async def add_watermark(bot, msg: Message):
 
     output_path = f"watermarked_{int(time.time())}.mp4"
 
-    await safe_edit_message(sts, "⚙️ **Applying watermark...**")
+    await safe_edit_message(sts, "🖼️ **Applying watermark...**")
 
     ok = await watermark(input_path, output_path, safe_text, sts)
 
@@ -4016,6 +4015,7 @@ async def add_watermark(bot, msg: Message):
     os.remove(input_path)
     os.remove(output_path)
     await sts.delete()
+    
            
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
