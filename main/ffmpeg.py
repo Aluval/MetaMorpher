@@ -476,13 +476,16 @@ Dialogue: 0,0:17:20.00,0:18:30.00,Default,,0,0,0,,{{\\pos(1500,120)}}{text}
 # Apply watermark using FFmpeg (FAST + STABLE)
 # =======================================================
 async def apply_ass_watermark(input_path, output_path, ass_path, sts_msg):
+    import subprocess, time, json, re, os
+    from main.rename import safe_edit_message
+    from main.utils import TimeFormatter
 
     # Ensure ASS exists
     if not os.path.exists(ass_path):
         await safe_edit_message(sts_msg, f"❌ ASS file missing: {ass_path}")
         return False
 
-    # Use absolute path (FFmpeg requirement)
+    # Absolute path is required for ffmpeg
     ass_path = os.path.abspath(ass_path)
 
     # FFmpeg command
@@ -500,31 +503,47 @@ async def apply_ass_watermark(input_path, output_path, ass_path, sts_msg):
         "-y", output_path
     ]
 
+    # -----------------------------------------
+    # DEBUG LOG (appears in Koyeb logs)
+    # -----------------------------------------
+    print("FFMPEG COMMAND:", " ".join(command))
+    print("ASS FILE EXISTS:", os.path.exists(ass_path))
+    print("ASS PATH:", ass_path)
+
+    # Start FFmpeg
     process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True
+        text=True,
+        bufsize=1,
+        universal_newlines=True
     )
 
     # ---- Get duration ----
-    meta = json.loads(subprocess.check_output([
-        "ffprobe", "-v", "quiet",
-        "-print_format", "json",
-        "-show_format", input_path
-    ]))
-
-    duration = float(meta["format"]["duration"])
+    try:
+        meta = json.loads(subprocess.check_output([
+            "ffprobe", "-v", "quiet",
+            "-print_format", "json",
+            "-show_format",
+            input_path
+        ]))
+        total_duration = float(meta["format"]["duration"])
+    except Exception as e:
+        await safe_edit_message(sts_msg, f"❌ Could not read duration:\n{e}")
+        return False
 
     time_pattern = re.compile(r"time=(\d+):(\d+):(\d+)[\.:](\d+)")
 
     start = time.time()
     last_percent = -1
 
-    # ---- Progress ----
+    # -----------------------------------------
+    # READ LIVE FFMPEG LOG FOR PROGRESS
+    # -----------------------------------------
     while True:
         line = process.stdout.readline()
-        if line == "" and process.poll() is not None:
+        if not line and process.poll() is not None:
             break
 
         match = time_pattern.search(line)
@@ -532,26 +551,46 @@ async def apply_ass_watermark(input_path, output_path, ass_path, sts_msg):
             h, m, s, ms = match.groups()
             cur = int(h)*3600 + int(m)*60 + int(s) + (int(ms)/100)
 
-            percent = int((cur / duration) * 100)
+            percent = int((cur / total_duration) * 100)
 
             if percent != last_percent:
                 elapsed = time.time() - start
                 eta = elapsed * (100 - percent) / max(percent, 1)
-                eta_ms = int(eta * 1000)
-
                 await safe_edit_message(
                     sts_msg,
-                    f"⚙️ Watermarking: {percent}%\n⏳ ETA: {TimeFormatter(eta_ms)}"
+                    f"⚙️ Watermarking: {percent}%\n⏳ ETA: {TimeFormatter(int(eta * 1000))}"
                 )
-
                 last_percent = percent
 
-    # ---- Check FFmpeg result ----
+    # -----------------------------------------
+    # If FFmpeg exited with failure → capture FULL LOG
+    # -----------------------------------------
     if process.poll() != 0:
-        error_log = process.stdout.read()[-2000:]
-        await safe_edit_message(sts_msg, f"❌ FFmpeg failed:\n```\n{error_log}\n```")
+
+        # Reset buffer
+        try:
+            process.stdout.flush()
+        except:
+            pass
+
+        # Collect ALL remaining log lines
+        error_lines = []
+        try:
+            for line in process.stdout.readlines():
+                error_lines.append(line)
+        except:
+            pass
+
+        error_text = "".join(error_lines).strip()
+        if not error_text:
+            error_text = "⚠️ FFmpeg returned no error text."
+
+        final_error = error_text[-3500:]  # Keep last part for Telegram
+
+        await safe_edit_message(
+            sts_msg,
+            f"❌ FFmpeg failed.\n\n```\n{final_error}\n```"
+        )
         return False
 
     return True
-
-            
