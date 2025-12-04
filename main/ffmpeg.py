@@ -448,54 +448,75 @@ async def get_and_upload_mediainfo(bot, output_file, media):
     return media_info_html, link
 
 
+import random
 
-# =======================================================
-# Generate ASS subtitle watermark file
-# =======================================================
-def generate_ass_watermark(text):
-    return f"""[Script Info]
+def generate_random_intervals(total_duration, count=5, length=15):
+    intervals = []
+    for _ in range(count):
+        start = random.randint(1, int(total_duration - (length + 5)))
+        end = start + length
+
+        # Convert seconds → ASS time
+        def fmt(sec):
+            h = sec // 3600
+            m = (sec % 3600) // 60
+            s = sec % 60
+            return f"{h}:{m:02d}:{s:02d}.00"
+
+        intervals.append((fmt(start), fmt(end)))
+
+    return intervals
+
+def generate_ass_with_intervals(text, ass_path, intervals):
+    safe = text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+
+    header = """
+[Script Info]
+Title: Random Watermark
 ScriptType: v4.00+
 PlayResX: 1920
 PlayResY: 1080
+ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,DejaVu Sans,42,&H00FFFFFF,&H00000000,&H00202020,&H00101010,-1,0,0,0,100,100,0,0,1,4,3,2,20,20,20,1
+Style: Default,Arial,38,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,3,1,2,20,20,30,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-Dialogue: 0,0:00:05.00,0:00:15.00,Default,,0,0,0,,{{\\pos(1500,120)}}{text}
-Dialogue: 0,0:05:10.00,0:05:30.00,Default,,0,0,0,,{{\\pos(1500,120)}}{text}
-Dialogue: 0,0:09:45.00,0:10:10.00,Default,,0,0,0,,{{\\pos(1500,120)}}{text}
-Dialogue: 0,0:15:00.00,0:15:20.00,Default,,0,0,0,,{{\\pos(1500,120)}}{text}
-Dialogue: 0,0:17:20.00,0:18:30.00,Default,,0,0,0,,{{\\pos(1500,120)}}{text}
-"""
+""".strip()
 
+    lines = []
+    for start, end in intervals:
+        lines.append(f"Dialogue: 0,{start},{end},Default,,0,0,0,,{{\\pos(1700,100)}}{safe}")
 
-# =======================================================
-# Apply watermark using FFmpeg (FAST + STABLE)
-# =======================================================
-async def apply_ass_watermark(input_path, output_path, ass_path, sts_msg):
-    import subprocess, time, json, re, os
-    from main.rename import safe_edit_message
-    from main.utils import TimeFormatter
+    with open(ass_path, "w", encoding="utf-8") as f:
+        f.write(header + "\n" + "\n".join(lines))
 
-    # Ensure ASS exists
-    if not os.path.exists(ass_path):
-        await safe_edit_message(sts_msg, f"❌ ASS file missing: {ass_path}")
-        return False
+async def watermark(input_path, output_path, text, sts_msg):
 
-    # Absolute path is required for ffmpeg
-    ass_path = os.path.abspath(ass_path)
+    # --- Get duration ---
+    meta = json.loads(subprocess.check_output([
+        "ffprobe", "-v", "quiet",
+        "-print_format", "json",
+        "-show_format", input_path
+    ]))
+    total_duration = float(meta["format"]["duration"])
 
-    # FFmpeg command
+    # --- Generate random intervals ---
+    intervals = generate_random_intervals(total_duration, 5, 15)
+
+    ass_path = "random_wm.ass"
+    generate_ass_with_intervals(text, ass_path, intervals)
+
+    # --- FFmpeg command ---
     command = [
         "ffmpeg",
         "-i", input_path,
         "-vf", f"ass={ass_path}",
         "-c:v", "libx264",
-        "-preset", "ultrafast",
-        "-crf", "18",
+        "-preset", "veryfast",
+        "-crf", "23",
         "-pix_fmt", "yuv420p",
         "-c:a", "copy",
         "-c:s", "copy",
@@ -503,94 +524,35 @@ async def apply_ass_watermark(input_path, output_path, ass_path, sts_msg):
         "-y", output_path
     ]
 
-    # -----------------------------------------
-    # DEBUG LOG (appears in Koyeb logs)
-    # -----------------------------------------
-    print("FFMPEG COMMAND:", " ".join(command))
-    print("ASS FILE EXISTS:", os.path.exists(ass_path))
-    print("ASS PATH:", ass_path)
-
-    # Start FFmpeg
     process = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
-        universal_newlines=True
+        command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
     )
 
-    # ---- Get duration ----
-    try:
-        meta = json.loads(subprocess.check_output([
-            "ffprobe", "-v", "quiet",
-            "-print_format", "json",
-            "-show_format",
-            input_path
-        ]))
-        total_duration = float(meta["format"]["duration"])
-    except Exception as e:
-        await safe_edit_message(sts_msg, f"❌ Could not read duration:\n{e}")
-        return False
-
-    time_pattern = re.compile(r"time=(\d+):(\d+):(\d+)[\.:](\d+)")
-
+    pattern = re.compile(r"time=(\d+):(\d+):(\d+).(\d+)")
+    last = -1
     start = time.time()
-    last_percent = -1
 
-    # -----------------------------------------
-    # READ LIVE FFMPEG LOG FOR PROGRESS
-    # -----------------------------------------
     while True:
         line = process.stdout.readline()
-        if not line and process.poll() is not None:
+        if line == "" and process.poll() is not None:
             break
 
-        match = time_pattern.search(line)
-        if match:
-            h, m, s, ms = match.groups()
-            cur = int(h)*3600 + int(m)*60 + int(s) + (int(ms)/100)
-
+        m = pattern.search(line)
+        if m:
+            h, m_, s, ms = map(int, m.groups())
+            cur = h * 3600 + m_ * 60 + s
             percent = int((cur / total_duration) * 100)
 
-            if percent != last_percent:
-                elapsed = time.time() - start
-                eta = elapsed * (100 - percent) / max(percent, 1)
-                await safe_edit_message(
-                    sts_msg,
-                    f"⚙️ Watermarking: {percent}%\n⏳ ETA: {TimeFormatter(int(eta * 1000))}"
-                )
-                last_percent = percent
+            if percent != last:
+                eta = (time.time() - start) * (100 - percent) / max(percent, 1)
+                await safe_edit_message(sts_msg, f"⚙️ Watermarking {percent}%\n⏳ ETA: {TimeFormatter(int(eta*1000))}")
+                last = percent
 
-    # -----------------------------------------
-    # If FFmpeg exited with failure → capture FULL LOG
-    # -----------------------------------------
     if process.poll() != 0:
-
-        # Reset buffer
-        try:
-            process.stdout.flush()
-        except:
-            pass
-
-        # Collect ALL remaining log lines
-        error_lines = []
-        try:
-            for line in process.stdout.readlines():
-                error_lines.append(line)
-        except:
-            pass
-
-        error_text = "".join(error_lines).strip()
-        if not error_text:
-            error_text = "⚠️ FFmpeg returned no error text."
-
-        final_error = error_text[-3500:]  # Keep last part for Telegram
-
-        await safe_edit_message(
-            sts_msg,
-            f"❌ FFmpeg failed.\n\n```\n{final_error}\n```"
-        )
+        err = process.stdout.read()
+        await safe_edit_message(sts_msg, f"❌ FFmpeg failed:\n```\n{err[-2000:]}\n```")
         return False
 
+    # cleanup
+    os.remove(ass_path)
     return True
