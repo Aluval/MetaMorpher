@@ -449,61 +449,70 @@ async def get_and_upload_mediainfo(bot, output_file, media):
 
 
 
-async def watermark(input_path, output_path, safe_text, sts_msg):
-    # ✔ FIXED DRAWTEXT – NO FONTFILE → WORKS ON KOYEB
-    drawtext = (
-        f"drawtext=text='{safe_text}':"
-        "x=w-tw-20:y=h-th-20:"
-        "fontsize=28:fontcolor=white:borderw=2"
-    )
+# -------------------------------------------------
+# Create ASS Watermark file dynamically
+# -------------------------------------------------
+def generate_ass_watermark(text):
+    return f"""[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,DejaVu Sans,42,&H00FFFFFF,&H000000FF,&H00222222,&H00191919,-1,0,0,0,100,100,0,0,1,4,3,2,20,20,20,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:05.00,0:00:15.00,Default,,0,0,0,,{{\\pos(1500,120)}}{text}
+Dialogue: 0,0:05:10.00,0:05:30.00,Default,,0,0,0,,{{\\pos(1500,120)}}{text}
+Dialogue: 0,0:09:45.00,0:10:10.00,Default,,0,0,0,,{{\\pos(1500,120)}}{text}
+Dialogue: 0,0:15:00.00,0:15:20.00,Default,,0,0,0,,{{\\pos(1500,120)}}{text}
+Dialogue: 0,0:17:20.00,0:18:30.00,Default,,0,0,0,,{{\\pos(1500,120)}}{text}
+"""
+
+
+# -------------------------------------------------
+# Apply watermark using FFmpeg ASS filter
+# -------------------------------------------------
+async def apply_ass_watermark(input_path, output_path, ass_path, sts_msg):
 
     command = [
         "ffmpeg",
         "-i", input_path,
-        "-vf", drawtext,
-
-        # ✔ FASTEST & MOST STABLE
+        "-vf", f"ass={ass_path}",
         "-c:v", "libx264",
         "-preset", "ultrafast",
-        "-crf", "23",
+        "-crf", "18",
         "-pix_fmt", "yuv420p",
-
-        # ✔ COPY audio & subs (no re-encode)
         "-c:a", "copy",
         "-c:s", "copy",
-
         "-movflags", "+faststart",
         "-y", output_path
     ]
 
     process = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
+        command, stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT, text=True
     )
 
-    # ---- Get video duration ----
-    meta = json.loads(subprocess.check_output([
+    # ---------------------------
+    # Get Duration for progress
+    # ---------------------------
+    probe = json.loads(subprocess.check_output([
         "ffprobe", "-v", "quiet",
         "-print_format", "json",
-        "-show_format",
-        input_path
+        "-show_format", input_path
     ]))
-    total_duration = float(meta["format"]["duration"])
+    total_duration = float(probe["format"]["duration"])
 
-    # ---- Progress regex ----
     time_pattern = re.compile(r"time=(\d+):(\d+):(\d+)[\.:](\d+)")
-    start_time = time.time()
-    last_percent = -1
-    ffmpeg_log = []
 
-    # ---- Read ffmpeg output live ----
+    start = time.time()
+    last_percent = -1
+
     while True:
         line = process.stdout.readline()
-        if line:
-            ffmpeg_log.append(line.strip())
-
         if line == "" and process.poll() is not None:
             break
 
@@ -513,27 +522,23 @@ async def watermark(input_path, output_path, safe_text, sts_msg):
             cur = int(h)*3600 + int(m)*60 + int(s) + (int(ms)/100)
 
             percent = int((cur / total_duration) * 100)
-            if percent != last_percent and percent > 0:
-                elapsed = time.time() - start_time
-                eta = elapsed * (100 - percent) / percent
+
+            if percent != last_percent:
+                elapsed = time.time() - start
+                eta = elapsed * (100 - percent) / max(percent, 1)
                 eta_ms = int(eta * 1000)
 
                 await safe_edit_message(
                     sts_msg,
-                    f"🖼️ Watermarking: {percent}%\n⏳ ETA: {TimeFormatter(eta_ms)}"
+                    f"⚙️ Watermarking: {percent}%\n⏳ ETA: {TimeFormatter(eta_ms)}"
                 )
                 last_percent = percent
 
-    # ---- If failed, show REAL FFmpeg error ----
     if process.poll() != 0:
-        stderr_output = process.stderr.read()
-        last_lines = "\n".join(ffmpeg_log[-20:])
-
+        error_output = process.stdout.read()[-500:]
         await safe_edit_message(
             sts_msg,
-            f"❌ FFmpeg failed.\n\n"
-            f"stderr:\n```\n{stderr_output[-500:]}\n```\n"
-            f"Last Output:\n```\n{last_lines}\n```"
+            f"❌ FFmpeg failed.\n```\n{error_output}\n```"
         )
         return False
 
