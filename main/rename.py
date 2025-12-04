@@ -3965,21 +3965,24 @@ async def add_watermark(bot, msg: Message):
         )
 
     if len(msg.command) < 2:
-        return await msg.reply_text("Please give watermark text.\nExample:\n`/watermark Sunrises24`")
+        return await msg.reply_text("Please provide watermark text.\nExample:\n`/watermark Sunrises24`")
 
+    # Watermark text
     watermark_text = " ".join(msg.command[1:])
-    safe_text = watermark_text.replace("'", "\\'")  # Avoid FFmpeg breaking
+    safe_text = watermark_text.replace("'", "\\'")
 
-    media = msg.reply_to_message.video or msg.reply_to_message.document
+    reply = msg.reply_to_message
+    media = reply.video or reply.document
+
     if not media:
-        return await msg.reply_text("Please reply to a valid **video**.")
+        return await msg.reply_text("Reply to a valid **video file only**.")
 
     # ---- START DOWNLOAD ----
     sts = await msg.reply_text("⬇️ **Downloading video...**")
     c_time = time.time()
 
     try:
-        input_path = await media.download(
+        input_path = await reply.download(
             progress=progress_message,
             progress_args=("⬇️ Downloading...", sts, c_time)
         )
@@ -3987,24 +3990,23 @@ async def add_watermark(bot, msg: Message):
         await safe_edit_message(sts, f"❌ Download error: {e}")
         return
 
-    output_file = f"watermarked_{int(time.time())}.mp4"
+    output_path = f"watermarked_{int(time.time())}.mp4"
 
     await safe_edit_message(sts, "⚙️ **Adding watermark...**")
 
-    ok = await watermark(input_path, output_file, safe_text, sts)
-
+    ok = await watermark(input_path, output_path, safe_text, sts)
     if not ok:
         os.remove(input_path)
         return
 
-    # ---- UPLOAD ----
+    # ---- UPLOAD RESULT ----
     await safe_edit_message(sts, "⬆️ **Uploading...**")
     c_time = time.time()
 
     try:
         await bot.send_document(
             msg.chat.id,
-            document=output_file,
+            document=output_path,
             caption=f"Watermark added: {watermark_text}",
             progress=progress_message,
             progress_args=("⬆️ Uploading...", sts, c_time)
@@ -4015,7 +4017,7 @@ async def add_watermark(bot, msg: Message):
 
     # ---- CLEANUP ----
     os.remove(input_path)
-    os.remove(output_file)
+    os.remove(output_path)
     await sts.delete()
 
            
