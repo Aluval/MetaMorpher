@@ -19,7 +19,7 @@ from main.utils import heroku_restart, upload_files, download_media, download_fi
 import aiohttp
 from pyrogram.errors import RPCError, FloodWait
 import asyncio
-from main.ffmpeg import remove_all_tags, change_video_metadata, generate_sample_video, add_photo_attachment, merge_videos, unzip_file, extract_audio_stream, extract_subtitle_stream, extract_video_stream, extract_audios_from_file, extract_subtitles_from_file, extract_video_from_file, get_mediainfo, compress_video, watermark, get_and_upload_mediainfo
+from main.ffmpeg import remove_all_tags, change_video_metadata, generate_sample_video, add_photo_attachment, merge_videos, unzip_file, extract_audio_stream, extract_subtitle_stream, extract_video_stream, extract_audios_from_file, extract_subtitles_from_file, extract_video_from_file, get_mediainfo, compress_video, get_and_upload_mediainfo
 from googleapiclient.http import MediaFileUpload
 from main.gdrive import upload_to_google_drive, extract_id_from_url, copy_file, get_files_in_folder, drive_service
 from googleapiclient.errors import HttpError
@@ -1858,44 +1858,61 @@ async def gofile_upload(bot, msg: Message):
 async def clone_file(bot, msg: Message):
     user_id = msg.from_user.id
 
-    # Retrieve the user's Google Drive folder ID from database
+    # Get user's destination Drive folder
     gdrive_folder_id = await db.get_gdrive_folder_id(user_id)
 
     if not gdrive_folder_id:
-        return await msg.reply_text("Google Drive folder ID is not set. Please use the /gdriveid command to set it.")
+        return await msg.reply_text(
+            "❌ Google Drive folder ID not set.\n"
+            "Use /gdriveid <folder_id> to configure it."
+        )
 
     if len(msg.command) < 2:
-        return await msg.reply_text("Please specify the Google Drive file URL.")
+        return await msg.reply_text("⚠️ Please provide a Google Drive File/Folder URL.")
 
     src_url = msg.text.split(" ", 1)[1]
-    src_id = extract_id_from_url(src_url)
+
+    # Extract id + type (file/folder)
+    src_id, url_type = extract_id_from_driveurl(src_url)
 
     if not src_id:
-        return await msg.reply_text("Invalid Google Drive URL. Please provide a valid file URL.")
+        return await msg.reply_text("❌ Invalid Google Drive URL.\nSend a correct File/Folder link.")
 
-    sts = await msg.reply_text("Starting cloning process...")
+    # Folder cloning detection
+    if url_type == "folder":
+        return await msg.reply_text(
+            "📂 Folder URL detected.\n"
+            "❌ Folder cloning is NOT supported yet.\n"
+            "Please send a *file* link."
+        )
+
+    # Status message
+    sts = await msg.reply_text("⏳ Starting file cloning...")
 
     try:
+        # Copy file using Drive API
         copied_file_info = await copy_file(src_id, gdrive_folder_id)
+
         if copied_file_info:
             file_link = f"https://drive.google.com/file/d/{copied_file_info['id']}/view"
-            button = [
-                [InlineKeyboardButton("☁️ View File ☁️", url=file_link)]
-            ]
+
+            button = [[InlineKeyboardButton("☁️ View File", url=file_link)]]
+
             if copied_file_info['status'] == 'existing':
                 await sts.edit(
-                    f"File Already Exists 📂 : {copied_file_info['name']}\n[View File]({file_link})",
+                    f"📁 File Already Exists: **{copied_file_info['name']}**",
                     reply_markup=InlineKeyboardMarkup(button)
                 )
             else:
                 await sts.edit(
-                    f"File Cloned Successfully ✅: {copied_file_info['name']}\n[View File]({file_link})",
+                    f"✅ File Cloned Successfully: **{copied_file_info['name']}**",
                     reply_markup=InlineKeyboardMarkup(button)
                 )
         else:
-            await sts.edit("Failed to clone the file.")
+            await sts.edit("❌ Failed to clone the file.")
+
     except Exception as e:
-        await sts.edit(f"Error: {e}")
+        await sts.edit(f"🚫 Error: `{e}`")
 
 
 #safe edit message 
@@ -2865,150 +2882,7 @@ async def multitask_file(bot, msg: Message):
 
 
 
-"""
-# ----------------- MAIN HANDLER (LINK ONLY) -----------------
-@Client.on_message(filters.private & filters.command("multitasklink"))
-async def changeleech(bot: Client, msg: Message):
-    
-    if not msg.reply_to_message:
-        return await msg.reply_text("❌ Please **reply to a link** message.\nFormat:\n`/multitasklink a-3 -m -n output.mkv`")
 
-    reply = msg.reply_to_message
-    reply_text = reply.text or reply.caption or ""
-
-    # find url
-    m = URL_RE.search(reply_text)
-    if not m:
-        return await msg.reply_text("❌ This command works **only with links**. Reply to a message that contains an HTTP/HTTPS URL.")
-
-    link = m.group(0).strip()
-
-    # validate format flags
-    if len(msg.command) < 5 or "-m" not in msg.command or "-n" not in msg.command:
-        return await msg.reply_text("❌ Wrong format.\nUse: `/multitasklink a-3 -m -n output.mkv`")
-
-    index_cmd = msg.command[1]
-    output_flag_index = msg.command.index("-n")
-    new_name = " ".join(msg.command[output_flag_index + 1:]).strip()
-
-    if not new_name:
-        return await msg.reply_text("❌ You must provide an output filename after `-n`.")
-
-    if not new_name.lower().endswith((".mkv", ".mp4", ".avi", ".zip")):
-        return await msg.reply_text("❌ Output filename must end with one of: .mkv, .mp4, .avi, .zip")
-
-    sts = await msg.reply_text(f"🔗 Link detected:\n`{link}`\n\n🚀 Downloading... ⚡")
-    start_time = time.time()
-
-    # ------------- Download link to local file -------------
-    try:
-        # Stream to temporary file to avoid memory pressure
-        tmp_dir = tempfile.gettempdir()
-        local_path = os.path.join(tmp_dir, new_name)
-
-        # If file exists, try to remove first
-        if os.path.exists(local_path):
-            os.remove(local_path)
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(link) as resp:
-                if resp.status != 200:
-                    return await sts.edit(f"❌ Failed to download file from link. HTTP status: {resp.status}")
-
-                # If server provides content-length we can show progress
-                total = int(resp.headers.get("Content-Length") or 0)
-                chunk_size = 64 * 1024
-                downloaded = 0
-                with open(local_path, "wb") as f:
-                    async for chunk in resp.content.iter_chunked(chunk_size):
-                        if not chunk:
-                            break
-                        f.write(chunk)
-                        downloaded += len(chunk)
-                        # update progress every ~512 KB or when done
-                        if downloaded % (512 * 1024) < chunk_size:
-                            try:
-                                await progress_message(downloaded, total, sts, ("🚀 Download Started... ⚡️", sts, start_time))
-                            except Exception:
-                                pass
-
-    except Exception as e:
-        logger.exception("Link download error")
-        return await sts.edit(f"❌ Error downloading link:\n`{e}`")
-
-    if not os.path.exists(local_path):
-        return await sts.edit("❌ Download failed — file not saved.")
-
-    filesize = os.path.getsize(local_path)
-    filesize_human = humanbytes(filesize)
-
-    # ------------- If indexing/metadata flags present -> process -------------
-    # We keep `change_metadata_and_index` compatible with your original signature.
-    if len(msg.command) > 2:
-        try:
-            # call the index/metadata processor which will handle upload & cleanup
-            await change_metadata_and_index(bot, msg, local_path, new_name, None, sts, start_time)
-            return
-        except NotImplementedError as nie:
-            # propagate not implemented (e.g., upload_to_google_drive not implemented)
-            return await sts.edit(f"❌ Not implemented: {nie}")
-        except Exception as e:
-            logger.exception("Metadata/index processing failed")
-            # remove file to avoid leaving big files on disk
-            try:
-                if os.path.exists(local_path):
-                    os.remove(local_path)
-            except Exception:
-                pass
-            return await sts.edit(f"❌ Metadata/index processing failed:\n`{e}`")
-
-    # ------------- If no metadata workflow, just upload or drive -------------
-    await sts.edit("💠 Uploading... ⚡")
-    start_upload_time = time.time()
-
-    try:
-        if filesize > FILE_SIZE_LIMIT:
-            # try drive upload
-            try:
-                file_link = await upload_to_google_drive(local_path, new_name, sts)
-                await msg.reply_text(
-                    f"File uploaded to Google Drive!\n\n📁 **File Name:** {new_name}\n💾 **Size:** {filesize_human}\n🔗 **Link:** {file_link}"
-                )
-            except NotImplementedError:
-                return await sts.edit("❌ Google Drive upload not implemented. Implement upload_to_google_drive().")
-        else:
-            # send directly to user
-            await bot.send_document(
-                msg.chat.id,
-                document=local_path,
-                caption=f"{new_name}\n\n🌟 Size: {filesize_human}",
-                progress=progress_message,
-                progress_args=("💠 Upload Started... ⚡", sts, start_upload_time)
-            )
-    except Exception as e:
-        logger.exception("Upload error")
-        return await sts.edit(f"❌ Upload failed: `{e}`")
-    finally:
-        # cleanup local file
-        try:
-            if os.path.exists(local_path):
-                os.remove(local_path)
-        except Exception:
-            logger.exception("Cleanup failed")
-
-    await sts.delete()
-
-"""
-# multitasklink_turbo_safe.py
-# Safe Turbo Downloader (low usage) + link-only /multitasklink handler
-# Designed for Koyeb / low-resource environments (4 workers, 2MB parts)
-
-# Ensure these exist in your main file already:
-# PROGRESS_BAR, progress_message(current, total, ud_type, message, start),
-# humanbytes(), TimeFormatter(), change_metadata_and_index(), FILE_SIZE_LIMIT, upload_to_google_drive, db, safe_edit_message
-
-logger = logging.getLogger(__name__)
-URL_RE = re.compile(r"(https?://[^\s'\"]+)")
 
 
 # -------------------- TURBO DOWNLOADER (LOW-IMPACT) --------------------
@@ -3016,15 +2890,7 @@ async def turbo_download_safe(url: str, out_path: str, status_msg, *,
                               part_size: int = 2 * 1024 * 1024,  # 2 MB parts
                               max_workers: int = 4,
                               retries: int = 3):
-    """
-    Safe turbo downloader:
-      - Range requests
-      - Resume support (reuses existing part files)
-      - Limited concurrency (max_workers)
-      - Merges parts into out_path
-      - Uses your progress_message() for progress updates (same UI)
-    Returns True on success, False on failure.
-    """
+
     start_time = time.time()
 
     # HEAD to get total size and accept-ranges support
@@ -3956,49 +3822,7 @@ async def log_file(b, m):
         await m.reply(str(e))
 
 
-
-
-@Client.on_message(filters.command("watermark") & filters.reply)
-async def watermark_handler(bot, msg):
-    if len(msg.command) < 2:
-        return await msg.reply_text("Usage:\n`/watermark Your_Text` (reply to video)")
-
-    text = msg.text.split(" ", 1)[1]
-    media = msg.reply_to_message.video or msg.reply_to_message.document
-
-    if not media:
-        return await msg.reply_text("Please reply to a video.")
-
-    sts = await msg.reply_text("⬇️ Downloading...")
-    c = time.time()
-
-    try:
-        input_path = await media.download(progress=progress_message, progress_args=("⬇️ Downloading", sts, c))
-    except Exception as e:
-        return await safe_edit_message(sts, f"❌ Download error: {e}")
-
-    output_path = "wm_" + os.path.basename(input_path)
-
-    await safe_edit_message(sts, "⚙️ Applying watermark...")
-
-    ok = await watermark(input_path, output_path, text, sts)
-    if not ok:
-        return
-
-    await safe_edit_message(sts, "⬆️ Uploading...")
-
-    await bot.send_document(
-        msg.chat.id,
-        output_path,
-        caption="Watermark Applied ✔️",
-        progress=progress_message,
-        progress_args=("⬆️ Uploading...", sts, time.time())
-    )
-
-    os.remove(input_path)
-    os.remove(output_path)
-    await sts.delete()
-    
+   
            
 if __name__ == '__main__':
     app = Client("my_bot", bot_token=BOT_TOKEN)
