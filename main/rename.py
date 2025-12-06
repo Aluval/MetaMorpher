@@ -21,7 +21,7 @@ from pyrogram.errors import RPCError, FloodWait
 import asyncio
 from main.ffmpeg import remove_all_tags, change_video_metadata, generate_sample_video, add_photo_attachment, merge_videos, unzip_file, extract_audio_stream, extract_subtitle_stream, extract_video_stream, extract_audios_from_file, extract_subtitles_from_file, extract_video_from_file, get_mediainfo, compress_video, get_and_upload_mediainfo
 from googleapiclient.http import MediaFileUpload
-from main.gdrive import upload_to_google_drive, extract_id_from_url, copy_file, get_files_in_folder, drive_service
+from main.gdrive import upload_to_google_drive, extract_id_from_url, extract_id_from_driveurl, copy_file, get_files_in_folder, drive_service
 from googleapiclient.errors import HttpError
 from Database.database import db
 import datetime
@@ -1858,54 +1858,62 @@ async def gofile_upload(bot, msg: Message):
 async def clone_file(bot, msg: Message):
     user_id = msg.from_user.id
 
-    # Get user's destination Drive folder
+    # Get Google Drive folder ID from DB
     gdrive_folder_id = await db.get_gdrive_folder_id(user_id)
-
     if not gdrive_folder_id:
         return await msg.reply_text(
-            "❌ Google Drive folder ID not set.\n"
+            "❌ Your Google Drive folder ID is not set.\n"
             "Use /gdriveid <folder_id> to configure it."
         )
 
+    # Check if user gave URL
     if len(msg.command) < 2:
-        return await msg.reply_text("⚠️ Please provide a Google Drive File/Folder URL.")
+        return await msg.reply_text("⚠️ Please provide a Google Drive file URL.")
 
     src_url = msg.text.split(" ", 1)[1]
 
-    # Extract id + type (file/folder)
-    src_id, url_type = extract_id_from_driveurl(src_url)
+    # Extract ID + type
+    src_id, url_type = extract_id_from_url(src_url)
 
     if not src_id:
-        return await msg.reply_text("❌ Invalid Google Drive URL.\nSend a correct File/Folder link.")
+        return await msg.reply_text(
+            "❌ Invalid Google Drive URL.\n"
+            "Please send a correct *file or folder* link."
+        )
 
-    # Folder cloning detection
+    # Block folder cloning for now
     if url_type == "folder":
         return await msg.reply_text(
-            "📂 Folder URL detected.\n"
-            "❌ Folder cloning is NOT supported yet.\n"
+            "📂 Folder link detected!\n"
+            "❌ Folder cloning is not supported yet.\n"
             "Please send a *file* link."
         )
 
-    # Status message
-    sts = await msg.reply_text("⏳ Starting file cloning...")
+    # Start cloning message
+    sts = await msg.reply_text("⏳ Starting cloning process...")
 
     try:
-        # Copy file using Drive API
+        # Copy file
         copied_file_info = await copy_file(src_id, gdrive_folder_id)
 
         if copied_file_info:
             file_link = f"https://drive.google.com/file/d/{copied_file_info['id']}/view"
 
-            button = [[InlineKeyboardButton("☁️ View File", url=file_link)]]
+            button = [
+                [InlineKeyboardButton("☁️ View File", url=file_link)]
+            ]
 
-            if copied_file_info['status'] == 'existing':
+            # Case: already existed
+            if copied_file_info.get('status') == 'existing':
                 await sts.edit(
-                    f"📁 File Already Exists: **{copied_file_info['name']}**",
+                    f"📁 File already exists: **{copied_file_info['name']}**",
                     reply_markup=InlineKeyboardMarkup(button)
                 )
+
+            # Case: successfully cloned
             else:
                 await sts.edit(
-                    f"✅ File Cloned Successfully: **{copied_file_info['name']}**",
+                    f"✅ File cloned successfully: **{copied_file_info['name']}**",
                     reply_markup=InlineKeyboardMarkup(button)
                 )
         else:
@@ -1913,7 +1921,6 @@ async def clone_file(bot, msg: Message):
 
     except Exception as e:
         await sts.edit(f"🚫 Error: `{e}`")
-
 
 #safe edit message 
 async def safe_edit_message(message, new_text):
