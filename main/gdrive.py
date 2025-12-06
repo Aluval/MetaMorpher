@@ -53,22 +53,38 @@ async def upload_to_google_drive(file_path, file_name, sts):
     return response.get('webViewLink')
 
 #Driveleech
-def extract_id_from_driveurl(url):
-    file_id = None
-    # Match the different URL patterns for Google Drive links
-    patterns = [
-        r'id=([a-zA-Z0-9-_]+)',  # Format 1: ?id=FILE_ID
-        r'/d/([a-zA-Z0-9-_]+)',  # Format 2: /d/FILE_ID/
-        r'/file/d/([a-zA-Z0-9-_]+)'  # Format 3: /file/d/FILE_ID/
-    ]
+async def extract_id_from_driveurl(url: str):
+    """
+    Returns: (drive_id, type)
+    type: 'file' or 'folder'
+    """
     
-    for pattern in patterns:
+    # Patterns for file IDs
+    file_patterns = [
+        r'id=([a-zA-Z0-9-_]+)',
+        r'/d/([a-zA-Z0-9-_]+)',
+        r'/file/d/([a-zA-Z0-9-_]+)'
+    ]
+
+    # Patterns for folder IDs
+    folder_patterns = [
+        r'/folders/([a-zA-Z0-9-_]+)',
+        r'folderview\?id=([a-zA-Z0-9-_]+)'
+    ]
+
+    # Check for file URL
+    for pattern in file_patterns:
         match = re.search(pattern, url)
         if match:
-            file_id = match.group(1)
-            break
-    
-    return file_id
+            return match.group(1), "file"
+
+    # Check for folder URL
+    for pattern in folder_patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1), "folder"
+
+    return None, None
 
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
 #clone
