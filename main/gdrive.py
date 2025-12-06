@@ -53,32 +53,55 @@ async def upload_to_google_drive(file_path, file_name, sts):
     return response.get('webViewLink')
 
 #Driveleech
-async def extract_id_from_driveurl(url: str):
-    """
-    Returns: (drive_id, type)
-    type: 'file' or 'folder'
-    """
-    
-    # Patterns for file IDs
-    file_patterns = [
-        r'id=([a-zA-Z0-9-_]+)',
-        r'/d/([a-zA-Z0-9-_]+)',
-        r'/file/d/([a-zA-Z0-9-_]+)'
+def extract_id_from_driveurl(url):
+    file_id = None
+
+    # Match the different URL patterns for Google Drive links
+    patterns = [
+        r'id=([a-zA-Z0-9-_]+)',   # Format 1: ?id=FILE_ID
+        r'/d/([a-zA-Z0-9-_]+)',   # Format 2: /d/FILE_ID/
+        r'/file/d/([a-zA-Z0-9-_]+)'  # Format 3: /file/d/FILE_ID/
     ]
 
-    # Patterns for folder IDs
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            file_id = match.group(1)
+            break
+
+    return file_id
+
+#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
+#clone
+import re
+
+def extract_id_from_url(url):
+    """
+    Returns:
+        (drive_id, type)
+    type -> "file" or "folder"
+    """
+
+    # FILE URL PATTERNS
+    file_patterns = [
+        r'/file/d/([a-zA-Z0-9-_]+)',
+        r'/d/([a-zA-Z0-9-_]+)',
+        r'id=([a-zA-Z0-9-_]+)'
+    ]
+
+    # FOLDER URL PATTERNS
     folder_patterns = [
         r'/folders/([a-zA-Z0-9-_]+)',
         r'folderview\?id=([a-zA-Z0-9-_]+)'
     ]
 
-    # Check for file URL
+    # Check file patterns
     for pattern in file_patterns:
         match = re.search(pattern, url)
         if match:
             return match.group(1), "file"
 
-    # Check for folder URL
+    # Check folder patterns
     for pattern in folder_patterns:
         match = re.search(pattern, url)
         if match:
@@ -86,12 +109,6 @@ async def extract_id_from_driveurl(url: str):
 
     return None, None
 
-#ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
-#clone
-
-def extract_id_from_url(url):
-    match = re.search(r'/d/([a-zA-Z0-9-_]+)', url)
-    return match.group(1) if match else None
 
 async def copy_file(file_id, new_folder_id):
     try:
