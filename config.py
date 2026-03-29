@@ -6,18 +6,18 @@ import os
 id_pattern = re.compile(r'^.\d+$')
 
 
-API_ID = os.environ.get("API_ID", "10811400")
-API_HASH = os.environ.get("API_HASH", "191bf5ae7a6c39771e7b13cf4ffd1279")
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "7090403697:AAHaimk-34KLyFKq9EBCW2cjshsr_j2wrIs")
-ADMIN = int(os.environ.get("ADMIN", '6469754522'))
-FSUB_UPDATES = os.environ.get("FSUB_CHANNEL", "Sunrises24BotUpdates")
-FSUB_GROUP = os.environ.get("FSUB_GROUP", "Sunrises24BotSupport")
-DATABASE_URI = os.environ.get("DATABASE_URI", "mongodb+srv://HARSHA24:HARSHA24@cluster0.sxaj8up.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
-DATABASE_NAME = os.environ.get("DATABASE_NAME", "Cluster0")
+API_ID = os.environ.get("API_ID", "23991460")
+API_HASH = os.environ.get("API_HASH", "482b9c11ca28fdff8f0d3f9223ef0ac1")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "7766638158:AAFKkI3Tm5WDac-1uFDBztMqq1QzRHn64cc")
+ADMIN = int(os.environ.get("ADMIN", '2052400282'))
+FSUB_UPDATES = os.environ.get("FSUB_CHANNEL", "compressbotlogs1")
+FSUB_GROUP = os.environ.get("FSUB_GROUP", "multibotvi")
+DATABASE_URI = os.environ.get("DATABASE_URI", "mongodb+srv://chpudas:SPNjedirQ26Nungu@clustercompressbot.qnztune.mongodb.net/?retryWrites=true&w=majority&appName=Clustercompressbot")
+DATABASE_NAME = os.environ.get("DATABASE_NAME", "Clustercompressbot")
 CAPTION = os.environ.get("CAPTION", "")
 #ALL FILES UPLOADED - CREDITS 🌟 - @Sunrises_24
-SUNRISES_PIC= "https://graph.org/file/bd91761f6e938e2e6d23a.jpg"  # Replace with your Telegraph link
-AUTH_USERS = int(os.environ.get("AUTH_USERS", '6469754522'))
+SUNRISES_PIC= "https://ibb.co/8n4vFcmt"  # Replace with your Telegraph link
+AUTH_USERS = int(os.environ.get("AUTH_USERS", '2052400282'))
 WEBHOOK = bool(os.environ.get("WEBHOOK", True))
 PORT = int(os.environ.get("PORT", "8081"))
-LOG_CHANNEL_ID = os.environ.get("LOG_CHANNEL_ID", -1002145984196)
+LOG_CHANNEL_ID = os.environ.get("LOG_CHANNEL_ID", -1002820046126)
