@@ -383,6 +383,7 @@ async def set_photo(bot, msg):
 
     except Exception as e:
         await msg.reply_text(f"Error saving photo: {e}")
+        
 @Client.on_callback_query(filters.regex("^preview_photo$"))
 async def inline_preview_photo_callback(client, callback_query):
     await callback_query.answer()
@@ -2202,144 +2203,178 @@ async def clean_files(bot, msg: Message):
 
 
 #Downloading Progress Hook For YouTube In logs work process 
-async def progress_hook(status_message):
-    async def hook(d):
+import asyncio
+import time
+
+def progress_hook(status_message):
+    last_update = {"time": 0}  # prevent spam updates
+
+    def hook(d):
         if d['status'] == 'downloading':
-            current_progress = d.get('_percent_str', '0%')
-            current_size = humanbytes(d.get('total_bytes', 0))
-            await safe_edit_message(status_message, f"🚀 Downloading... ⚡\nProgress: {current_progress}\nSize: {current_size}")
+            now = time.time()
+
+            # ⏱️ update only every 2 seconds (ANTI-SPAM)
+            if now - last_update["time"] < 2:
+                return
+            last_update["time"] = now
+
+            percent = d.get('_percent_str', '0%')
+            speed = d.get('_speed_str', '0 KB/s')
+            eta = d.get('_eta_str', '0s')
+            total = d.get('_total_bytes_str', 'Unknown')
+
+            text = (
+                "🚀 Downloading... ⚡\n\n"
+                f"📊 Progress: {percent}\n"
+                f"📦 Size: {total}\n"
+                f"⚡ Speed: {speed}\n"
+                f"⏳ ETA: {eta}"
+            )
+
+            asyncio.create_task(
+                safe_edit_message(status_message, text)
+            )
+
         elif d['status'] == 'finished':
-            await safe_edit_message(status_message, "Download finished. 🚀")
+            asyncio.create_task(
+                safe_edit_message(status_message, "✅ Download finished. Processing...")
+            )
+
     return hook
     
 @Client.on_message(filters.private & filters.command("ytdlleech"))
 async def ytdlleech_handler(client: Client, msg: Message):
-    if len(msg.command) < 2:
-        return await msg.reply_text("Please provide a YouTube link.")
 
-    command_text = msg.text.split(" ", 1)[1]
-    url = command_text.strip()
+    if len(msg.command) < 2:
+        return await msg.reply_text("❌ Send YouTube link")
+
+    url = msg.text.split(" ", 1)[1].strip()
 
     ydl_opts = {
         'quiet': True,
         'skip_download': True,
-        'noplaylist': True,
-        'merge_output_format': 'mkv',
-        'cookies': 'cookies.txt'
+        'noplaylist': True
     }
 
     try:
         with YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(url, download=False)
-            formats = info_dict.get('formats', [])
+            info = ydl.extract_info(url, download=False)
 
-            buttons = [
-                InlineKeyboardButton(
-                    f"{f.get('format_note', 'Unknown')} - {humanbytes(f.get('filesize'))}",
-                    callback_data=f"{f['format_id']}"
-                )
-                for f in formats if f.get('filesize') is not None
-            ]
-            buttons = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
-            await msg.reply_text("Choose quality:", reply_markup=InlineKeyboardMarkup(buttons))
+        formats = info.get("formats", [])
 
-            file_data = {
-                'title': info_dict['title'],
-                'thumbnail': info_dict.get('thumbnail')  # No default thumbnail path
-            }
-            await db.save_file_data(msg.from_user.id, file_data)
+        valid_formats = [
+            f for f in formats
+            if f.get("filesize") and f.get("format_note") in
+            ["144p", "240p", "360p", "480p", "720p", "1080p"]
+        ]
 
-            user_quality_selection = {
-                'url': url,
-                'title': info_dict['title'],
-                'thumbnail': info_dict.get('thumbnail'),
-                'formats': formats
-            }
-            await db.save_user_quality_selection(msg.from_user.id, user_quality_selection)
+        buttons = [
+            InlineKeyboardButton(
+                f"{f['format_note']} - {humanbytes(f['filesize'])}",
+                callback_data=f"{f['format_id']}"
+            )
+            for f in valid_formats[:20]
+        ]
+
+        buttons = [buttons[i:i+2] for i in range(0, len(buttons), 2)]
+
+        await msg.reply_text(
+            f"🎬 {info['title']}\n\nChoose quality:",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+
+        # ✅ SAVE SESSION
+        await db.save_user_quality_selection(msg.from_user.id, {
+            "url": url,
+            "title": info["title"],
+            "formats": valid_formats
+        })
 
     except Exception as e:
-        await msg.reply_text(f"Error: {e}")
+        await msg.reply_text(f"❌ Error: {e}")
 
 @Client.on_callback_query(filters.regex(r"^\d+$"))
-async def callback_query_handler(client: Client, query):
+async def callback_handler(client: Client, query):
+
+    await query.answer()
+
     user_id = query.from_user.id
     format_id = query.data
 
-    selection = await db.get_user_quality_selection(user_id)
-    if not selection:
-        return await query.answer("No download in progress.")
+    data = await db.get_user_quality_selection(user_id)
 
-    url = selection['url']
-    video_title = selection['title']
-    formats = selection['formats']
+    if not data:
+        return await query.answer("❌ Session expired")
 
-    selected_format = next((f for f in formats if f['format_id'] == format_id), None)
-    if not selected_format:
-        return await query.answer("Invalid format selection.")
+    url = data["url"]
+    title = data["title"]
+    formats = data["formats"]
 
-    quality = selected_format.get('format_note', 'Unknown')
-    file_size = selected_format.get('filesize', 0)
-    file_name = f"{video_title} - {quality}.mkv"
+    selected = next((f for f in formats if f["format_id"] == format_id), None)
+    if not selected:
+        return await query.answer("❌ Invalid format")
 
-    sts = await query.message.reply_text(f"🚀 Downloading {quality} - {humanbytes(file_size)}... ⚡")
+    quality = selected.get("format_note", "video")
+    size = selected.get("filesize", 0)
+
+    filename = f"{title}_{quality}.mkv"
+
+    sts = await query.message.reply_text(
+        f"🚀 Downloading {quality}...\n💾 {humanbytes(size)}"
+    )
 
     ydl_opts = {
         'format': f'{format_id}+bestaudio/best',
-        'outtmpl': file_name,
+        'outtmpl': filename,
         'quiet': True,
         'noplaylist': True,
         'cookies': 'cookies.txt',
-        'progress_hooks': [await progress_hook(status_message=sts)],
+        'progress_hooks': [progress_hook(sts)],
         'merge_output_format': 'mkv'
     }
 
     try:
-        with YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+        def run():
+            with YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
 
-        if not os.path.exists(file_name):
-            return await safe_edit_message(sts, "Error: Download failed. File not found.")
-        
-        # No thumbnail downloading
-        file_thumb = None
-        
-        if file_size >= FILE_SIZE_LIMIT:
-            await safe_edit_message(sts, "💠 Uploading to Google Drive... ⚡")
-            file_link = await upload_to_google_drive(file_name, file_name, sts)
-            button = [[InlineKeyboardButton("☁️ CloudUrl ☁️", url=f"{file_link}")]]
+        await asyncio.to_thread(run)
+
+        if not os.path.exists(filename):
+            return await safe_edit_message(sts, "❌ Download failed")
+
+        # ================= UPLOAD =================
+
+        if size >= FILE_SIZE_LIMIT:
+            await safe_edit_message(sts, "☁️ Uploading to Google Drive...")
+
+            link = await upload_to_google_drive(filename, filename, sts)
+
             await query.message.reply_text(
-                f"**File successfully uploaded to Google Drive!**\n\n"
-                f"**Google Drive Link**: [View File]({file_link})\n\n"
-                f"**Uploaded File**: {file_name}\n"
-                f"**Size**: {humanbytes(file_size)}",
-                reply_markup=InlineKeyboardMarkup(button)
+                f"✅ Uploaded to Drive\n\n🔗 {link}"
             )
+
         else:
-            await safe_edit_message(sts, "💠 Uploading to Telegram... ⚡")
-            caption = f"**Uploaded Document 📄**: {file_name}\n\n🌟 Size: {humanbytes(file_size)}"
-            
-            try:
-                with open(file_name, 'rb') as file:
-                    await query.message.reply_document(
-                        document=file,
-                        caption=caption,
-                        thumb=file_thumb,  # No thumbnail
-                        progress=progress_message,
-                        progress_args=("💠 Upload Started... ⚡", sts, time.time())
-                    )
-            except Exception as e:
-                await safe_edit_message(sts, f"Error uploading file: {e}")
-                return
+            await safe_edit_message(sts, "📤 Uploading to Telegram...")
+
+            with open(filename, "rb") as f:
+                await query.message.reply_document(
+                    document=f,
+                    caption=f"📄 {filename}\n💾 {humanbytes(size)}"
+                )
 
     except Exception as e:
-        await safe_edit_message(sts, f"Error: {e}")
+        await safe_edit_message(sts, f"❌ Error: {e}")
 
     finally:
-        if os.path.exists(file_name):
-            os.remove(file_name)
+        # ✅ CLEANUP
+        if os.path.exists(filename):
+            os.remove(filename)
+
+        await db.delete_user_quality_selection(user_id)
+
         await sts.delete()
         await query.message.delete()
-
 
 
 @Client.on_message(filters.command("mediainfo") & filters.private)
