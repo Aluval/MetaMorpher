@@ -12,9 +12,10 @@ class Database:
         self.files_col = self.db.files
         self.media_info_col = self.db.media_info
         self.stats_col = self.db.stats
-        self.banned_col = self.db["banned_users"]
-        self.user_quality_selection_col = self.db['user_quality_selection']
+        self.banned_col = self.db["banned_users"]        
         self.file_data_col = self.db['file_data']
+        self.user_quality_selection_col = self.db["user_quality_selection"]
+        
         
     async def add_user(self, user_id: int, username: str):
         try:
@@ -336,17 +337,7 @@ class Database:
             return file_data.get('extracted_files', [])
         return []
 
-    async def save_user_quality_selection(self, user_id, selection_data):
-        result = await self.user_quality_selection_col.update_one(
-            {'user_id': user_id},
-            {'$set': selection_data},
-            upsert=True
-        )
-        return result
-
-    async def get_user_quality_selection(self, user_id):
-        selection_data = await self.user_quality_selection_col.find_one({'user_id': user_id})
-        return selection_data
+    
 
      # Function to store media info in MongoDB
     async def store_media_info_in_db(self, media_info):
@@ -361,7 +352,30 @@ class Database:
         )
         return result
 
-   
+
+    # ================= SAVE =================
+    async def save_user_quality_selection(self, user_id, selection_data):
+        selection_data["user_id"] = user_id  # ✅ MUST
+
+        await self.user_quality_selection_col.update_one(
+            {"user_id": user_id},
+            {"$set": selection_data},
+            upsert=True
+        )
+
+    # ================= GET =================
+    async def get_user_quality_selection(self, user_id):
+        return await self.user_quality_selection_col.find_one(
+            {"user_id": user_id},
+            {"_id": 0}  # clean response
+        )
+
+    # ================= DELETE =================
+    async def delete_user_quality_selection(self, user_id):
+        await self.user_quality_selection_col.delete_one(
+            {"user_id": user_id}
+        )
+    
     async def get_file_data(self, user_id):
         file_data = await self.file_data_col.find_one({'user_id': user_id})
         return file_data
