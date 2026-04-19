@@ -14,7 +14,8 @@ class Database:
         self.stats_col = self.db.stats
         self.banned_col = self.db["banned_users"]        
         self.file_data_col = self.db['file_data']
-        self.user_quality_selection_col = self.db["user_quality_selection"]
+        self.db = self.client["ytdl_bot"]
+        self.col = self.db["user_quality"]
         
         
     async def add_user(self, user_id: int, username: str):
@@ -352,29 +353,23 @@ class Database:
         )
         return result
 
-
-    # ================= SAVE =================
-    async def save_user_quality_selection(self, user_id, selection_data):
-        selection_data["user_id"] = user_id  # ✅ MUST
-
-        await self.user_quality_selection_col.update_one(
+        
+    async def save(self, user_id, data):
+        data["user_id"] = user_id
+        await self.col.update_one(
             {"user_id": user_id},
-            {"$set": selection_data},
+            {"$set": data},
             upsert=True
         )
 
-    # ================= GET =================
-    async def get_user_quality_selection(self, user_id):
-        return await self.user_quality_selection_col.find_one(
-            {"user_id": user_id},
-            {"_id": 0}  # clean response
-        )
+    async def get(self, user_id):
+        return await self.col.find_one({"user_id": user_id}, {"_id": 0})
 
-    # ================= DELETE =================
-    async def delete_user_quality_selection(self, user_id):
-        await self.user_quality_selection_col.delete_one(
-            {"user_id": user_id}
-        )
+    async def delete(self, user_id):
+        await self.col.delete_one({"user_id": user_id})
+
+
+
     
     async def get_file_data(self, user_id):
         file_data = await self.file_data_col.find_one({'user_id': user_id})
